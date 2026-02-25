@@ -99,14 +99,20 @@ class TocEntry:
 def build_citation(code_abbreviation: str, section_number: str) -> str:
     """Build a canonical California citation string.
 
+    Strips brackets from section numbers (some PUBINFO records contain
+    bracketed section numbers like ``[1084.]``).
+
     Examples:
         >>> build_citation("LAB", "1102.5")
         'Cal. Lab. Code § 1102.5'
         >>> build_citation("GOV", "12940")
         'Cal. Gov. Code § 12940'
+        >>> build_citation("CCP", "[1084.]")
+        'Cal. Code Civ. Proc. § 1084.'
     """
     prefix = CITATION_PREFIXES.get(code_abbreviation, f"Cal. {code_abbreviation}")
-    return f"{prefix} § {section_number}"
+    cleaned = section_number.strip("[]")
+    return f"{prefix} § {cleaned}"
 
 
 class StatutoryExtractor:

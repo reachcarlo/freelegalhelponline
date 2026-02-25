@@ -128,6 +128,30 @@ def main() -> int:
         help="Number of chunks to sample for manual review (default: 10).",
     )
 
+    # Cross-validate command
+    cross_validate_parser = subparsers.add_parser(
+        "cross-validate",
+        help="Run cross-source validation across all ingested sources.",
+    )
+    cross_validate_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/employee_help.db",
+        help="Database path (default: data/employee_help.db).",
+    )
+    cross_validate_parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output directory for JSON and Markdown reports.",
+    )
+    cross_validate_parser.add_argument(
+        "--samples",
+        type=int,
+        default=30,
+        help="Number of statutory citations to sample (default: 30).",
+    )
+
     # Pubinfo-download command
     pubinfo_parser = subparsers.add_parser(
         "pubinfo-download",
@@ -145,6 +169,11 @@ def main() -> int:
         default="data/pubinfo",
         help="Destination directory (default: data/pubinfo).",
     )
+    pubinfo_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-download even if file exists (for weekly refresh).",
+    )
 
     args = parser.parse_args()
 
@@ -161,6 +190,8 @@ def main() -> int:
             return _handle_status(args)
         elif args.command == "validate":
             return _handle_validate(args.config, args.output, args.markdown, args.samples)
+        elif args.command == "cross-validate":
+            return _handle_cross_validate(args)
         elif args.command == "pubinfo-download":
             return _handle_pubinfo_download(args)
         else:
@@ -405,6 +436,59 @@ def _print_stats(stats) -> None:
     print("=" * 60 + "\n")
 
 
+def _handle_cross_validate(args) -> int:
+    """Run cross-source validation across all ingested sources."""
+    from employee_help.storage.storage import Storage
+    from employee_help.validation_report import run_cross_source_validation
+
+    db_path = args.db
+    storage = Storage(db_path)
+
+    try:
+        report = run_cross_source_validation(
+            storage, citation_sample_size=args.samples,
+        )
+
+        # Print summary to terminal
+        status = "PASS" if report.passed else "FAIL"
+        print("\n" + "=" * 70)
+        print("CROSS-SOURCE VALIDATION REPORT")
+        print("=" * 70)
+        print(f"Generated:       {report.generated_at}")
+        print(f"Status:          {status}")
+        print(f"Checks:          {report.checks_passed}/{len(report.checks)} passed")
+        print(f"Sources:         {report.total_sources}")
+        print(f"Documents:       {report.total_documents}")
+        print(f"Chunks:          {report.total_chunks} ({report.total_active_chunks} active)")
+        print(f"Cross-src dupes: {report.cross_source_duplicates}")
+
+        if report.checks_failed > 0:
+            print("\nFailed Checks:")
+            for c in report.checks:
+                if not c.passed:
+                    print(f"  [FAIL] {c.name}: {c.message}")
+
+        print("=" * 70)
+
+        # Save reports
+        if args.output:
+            output_dir = Path(args.output)
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            json_path = output_dir / "cross_source_validation.json"
+            json_path.write_text(report.to_json())
+            print(f"\nJSON report: {json_path}")
+
+            md_path = output_dir / "cross_source_validation.md"
+            md_path.write_text(report.to_markdown())
+            print(f"Markdown report: {md_path}")
+
+        return 0 if report.passed else 1
+
+    finally:
+        storage.close()
+
+
 def _handle_pubinfo_download(args) -> int:
     """Download the PUBINFO ZIP archive."""
     from employee_help.scraper.extractors.pubinfo import download_pubinfo
@@ -413,7 +497,7 @@ def _handle_pubinfo_download(args) -> int:
     year = args.year
 
     try:
-        path = download_pubinfo(dest_dir, year=year)
+        path = download_pubinfo(dest_dir, year=year, force=getattr(args, "force", False))
         print(f"PUBINFO archive downloaded to: {path}")
         print(f"Size: {path.stat().st_size / 1024 / 1024:.1f} MB")
         return 0

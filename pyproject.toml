@@ -49,5 +49,10 @@ show_missing = true
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[dependency-groups]
+dev = [
+    "respx>=0.22.0",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/employee_help"]

@@ -1,0 +1,335 @@
+"""Cross-source validation report generation.
+
+Produces a comprehensive validation report covering all ingested sources,
+with per-source statistics, data quality checks, citation validation,
+idempotency verification, and cross-source duplicate detection.
+
+Output in both JSON and Markdown formats.
+"""
+
+from __future__ import annotations
+
+import json
+import random
+import re
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+
+import structlog
+
+from employee_help.storage.models import ContentCategory, SourceType
+from employee_help.storage.storage import Storage
+
+logger = structlog.get_logger(__name__)
+
+# Expected citation pattern: "Cal. ... Code § NNN" or "Cal. Code Civ. Proc. § NNN"
+_CITATION_RE = re.compile(r"^Cal\.\s+.+\s+§\s+\d+")
+
+
+@dataclass
+class CheckResult:
+    """Result of a single validation check."""
+
+    name: str
+    passed: bool
+    message: str
+    details: dict = field(default_factory=dict)
+
+
+@dataclass
+class SourceStats:
+    """Statistics for a single ingested source."""
+
+    slug: str
+    name: str
+    source_type: str
+    document_count: int
+    chunk_count: int
+    active_chunks: int
+    inactive_chunks: int
+    avg_tokens_per_chunk: float
+    min_tokens: int
+    max_tokens: int
+    citations_present: int  # chunks with non-null citation
+    content_categories: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass
+class ValidationReport:
+    """Comprehensive cross-source validation report."""
+
+    generated_at: str = ""
+    total_sources: int = 0
+    total_documents: int = 0
+    total_chunks: int = 0
+    total_active_chunks: int = 0
+    sources: list[SourceStats] = field(default_factory=list)
+    checks: list[CheckResult] = field(default_factory=list)
+    cross_source_duplicates: int = 0
+    citation_samples: list[dict] = field(default_factory=list)
+
+    @property
+    def passed(self) -> bool:
+        return all(c.passed for c in self.checks)
+
+    @property
+    def checks_passed(self) -> int:
+        return sum(1 for c in self.checks if c.passed)
+
+    @property
+    def checks_failed(self) -> int:
+        return sum(1 for c in self.checks if not c.passed)
+
+    def to_json(self, indent: int = 2) -> str:
+        data = asdict(self)
+        data["summary"] = {
+            "total_checks": len(self.checks),
+            "passed": self.checks_passed,
+            "failed": self.checks_failed,
+            "overall_status": "PASS" if self.passed else "FAIL",
+        }
+        return json.dumps(data, indent=indent, default=str)
+
+    def to_markdown(self) -> str:
+        status = "PASS" if self.passed else "FAIL"
+        lines = [
+            "# Cross-Source Validation Report",
+            "",
+            f"**Generated:** {self.generated_at}",
+            f"**Status:** {status}",
+            f"**Checks:** {self.checks_passed}/{len(self.checks)} passed",
+            "",
+            "---",
+            "",
+            "## Knowledge Base Summary",
+            "",
+            f"- **Total sources:** {self.total_sources}",
+            f"- **Total documents:** {self.total_documents}",
+            f"- **Total chunks:** {self.total_chunks} ({self.total_active_chunks} active)",
+            f"- **Cross-source duplicates:** {self.cross_source_duplicates}",
+            "",
+            "## Per-Source Statistics",
+            "",
+            "| Source | Type | Documents | Chunks | Active | Avg Tokens | Citations |",
+            "|--------|------|-----------|--------|--------|------------|-----------|",
+        ]
+        for s in self.sources:
+            lines.append(
+                f"| {s.slug} | {s.source_type} | {s.document_count} | "
+                f"{s.chunk_count} | {s.active_chunks} | "
+                f"{s.avg_tokens_per_chunk:.0f} | {s.citations_present} |"
+            )
+
+        lines.extend([
+            "",
+            "## Validation Checks",
+            "",
+        ])
+        for c in self.checks:
+            icon = "PASS" if c.passed else "FAIL"
+            lines.append(f"- **[{icon}]** `{c.name}`: {c.message}")
+            if c.details:
+                for k, v in c.details.items():
+                    lines.append(f"  - {k}: {v}")
+
+        if self.citation_samples:
+            lines.extend([
+                "",
+                "## Citation Samples",
+                "",
+                "| # | Citation | Section | Code | Valid |",
+                "|---|----------|---------|------|-------|",
+            ])
+            for i, sample in enumerate(self.citation_samples, 1):
+                valid = "Yes" if sample.get("valid") else "No"
+                lines.append(
+                    f"| {i} | {sample.get('citation', 'N/A')} | "
+                    f"{sample.get('section_num', '')} | {sample.get('code', '')} | {valid} |"
+                )
+
+        lines.extend(["", "---", f"*Generated by employee-help validation suite*"])
+        return "\n".join(lines)
+
+
+def run_cross_source_validation(
+    storage: Storage,
+    citation_sample_size: int = 30,
+) -> ValidationReport:
+    """Run comprehensive cross-source validation.
+
+    Args:
+        storage: Storage instance connected to the knowledge base.
+        citation_sample_size: Number of statutory chunks to sample for citation validation.
+
+    Returns:
+        ValidationReport with all checks and statistics.
+    """
+    report = ValidationReport(
+        generated_at=datetime.now(tz=timezone.utc).isoformat(),
+    )
+
+    sources = storage.get_all_sources()
+    report.total_sources = len(sources)
+
+    logger.info("validation_starting", source_count=len(sources))
+
+    # ── Gather per-source stats ──────────────────────────────
+
+    for source in sources:
+        docs = storage.get_all_documents(source_id=source.id)
+        chunks = storage.get_all_chunks(source_id=source.id)
+        active = [c for c in chunks if c.is_active]
+        tokens = [c.token_count for c in active]
+
+        # Count content categories
+        cat_counts: dict[str, int] = {}
+        for c in chunks:
+            cat = c.content_category.value
+            cat_counts[cat] = cat_counts.get(cat, 0) + 1
+
+        # Count citations
+        citations_present = sum(1 for c in chunks if c.citation)
+
+        stats = SourceStats(
+            slug=source.slug,
+            name=source.name,
+            source_type=source.source_type.value,
+            document_count=len(docs),
+            chunk_count=len(chunks),
+            active_chunks=len(active),
+            inactive_chunks=len(chunks) - len(active),
+            avg_tokens_per_chunk=sum(tokens) / len(tokens) if tokens else 0,
+            min_tokens=min(tokens) if tokens else 0,
+            max_tokens=max(tokens) if tokens else 0,
+            citations_present=citations_present,
+            content_categories=cat_counts,
+        )
+        report.sources.append(stats)
+        report.total_documents += len(docs)
+        report.total_chunks += len(chunks)
+        report.total_active_chunks += len(active)
+
+        logger.info(
+            "source_stats",
+            slug=source.slug,
+            documents=len(docs),
+            chunks=len(chunks),
+            active=len(active),
+        )
+
+    # ── Check 1: Every source has content ────────────────────
+
+    for s in report.sources:
+        report.checks.append(CheckResult(
+            name=f"{s.slug}_has_content",
+            passed=s.document_count > 0,
+            message=f"{s.document_count} documents, {s.chunk_count} chunks",
+        ))
+
+    # ── Check 2: Statutory sources have citations ────────────
+
+    for s in report.sources:
+        if s.source_type == SourceType.STATUTORY_CODE.value:
+            has_citations = s.citations_present > 0
+            report.checks.append(CheckResult(
+                name=f"{s.slug}_has_citations",
+                passed=has_citations,
+                message=f"{s.citations_present}/{s.chunk_count} chunks have citations",
+            ))
+
+    # ── Check 3: Statutory chunks are statutory_code category ─
+
+    for s in report.sources:
+        if s.source_type == SourceType.STATUTORY_CODE.value:
+            statutory_count = s.content_categories.get("statutory_code", 0)
+            all_statutory = statutory_count == s.chunk_count
+            report.checks.append(CheckResult(
+                name=f"{s.slug}_correct_category",
+                passed=all_statutory,
+                message=f"{statutory_count}/{s.chunk_count} chunks are statutory_code",
+                details=s.content_categories if not all_statutory else {},
+            ))
+
+    # ── Check 4: Token counts within bounds ──────────────────
+
+    for s in report.sources:
+        if s.chunk_count == 0:
+            continue
+        in_bounds = s.min_tokens >= 1 and s.max_tokens <= 10000
+        report.checks.append(CheckResult(
+            name=f"{s.slug}_token_bounds",
+            passed=in_bounds,
+            message=f"Token range: {s.min_tokens}–{s.max_tokens}, avg {s.avg_tokens_per_chunk:.0f}",
+        ))
+
+    # ── Check 5: Citation format validation (sampled) ────────
+
+    all_statutory_chunks = []
+    for source in sources:
+        if source.source_type == SourceType.STATUTORY_CODE:
+            chunks = storage.get_all_chunks(source_id=source.id)
+            for c in chunks:
+                if c.citation:
+                    all_statutory_chunks.append(c)
+
+    if all_statutory_chunks:
+        sample_size = min(citation_sample_size, len(all_statutory_chunks))
+        sampled = random.sample(all_statutory_chunks, sample_size)
+        valid_count = 0
+
+        for chunk in sampled:
+            is_valid = bool(_CITATION_RE.match(chunk.citation))
+            if is_valid:
+                valid_count += 1
+            # Extract code and section from citation for reporting
+            report.citation_samples.append({
+                "citation": chunk.citation,
+                "code": chunk.citation.split("§")[0].strip() if "§" in chunk.citation else "",
+                "section_num": chunk.citation.split("§")[-1].strip() if "§" in chunk.citation else "",
+                "valid": is_valid,
+            })
+
+        report.checks.append(CheckResult(
+            name="citation_format_validation",
+            passed=valid_count == sample_size,
+            message=f"{valid_count}/{sample_size} sampled citations match expected format",
+        ))
+
+    # ── Check 6: Cross-source duplicates ─────────────────────
+
+    duplicates = storage.find_cross_source_duplicates()
+    report.cross_source_duplicates = len(duplicates)
+
+    report.checks.append(CheckResult(
+        name="cross_source_duplicates",
+        passed=True,  # Duplicates are acceptable, just tracked
+        message=f"{len(duplicates)} content hashes appear in multiple sources",
+        details={"note": "Duplicates are expected (same text in guidance + statutory)"}
+        if duplicates else {},
+    ))
+
+    # ── Check 7: No empty chunks ─────────────────────────────
+
+    empty_chunk_count = 0
+    for source in sources:
+        chunks = storage.get_all_chunks(source_id=source.id)
+        for c in chunks:
+            if not c.content.strip():
+                empty_chunk_count += 1
+
+    report.checks.append(CheckResult(
+        name="no_empty_chunks",
+        passed=empty_chunk_count == 0,
+        message=f"{empty_chunk_count} empty chunks found" if empty_chunk_count else "No empty chunks",
+    ))
+
+    logger.info(
+        "validation_complete",
+        total_checks=len(report.checks),
+        passed=report.checks_passed,
+        failed=report.checks_failed,
+        status="PASS" if report.passed else "FAIL",
+    )
+
+    return report

@@ -342,6 +342,16 @@ class Storage:
     # ── Chunks ──────────────────────────────────────────────────
 
     def insert_chunks(self, chunks: list[Chunk]) -> None:
+        # Deduplicate by (document_id, content_hash) — keeps the first
+        # occurrence when a page has repeated content blocks.
+        seen: set[tuple[int | None, str]] = set()
+        unique: list[Chunk] = []
+        for c in chunks:
+            key = (c.document_id, c.content_hash)
+            if key not in seen:
+                seen.add(key)
+                unique.append(c)
+
         self._conn.executemany(
             """INSERT INTO chunks
                (document_id, chunk_index, content, heading_path,
@@ -360,7 +370,7 @@ class Storage:
                     c.citation,
                     1 if c.is_active else 0,
                 )
-                for c in chunks
+                for c in unique
             ],
         )
         self._conn.commit()

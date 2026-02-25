@@ -328,12 +328,24 @@ def _find_subdivisions(text: str) -> list[str]:
     return subdivisions
 
 
-def download_pubinfo(dest_dir: Path, year: int | None = None) -> Path:
+def download_pubinfo(
+    dest_dir: Path,
+    year: int | None = None,
+    force: bool = False,
+) -> Path:
     """Download the PUBINFO ZIP archive from leginfo.
+
+    The PUBINFO full archive is updated daily and contains all California
+    statutory codes. Daily delta ZIPs (pubinfo_Mon.zip through pubinfo_Sat.zip)
+    exist but only contain bill-related tables, NOT law_section_tbl. Therefore,
+    the recommended update strategy is weekly re-download of the full archive
+    using ``force=True``.
 
     Args:
         dest_dir: Directory to save the downloaded ZIP.
         year: Year of the full archive (e.g., 2025). If None, uses current year.
+        force: If True, re-download even if the file already exists. Use for
+            weekly refreshes to pick up statutory code updates.
 
     Returns:
         Path to the downloaded ZIP file.
@@ -349,9 +361,13 @@ def download_pubinfo(dest_dir: Path, year: int | None = None) -> Path:
 
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    if dest_path.exists():
+    if dest_path.exists() and not force:
         logger.info("pubinfo_zip_exists", path=str(dest_path))
         return dest_path
+
+    if dest_path.exists() and force:
+        logger.info("pubinfo_force_redownload", path=str(dest_path))
+        dest_path.unlink()
 
     logger.info("downloading_pubinfo", url=url, dest=str(dest_path))
 

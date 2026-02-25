@@ -307,7 +307,7 @@ class Pipeline:
 
                         stored_doc, is_new = self.storage.upsert_document(document)
 
-                        if stored_doc.id:
+                        if stored_doc.id and is_new:
                             chunk_objects = [
                                 Chunk(
                                     content=chunk.content,
@@ -322,6 +322,8 @@ class Pipeline:
                                 for chunk in chunks
                             ]
                             self.storage.insert_chunks(chunk_objects)
+                        elif not is_new:
+                            self.logger.debug("document_unchanged", citation=section.citation)
 
                     stats.documents_stored += 1
                     stats.chunks_created += len(chunks)
@@ -459,7 +461,7 @@ class Pipeline:
 
                         stored_doc, is_new = self.storage.upsert_document(document)
 
-                        if stored_doc.id:
+                        if stored_doc.id and is_new:
                             chunk_objects = [
                                 Chunk(
                                     content=chunk.content,
@@ -476,7 +478,7 @@ class Pipeline:
 
                         stats.documents_stored += 1
                         stats.chunks_created += len(chunks)
-                        self.logger.info("document_processed", url=url, chunks=len(chunks))
+                        self.logger.info("document_processed", url=url, chunks=len(chunks), is_new=is_new)
                     else:
                         stats.documents_stored += 1
                         stats.chunks_created += len(chunks)
