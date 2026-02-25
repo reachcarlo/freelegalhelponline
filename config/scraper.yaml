@@ -1,0 +1,67 @@
+# ============================================================
+# Employee Help — Scraper Configuration
+# ============================================================
+# Scope rules, rate limits, and processing parameters for the
+# CRD Employment Discrimination content acquisition pipeline.
+# ============================================================
+
+# Seed URLs to begin crawling from
+seed_urls:
+  - "https://calcivilrights.ca.gov/employment/"
+  - "https://calcivilrights.ca.gov/complaintprocess/"
+  - "https://calcivilrights.ca.gov/Posters/?openTab=2"
+
+# URL allowlist — a URL must match at least one pattern to be crawled.
+# Uses Python regex syntax.
+allowlist_patterns:
+  - "calcivilrights\\.ca\\.gov/employment"
+  - "calcivilrights\\.ca\\.gov/complaintprocess"
+  - "calcivilrights\\.ca\\.gov/Posters"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads/sites/32/.*\\.pdf"
+
+# URL blocklist — any matching URL is excluded (takes priority over allowlist).
+blocklist_patterns:
+  # Non-English PDFs (language suffixes)
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*_(SP|ARABIC|CHINESE|KOREAN|HMONG|TAGALOG|VIETNAMESE|PUNJABI|MIXTECO|CH|K|VT|TG|ES|FARSI)\\."
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*-(SP|ARABIC|CHINESE|KOREAN|HMONG|TAGALOG|VIETNAMESE|PUNJABI|MIXTECO|CH|K|VT|TG|ES|FARSI)\\."
+  # Non-employment domains
+  - "calcivilrights\\.ca\\.gov/housing"
+  - "calcivilrights\\.ca\\.gov/hate-violence"
+  - "calcivilrights\\.ca\\.gov/whistleblower"
+  - "calcivilrights\\.ca\\.gov/ralph"
+  # Annual reports (statistical, not guidance)
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Annual-Report"
+  # Regulatory filings (dense legal text, deferred per PO decision)
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*regulations"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Regulatory"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Final-Text"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Initial-Statement"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Attachment-B"
+  # Pay data reporting (separate domain, not discrimination guidance)
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Pay.Data"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*PDR_"
+  # Non-employment fact sheets
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Fair-Housing"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Human-Trafficking"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Source-of-Income"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*SourceIncome"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Immigration-Rights"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Unruh"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Ralph"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Hate-Violence"
+  - "calcivilrights\\.ca\\.gov/wp-content/uploads.*California-Protects-The-Civil-Rights"
+
+# Rate limiting
+rate_limit_seconds: 2.0
+
+# Maximum pages to crawl (safety limit)
+max_pages: 100
+
+# Chunking parameters
+chunking:
+  min_tokens: 200
+  max_tokens: 1500
+  overlap_tokens: 100
+
+# Storage
+database_path: "data/employee_help.db"
