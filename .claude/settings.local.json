@@ -6,7 +6,8 @@
       "Bash(/usr/local/bin/uv run:*)",
       "Bash(python:*)",
       "Bash(uv run:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
