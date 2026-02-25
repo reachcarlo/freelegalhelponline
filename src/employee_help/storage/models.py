@@ -23,9 +23,35 @@ class CrawlStatus(str, Enum):
     FAILED = "failed"
 
 
+class SourceType(str, Enum):
+    AGENCY = "agency"
+    STATUTORY_CODE = "statutory_code"
+
+
+class ContentCategory(str, Enum):
+    AGENCY_GUIDANCE = "agency_guidance"
+    FACT_SHEET = "fact_sheet"
+    STATUTORY_CODE = "statutory_code"
+    REGULATION = "regulation"
+    POSTER = "poster"
+    FAQ = "faq"
+
+
+@dataclass
+class Source:
+    name: str
+    slug: str
+    source_type: SourceType
+    base_url: str
+    enabled: bool = True
+    created_at: datetime = field(default_factory=_utcnow)
+    id: int | None = None
+
+
 @dataclass
 class CrawlRun:
     id: int | None = None
+    source_id: int | None = None
     started_at: datetime = field(default_factory=_utcnow)
     completed_at: datetime | None = None
     status: CrawlStatus = CrawlStatus.RUNNING
@@ -44,6 +70,8 @@ class Document:
     language: str = "en"
     id: int | None = None
     crawl_run_id: int | None = None
+    source_id: int | None = None
+    content_category: ContentCategory = ContentCategory.AGENCY_GUIDANCE
 
 
 @dataclass
@@ -57,3 +85,6 @@ class Chunk:
     embedding: list[float] | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     id: int | None = None
+    content_category: ContentCategory = ContentCategory.AGENCY_GUIDANCE
+    citation: str | None = None
+    is_active: bool = True

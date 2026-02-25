@@ -8,8 +8,7 @@ from pathlib import Path
 
 import structlog
 
-from employee_help.config import load_config
-from employee_help.pipeline import Pipeline
+from employee_help.config import load_config, load_source_config, load_all_source_configs
 
 logger = structlog.get_logger()
 
@@ -35,9 +34,28 @@ def main() -> int:
         help="Path to the scraper configuration file (default: config/scraper.yaml).",
     )
     scrape_parser.add_argument(
+        "--source",
+        type=str,
+        default=None,
+        help="Source slug to scrape (e.g., 'crd'). Looks for config/sources/<slug>.yaml.",
+    )
+    scrape_parser.add_argument(
+        "--all",
+        action="store_true",
+        dest="all_sources",
+        help="Scrape all enabled sources in config/sources/.",
+    )
+    scrape_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Perform crawling and extraction without storing to database.",
+    )
+    scrape_parser.add_argument(
+        "--method",
+        type=str,
+        choices=["pubinfo", "web"],
+        default=None,
+        help="Statutory extraction method override: 'pubinfo' (default) or 'web'.",
     )
 
     # Status command
@@ -50,6 +68,35 @@ def main() -> int:
         type=str,
         default="config/scraper.yaml",
         help="Path to the scraper configuration file (default: config/scraper.yaml).",
+    )
+    status_parser.add_argument(
+        "--source",
+        type=str,
+        default=None,
+        help="Show status for a specific source slug.",
+    )
+
+    # Refresh command
+    refresh_parser = subparsers.add_parser(
+        "refresh",
+        help="Re-run pipeline for a source, skipping unchanged content.",
+    )
+    refresh_parser.add_argument(
+        "--source",
+        type=str,
+        default=None,
+        help="Source slug to refresh (e.g., 'crd').",
+    )
+    refresh_parser.add_argument(
+        "--all",
+        action="store_true",
+        dest="all_sources",
+        help="Refresh all enabled sources.",
+    )
+    refresh_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report what would change without modifying the database.",
     )
 
     # Validate command (Phase 1G)
@@ -81,20 +128,41 @@ def main() -> int:
         help="Number of chunks to sample for manual review (default: 10).",
     )
 
+    # Pubinfo-download command
+    pubinfo_parser = subparsers.add_parser(
+        "pubinfo-download",
+        help="Download the PUBINFO ZIP archive from leginfo.",
+    )
+    pubinfo_parser.add_argument(
+        "--year",
+        type=int,
+        default=None,
+        help="Year of the full archive (e.g., 2025). Defaults to current year.",
+    )
+    pubinfo_parser.add_argument(
+        "--dest",
+        type=str,
+        default="data/pubinfo",
+        help="Destination directory (default: data/pubinfo).",
+    )
+
     args = parser.parse_args()
 
-    # If no command specified, show help
     if not args.command:
         parser.print_help()
         return 0
 
     try:
         if args.command == "scrape":
-            return _handle_scrape(args.config, args.dry_run)
+            return _handle_scrape(args)
+        elif args.command == "refresh":
+            return _handle_refresh(args)
         elif args.command == "status":
-            return _handle_status(args.config)
+            return _handle_status(args)
         elif args.command == "validate":
             return _handle_validate(args.config, args.output, args.markdown, args.samples)
+        elif args.command == "pubinfo-download":
+            return _handle_pubinfo_download(args)
         else:
             parser.print_help()
             return 1
@@ -107,98 +175,286 @@ def main() -> int:
         return 1
 
 
-def _handle_scrape(config_path: str, dry_run: bool) -> int:
-    """Execute the scrape command.
+def _handle_scrape(args) -> int:
+    """Execute the scrape command."""
+    from employee_help.pipeline import Pipeline
 
-    Args:
-        config_path: Path to the configuration file.
-        dry_run: Whether to skip storage operations.
+    method = getattr(args, "method", None)
 
-    Returns:
-        Exit code (0 for success, 1 for failure).
-    """
+    # Determine mode: --source, --all, or legacy --config
+    if args.source:
+        return _scrape_source(args.source, args.dry_run, method=method)
+    elif args.all_sources:
+        return _scrape_all_sources(args.dry_run, method=method)
+    else:
+        return _scrape_legacy(args.config, args.dry_run)
+
+
+def _scrape_source(slug: str, dry_run: bool, method: str | None = None) -> int:
+    """Scrape a single source by slug."""
+    from employee_help.pipeline import Pipeline
+
+    config_path = Path("config/sources") / f"{slug}.yaml"
+    logger.info("scrape_source", slug=slug, config_path=str(config_path), dry_run=dry_run, method=method)
+
+    try:
+        source_config = load_source_config(config_path)
+    except FileNotFoundError:
+        print(f"Error: No config found for source '{slug}' at {config_path}", file=sys.stderr)
+        return 1
+    except ValueError as e:
+        print(f"Error: Invalid config for source '{slug}': {e}", file=sys.stderr)
+        return 1
+
+    pipeline = Pipeline(source_config)
+    if method:
+        pipeline._method_override = method
+    stats = pipeline.run(dry_run=dry_run)
+    _print_stats(stats)
+    return 0 if stats.errors == 0 else 1
+
+
+def _scrape_all_sources(dry_run: bool, method: str | None = None) -> int:
+    """Scrape all enabled sources."""
+    from employee_help.pipeline import Pipeline
+
+    logger.info("scrape_all_sources", dry_run=dry_run)
+
+    try:
+        configs = load_all_source_configs("config/sources", enabled_only=True)
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    if not configs:
+        print("No enabled source configs found in config/sources/.")
+        return 0
+
+    total_errors = 0
+    for source_config in configs:
+        print(f"\n--- Scraping source: {source_config.name} ({source_config.slug}) ---")
+        try:
+            pipeline = Pipeline(source_config)
+            if method:
+                pipeline._method_override = method
+            stats = pipeline.run(dry_run=dry_run)
+            _print_stats(stats)
+            total_errors += stats.errors
+        except Exception as e:
+            logger.error("source_failed", source=source_config.slug, error=str(e))
+            print(f"Error scraping {source_config.slug}: {e}", file=sys.stderr)
+            total_errors += 1
+
+    return 0 if total_errors == 0 else 1
+
+
+def _scrape_legacy(config_path: str, dry_run: bool) -> int:
+    """Scrape using legacy single-config mode."""
+    from employee_help.pipeline import Pipeline
+
     logger.info("scrape_started", config_path=config_path, dry_run=dry_run)
 
     try:
-        # Load configuration
         config = load_config(config_path)
-        logger.info(
-            "config_loaded",
-            seed_urls=len(config.seed_urls),
-            max_pages=config.max_pages,
-        )
-
-        # Create and run pipeline
-        pipeline = Pipeline(config)
-        stats = pipeline.run(dry_run=dry_run)
-
-        # Log results
-        logger.info(
-            "scrape_completed",
-            urls_crawled=stats.urls_crawled,
-            documents_stored=stats.documents_stored,
-            chunks_created=stats.chunks_created,
-            errors=stats.errors,
-            duration_seconds=stats.duration_seconds,
-        )
-
-        # Print summary to stdout
-        print("\n" + "=" * 60)
-        print("SCRAPE COMPLETED")
-        print("=" * 60)
-        print(f"URLs crawled:        {stats.urls_crawled}")
-        print(f"Documents stored:    {stats.documents_stored}")
-        print(f"Chunks created:      {stats.chunks_created}")
-        print(f"Errors encountered:  {stats.errors}")
-        print(f"Duration:            {stats.duration_seconds:.2f}s")
-        if stats.run_id > 0:
-            print(f"Run ID:              {stats.run_id}")
-        print("=" * 60 + "\n")
-
-        return 0 if stats.errors == 0 else 1
-
     except FileNotFoundError as e:
-        logger.error("config_not_found", path=config_path, error=str(e))
         print(f"Error: Configuration file not found: {config_path}", file=sys.stderr)
         return 1
     except ValueError as e:
-        logger.error("config_validation_error", error=str(e))
         print(f"Error: Invalid configuration: {e}", file=sys.stderr)
         return 1
 
+    pipeline = Pipeline(config)
+    stats = pipeline.run(dry_run=dry_run)
+    _print_stats(stats)
+    return 0 if stats.errors == 0 else 1
 
-def _handle_status(config_path: str) -> int:
-    """Display status of the latest crawl run.
 
-    Args:
-        config_path: Path to the configuration file.
+def _handle_refresh(args) -> int:
+    """Execute the refresh command — re-runs pipeline with change detection."""
+    if args.source:
+        return _refresh_source(args.source, args.dry_run)
+    elif args.all_sources:
+        return _refresh_all_sources(args.dry_run)
+    else:
+        print("Error: Specify --source <slug> or --all.", file=sys.stderr)
+        return 1
 
-    Returns:
-        Exit code (0 for success, 1 for failure).
-    """
+
+def _refresh_source(slug: str, dry_run: bool) -> int:
+    """Refresh a single source — re-run pipeline, report changes."""
+    from employee_help.pipeline import Pipeline
+    from employee_help.storage.storage import Storage
+
+    config_path = Path("config/sources") / f"{slug}.yaml"
+    logger.info("refresh_source", slug=slug, dry_run=dry_run)
+
     try:
-        # Load configuration to get database path
-        config = load_config(config_path)
+        source_config = load_source_config(config_path)
+    except FileNotFoundError:
+        print(f"Error: No config found for source '{slug}' at {config_path}", file=sys.stderr)
+        return 1
+    except ValueError as e:
+        print(f"Error: Invalid config for source '{slug}': {e}", file=sys.stderr)
+        return 1
 
-        # Import Storage here to avoid circular imports
+    # Get pre-refresh counts
+    storage = Storage(source_config.database_path)
+    source_record = storage.get_source(slug)
+    source_id = source_record.id if source_record else None
+
+    pre_doc_count = storage.get_document_count(source_id=source_id) if source_id else 0
+    pre_chunk_count = storage.get_chunk_count(source_id=source_id) if source_id else 0
+    storage.close()
+
+    # Run the pipeline (upsert_document handles change detection)
+    pipeline = Pipeline(source_config)
+    stats = pipeline.run(dry_run=dry_run)
+
+    # Get post-refresh counts
+    storage = Storage(source_config.database_path)
+    source_record = storage.get_source(slug)
+    source_id = source_record.id if source_record else None
+
+    post_doc_count = storage.get_document_count(source_id=source_id) if source_id else 0
+    post_chunk_count = storage.get_chunk_count(source_id=source_id) if source_id else 0
+    storage.close()
+
+    _print_refresh_report(slug, stats, pre_doc_count, post_doc_count, pre_chunk_count, post_chunk_count)
+    return 0 if stats.errors == 0 else 1
+
+
+def _refresh_all_sources(dry_run: bool) -> int:
+    """Refresh all enabled sources."""
+    logger.info("refresh_all_sources", dry_run=dry_run)
+
+    try:
+        configs = load_all_source_configs("config/sources", enabled_only=True)
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    if not configs:
+        print("No enabled source configs found in config/sources/.")
+        return 0
+
+    total_errors = 0
+    for source_config in configs:
+        print(f"\n--- Refreshing source: {source_config.name} ({source_config.slug}) ---")
+        try:
+            result = _refresh_source(source_config.slug, dry_run)
+            if result != 0:
+                total_errors += 1
+        except Exception as e:
+            logger.error("refresh_failed", source=source_config.slug, error=str(e))
+            print(f"Error refreshing {source_config.slug}: {e}", file=sys.stderr)
+            total_errors += 1
+
+    return 0 if total_errors == 0 else 1
+
+
+def _print_refresh_report(
+    slug: str,
+    stats,
+    pre_doc: int,
+    post_doc: int,
+    pre_chunk: int,
+    post_chunk: int,
+) -> None:
+    """Print change detection report for a refresh run."""
+    new_docs = post_doc - pre_doc
+    new_chunks = post_chunk - pre_chunk
+
+    print("\n" + "=" * 60)
+    print("REFRESH REPORT")
+    print("=" * 60)
+    print(f"Source:              {slug}")
+    print(f"URLs crawled:        {stats.urls_crawled}")
+    print(f"Documents processed: {stats.documents_stored}")
+    print(f"Chunks created:      {stats.chunks_created}")
+    print(f"Errors:              {stats.errors}")
+    print(f"Duration:            {stats.duration_seconds:.2f}s")
+    print("-" * 60)
+    print("Change Detection:")
+    print(f"  Documents before:  {pre_doc}")
+    print(f"  Documents after:   {post_doc}")
+    print(f"  New/updated docs:  {max(0, new_docs)}")
+    print(f"  Chunks before:     {pre_chunk}")
+    print(f"  Chunks after:      {post_chunk}")
+    print(f"  New/updated chunks:{max(0, new_chunks)}")
+    if new_docs == 0 and new_chunks == 0:
+        print("  Status:            NO CHANGES DETECTED")
+    else:
+        print(f"  Status:            CONTENT UPDATED ({new_docs} docs, {new_chunks} chunks)")
+    print("=" * 60 + "\n")
+
+
+def _print_stats(stats) -> None:
+    """Print pipeline run statistics."""
+    print("\n" + "=" * 60)
+    print("SCRAPE COMPLETED")
+    print("=" * 60)
+    if stats.source_slug:
+        print(f"Source:              {stats.source_slug}")
+    print(f"URLs crawled:        {stats.urls_crawled}")
+    print(f"Documents stored:    {stats.documents_stored}")
+    print(f"Chunks created:      {stats.chunks_created}")
+    print(f"Errors encountered:  {stats.errors}")
+    print(f"Duration:            {stats.duration_seconds:.2f}s")
+    if stats.run_id > 0:
+        print(f"Run ID:              {stats.run_id}")
+    print("=" * 60 + "\n")
+
+
+def _handle_pubinfo_download(args) -> int:
+    """Download the PUBINFO ZIP archive."""
+    from employee_help.scraper.extractors.pubinfo import download_pubinfo
+
+    dest_dir = Path(args.dest)
+    year = args.year
+
+    try:
+        path = download_pubinfo(dest_dir, year=year)
+        print(f"PUBINFO archive downloaded to: {path}")
+        print(f"Size: {path.stat().st_size / 1024 / 1024:.1f} MB")
+        return 0
+    except Exception as e:
+        print(f"Error downloading PUBINFO: {e}", file=sys.stderr)
+        return 1
+
+
+def _handle_status(args) -> int:
+    """Display status of the latest crawl run."""
+    try:
+        config = load_config(args.config)
         from employee_help.storage.storage import Storage
-
         storage = Storage(config.database_path)
 
-        # Get latest run
-        run_info = storage.get_latest_run()
+        source_id = None
+        if args.source:
+            source = storage.get_source(args.source)
+            if not source:
+                print(f"Source '{args.source}' not found in database.")
+                storage.close()
+                return 0
+            source_id = source.id
+
+        run_info = storage.get_latest_run(source_id=source_id)
         if not run_info:
-            print("No crawl runs found in the database.")
+            if args.source:
+                print(f"No crawl runs found for source '{args.source}'.")
+            else:
+                print("No crawl runs found in the database.")
+            storage.close()
             return 0
 
-        # Get stats
-        doc_count = storage.get_document_count()
-        chunk_count = storage.get_chunk_count()
+        doc_count = storage.get_document_count(source_id=source_id)
+        chunk_count = storage.get_chunk_count(source_id=source_id)
 
-        # Print status
         print("\n" + "=" * 60)
         print("LATEST CRAWL RUN")
         print("=" * 60)
+        if args.source:
+            print(f"Source:              {args.source}")
         print(f"Run ID:              {run_info['id']}")
         print(f"Started at:          {run_info['started_at']}")
         if run_info["completed_at"]:
@@ -217,11 +473,9 @@ def _handle_status(config_path: str) -> int:
         return 0
 
     except FileNotFoundError as e:
-        logger.error("config_not_found", path=config_path, error=str(e))
-        print(f"Error: Configuration file not found: {config_path}", file=sys.stderr)
+        print(f"Error: Configuration file not found: {args.config}", file=sys.stderr)
         return 1
     except ValueError as e:
-        logger.error("config_validation_error", error=str(e))
         print(f"Error: Invalid configuration: {e}", file=sys.stderr)
         return 1
     except Exception as e:
@@ -236,17 +490,7 @@ def _handle_validate(
     markdown_output: bool,
     sample_size: int,
 ) -> int:
-    """Execute the validation command (Phase 1G).
-
-    Args:
-        config_path: Path to the configuration file.
-        output_path: Path to save the validation report (JSON).
-        markdown_output: Whether to also output Markdown report.
-        sample_size: Number of chunks to sample for review.
-
-    Returns:
-        Exit code (0 for success, 1 for failure).
-    """
+    """Execute the validation command (Phase 1G)."""
     try:
         from employee_help.validation import Validator
 
@@ -256,19 +500,14 @@ def _handle_validate(
             logger.info("running_validation_suite")
             report = validator.run_validation(sample_size=sample_size)
 
-        # Save JSON report
         output_path_obj = Path(output_path)
         output_path_obj.parent.mkdir(parents=True, exist_ok=True)
         output_path_obj.write_text(report.to_json())
-        logger.info("json_report_saved", path=output_path)
 
-        # Optionally save Markdown report
         if markdown_output:
             markdown_path = output_path_obj.with_suffix(".md")
             markdown_path.write_text(report.to_markdown())
-            logger.info("markdown_report_saved", path=markdown_path)
 
-        # Print summary to stdout
         print("\n" + "=" * 70)
         print("PHASE 1G VALIDATION REPORT")
         print("=" * 70)
@@ -313,11 +552,9 @@ def _handle_validate(
         return 0 if report.validation_status == "PASS" else 1
 
     except FileNotFoundError as e:
-        logger.error("config_not_found", path=config_path, error=str(e))
         print(f"Error: Configuration file not found: {config_path}", file=sys.stderr)
         return 1
     except ValueError as e:
-        logger.error("config_validation_error", error=str(e))
         print(f"Error: Invalid configuration: {e}", file=sys.stderr)
         return 1
     except Exception as e:

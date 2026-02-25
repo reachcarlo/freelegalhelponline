@@ -35,6 +35,127 @@ def content_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def chunk_statute_section(
+    text: str,
+    citation: str,
+    heading_path: str,
+    max_tokens: int = 1500,
+    overlap_tokens: int = 100,
+) -> list[ChunkResult]:
+    """Chunk a single statute section using section-boundary strategy.
+
+    One code section = one chunk (default). If the section exceeds max_tokens,
+    split at subdivision boundaries while preserving citation metadata on each chunk.
+
+    Args:
+        text: Full text of the statute section.
+        citation: Canonical citation (e.g., "Cal. Lab. Code § 1102.5").
+        heading_path: Hierarchy path for the section.
+        max_tokens: Maximum tokens per chunk.
+        overlap_tokens: Overlap tokens when splitting large sections.
+
+    Returns:
+        List of ChunkResult objects.
+    """
+    if not text.strip():
+        return []
+
+    tokens = estimate_tokens(text)
+
+    if tokens <= max_tokens:
+        return [
+            ChunkResult(
+                content=text,
+                heading_path=heading_path,
+                chunk_index=0,
+                token_count=tokens,
+                content_hash=content_hash(text),
+            )
+        ]
+
+    # Section too large — split at subdivision boundaries
+    return _split_at_subdivisions(text, citation, heading_path, max_tokens, overlap_tokens)
+
+
+def _split_at_subdivisions(
+    text: str,
+    citation: str,
+    heading_path: str,
+    max_tokens: int,
+    overlap_tokens: int,
+) -> list[ChunkResult]:
+    """Split a large statute section at subdivision boundaries.
+
+    Keeps the citation prefix on each chunk for context.
+    """
+    # Split into subdivisions by looking for top-level markers (a), (b), etc.
+    subdivision_pattern = re.compile(r"(?=^\([a-z]\)\s)", re.MULTILINE)
+    parts = subdivision_pattern.split(text)
+
+    # If no subdivision boundaries found, fall back to paragraph splitting
+    if len(parts) <= 1:
+        return _split_large_section(text, heading_path, 0, max_tokens, overlap_tokens)
+
+    # Prefix text (before first subdivision) — keep with first chunk
+    prefix = parts[0].strip()
+    subdivision_parts = parts[1:]
+
+    chunks: list[ChunkResult] = []
+    current_parts: list[str] = []
+    current_tokens = estimate_tokens(prefix) if prefix else 0
+    if prefix:
+        current_parts.append(prefix)
+
+    citation_header = f"[{citation}]\n\n"
+    citation_tokens = estimate_tokens(citation_header)
+
+    for subdiv in subdivision_parts:
+        subdiv_tokens = estimate_tokens(subdiv)
+
+        if current_tokens + subdiv_tokens > max_tokens and current_parts:
+            # Flush current chunk
+            chunk_text = "\n\n".join(current_parts)
+            # Add citation header if this isn't the first chunk
+            if chunks:
+                chunk_text = citation_header + chunk_text
+                total_tokens = estimate_tokens(chunk_text)
+            else:
+                total_tokens = estimate_tokens(chunk_text)
+
+            chunks.append(
+                ChunkResult(
+                    content=chunk_text,
+                    heading_path=heading_path,
+                    chunk_index=len(chunks),
+                    token_count=total_tokens,
+                    content_hash=content_hash(chunk_text),
+                )
+            )
+
+            current_parts = []
+            current_tokens = citation_tokens if chunks else 0
+
+        current_parts.append(subdiv)
+        current_tokens += subdiv_tokens
+
+    # Flush remaining
+    if current_parts:
+        chunk_text = "\n\n".join(current_parts)
+        if chunks:
+            chunk_text = citation_header + chunk_text
+        chunks.append(
+            ChunkResult(
+                content=chunk_text,
+                heading_path=heading_path,
+                chunk_index=len(chunks),
+                token_count=estimate_tokens(chunk_text),
+                content_hash=content_hash(chunk_text),
+            )
+        )
+
+    return chunks
+
+
 def chunk_document(
     markdown: str,
     min_tokens: int = 200,

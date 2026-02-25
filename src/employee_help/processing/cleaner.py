@@ -38,11 +38,14 @@ _UNICODE_REPLACEMENTS = {
 }
 
 
-def clean(text: str) -> str:
+def clean(text: str, boilerplate_patterns: list[re.Pattern] | None = None) -> str:
     """Clean extracted text content.
 
     Args:
         text: Raw extracted Markdown text.
+        boilerplate_patterns: Optional list of compiled regex patterns to remove.
+            If provided, these are used instead of the default CRD patterns.
+            Pass an empty list to skip boilerplate removal entirely.
 
     Returns:
         Cleaned text with normalized whitespace and boilerplate removed.
@@ -65,8 +68,9 @@ def clean(text: str) -> str:
     for bad, good in _MOJIBAKE.items():
         result = result.replace(bad, good)
 
-    # Remove boilerplate patterns
-    for pattern in _BOILERPLATE_PATTERNS:
+    # Remove boilerplate patterns (use provided or fall back to defaults)
+    patterns = boilerplate_patterns if boilerplate_patterns is not None else _BOILERPLATE_PATTERNS
+    for pattern in patterns:
         result = pattern.sub("", result)
 
     # Normalize whitespace within lines (but preserve Markdown structure)

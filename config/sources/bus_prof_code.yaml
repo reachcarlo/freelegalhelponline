@@ -1,0 +1,45 @@
+# ============================================================
+# Employee Help — Business & Professions Code Source Configuration
+# ============================================================
+# California Business & Professions Code — Non-competes and UCL
+# (leginfo.legislature.ca.gov)
+# ============================================================
+
+source:
+  name: "Business & Professions Code — Non-Competes & UCL"
+  slug: bus_prof_code
+  source_type: statutory_code
+  base_url: "https://leginfo.legislature.ca.gov"
+  enabled: true
+
+crawl:
+  seed_urls: []  # Statutory sources use the StatutoryExtractor
+  allowlist_patterns:
+    - "leginfo\\.legislature\\.ca\\.gov"
+  blocklist_patterns: []
+  rate_limit_seconds: 10.0
+  max_pages: 500
+
+extraction:
+  content_selector: "#content_anchor"
+  boilerplate_patterns: []
+  content_category: statutory_code
+
+chunking:
+  strategy: section_boundary
+  min_tokens: 50
+  max_tokens: 2000
+  overlap_tokens: 0
+
+# Statutory-specific configuration
+statutory:
+  code_abbreviation: BPC
+  code_name: "Business and Professions Code"
+  citation_prefix: "Cal. Bus. & Prof. Code"
+  # Division 7 "General Business Regulations" Part 2 contains:
+  #   Chapter 1: §§ 16600-16607 (non-compete restrictions)
+  #   Chapter 5: §§ 17200-17210 (Unfair Competition Law / UCL)
+  target_divisions: ["7."]
+  method: pubinfo
+
+database_path: "data/employee_help.db"

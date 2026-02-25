@@ -1,0 +1,45 @@
+# ============================================================
+# Employee Help — Unemployment Insurance Code Source Configuration
+# ============================================================
+# California Unemployment Insurance Code — UI, SDI, PFL
+# (leginfo.legislature.ca.gov)
+# ============================================================
+
+source:
+  name: "Unemployment Insurance Code"
+  slug: unemp_ins_code
+  source_type: statutory_code
+  base_url: "https://leginfo.legislature.ca.gov"
+  enabled: true
+
+crawl:
+  seed_urls: []  # Statutory sources use the StatutoryExtractor
+  allowlist_patterns:
+    - "leginfo\\.legislature\\.ca\\.gov"
+  blocklist_patterns: []
+  rate_limit_seconds: 10.0
+  max_pages: 5000
+
+extraction:
+  content_selector: "#content_anchor"
+  boilerplate_patterns: []
+  content_category: statutory_code
+
+chunking:
+  strategy: section_boundary
+  min_tokens: 50
+  max_tokens: 2000
+  overlap_tokens: 0
+
+# Statutory-specific configuration
+statutory:
+  code_abbreviation: UIC
+  code_name: "Unemployment Insurance Code"
+  citation_prefix: "Cal. Unemp. Ins. Code"
+  # Division 1 contains all three key programs:
+  #   Part 1: Unemployment Compensation (§§ 100-2129)
+  #   Part 2: Disability Compensation (§§ 2601-3308) including PFL (Ch. 7, §§ 3300-3308)
+  target_divisions: ["1."]
+  method: pubinfo
+
+database_path: "data/employee_help.db"

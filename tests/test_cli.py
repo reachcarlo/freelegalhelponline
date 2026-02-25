@@ -2,12 +2,13 @@
 
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
 
 import pytest
 import yaml
 
-from employee_help.cli import main, _handle_scrape, _handle_status
+from employee_help.cli import main, _handle_scrape, _handle_status, _scrape_legacy
 
 
 @pytest.fixture
@@ -68,7 +69,6 @@ class TestCLIMainCommand:
     """Tests for the main CLI entry point."""
 
     def test_main_with_no_args_shows_help(self, capsys) -> None:
-        """CLI with no arguments should show help."""
         with patch("sys.argv", ["employee-help"]):
             result = main()
             assert result == 0
@@ -76,21 +76,18 @@ class TestCLIMainCommand:
             assert "usage" in captured.out or "usage" in captured.err
 
     def test_main_with_help_flag(self, capsys) -> None:
-        """CLI with --help flag should show help."""
         with patch("sys.argv", ["employee-help", "--help"]):
             with pytest.raises(SystemExit) as exc_info:
                 main()
             assert exc_info.value.code == 0
 
     def test_main_with_invalid_command(self) -> None:
-        """CLI with invalid command should fail."""
         with patch("sys.argv", ["employee-help", "invalid"]):
             with pytest.raises(SystemExit) as exc_info:
                 main()
-            assert exc_info.value.code == 2  # argparse uses exit code 2 for usage errors
+            assert exc_info.value.code == 2
 
     def test_main_handles_keyboard_interrupt(self) -> None:
-        """CLI should handle keyboard interrupt gracefully."""
         with patch("sys.argv", ["employee-help", "scrape"]):
             with patch("employee_help.cli._handle_scrape") as mock_scrape:
                 mock_scrape.side_effect = KeyboardInterrupt()
@@ -102,15 +99,13 @@ class TestScrapeCommand:
     """Tests for the scrape command."""
 
     def test_scrape_with_missing_config(self) -> None:
-        """Scrape should fail if config file doesn't exist."""
-        result = _handle_scrape("/nonexistent/config.yaml", dry_run=False)
+        result = _scrape_legacy("/nonexistent/config.yaml", dry_run=False)
         assert result == 1
 
     def test_scrape_dry_run(self, temp_config: tuple[str, dict], capsys) -> None:
-        """Scrape with --dry-run should not store to database."""
         config_path, _ = temp_config
 
-        with patch("employee_help.cli.Pipeline") as mock_pipeline_class:
+        with patch("employee_help.pipeline.Pipeline") as mock_pipeline_class:
             mock_pipeline = MagicMock()
             mock_pipeline_class.return_value = mock_pipeline
 
@@ -128,22 +123,19 @@ class TestScrapeCommand:
                 end_time=now,
             )
 
-            result = _handle_scrape(config_path, dry_run=True)
+            result = _scrape_legacy(config_path, dry_run=True)
             assert result == 0
             mock_pipeline.run.assert_called_with(dry_run=True)
 
     def test_scrape_with_invalid_config(self) -> None:
-        """Scrape should fail if config is invalid."""
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".yaml", delete=False
         ) as f:
-            # Write invalid YAML that will be caught as ValueError
             yaml.dump({"invalid": "config"}, f)
             config_path = f.name
 
         try:
-            # The config is missing required fields, so it will raise ValueError
-            result = _handle_scrape(config_path, dry_run=False)
+            result = _scrape_legacy(config_path, dry_run=False)
             assert result == 1
         finally:
             Path(config_path).unlink()
@@ -153,22 +145,20 @@ class TestStatusCommand:
     """Tests for the status command."""
 
     def test_status_with_missing_config(self) -> None:
-        """Status should fail if config file doesn't exist."""
-        result = _handle_status("/nonexistent/config.yaml")
+        args = SimpleNamespace(config="/nonexistent/config.yaml", source=None)
+        result = _handle_status(args)
         assert result == 1
 
     def test_status_with_no_runs(self, temp_config: tuple[str, dict], capsys) -> None:
-        """Status should handle database with no runs."""
         config_path, _ = temp_config
 
-        result = _handle_status(config_path)
+        args = SimpleNamespace(config=config_path, source=None)
+        result = _handle_status(args)
         assert result == 0
         captured = capsys.readouterr()
         assert "No crawl runs found" in captured.out
 
     def test_status_displays_latest_run(self, temp_config_with_db: tuple[str, dict, str], capsys) -> None:
-        """Status should display the latest run information."""
-        import shutil
         from employee_help.config import load_config
         from employee_help.storage.storage import Storage
 
@@ -177,7 +167,6 @@ class TestStatusCommand:
         config = load_config(config_path)
         storage = Storage(config.database_path)
 
-        # Create a test run
         run = storage.create_run()
         storage.complete_run(
             run.id,
@@ -186,7 +175,8 @@ class TestStatusCommand:
         )
         storage.close()
 
-        result = _handle_status(config_path)
+        args = SimpleNamespace(config=config_path, source=None)
+        result = _handle_status(args)
         assert result == 0
         captured = capsys.readouterr()
         assert "LATEST CRAWL RUN" in captured.out
@@ -197,11 +187,10 @@ class TestCLIIntegration:
     """Integration tests for the CLI."""
 
     def test_scrape_command_via_main(self, temp_config: tuple[str, dict]) -> None:
-        """Test scrape command through main() function."""
         config_path, _ = temp_config
 
         with patch("sys.argv", ["employee-help", "scrape", "--config", config_path, "--dry-run"]):
-            with patch("employee_help.cli.Pipeline") as mock_pipeline_class:
+            with patch("employee_help.pipeline.Pipeline") as mock_pipeline_class:
                 mock_pipeline = MagicMock()
                 mock_pipeline_class.return_value = mock_pipeline
 
@@ -223,7 +212,6 @@ class TestCLIIntegration:
                 assert result == 0
 
     def test_status_command_via_main(self, temp_config: tuple[str, dict]) -> None:
-        """Test status command through main() function."""
         config_path, _ = temp_config
 
         with patch("sys.argv", ["employee-help", "status", "--config", config_path]):

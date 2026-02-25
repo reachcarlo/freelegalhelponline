@@ -9,15 +9,29 @@ from pathlib import Path
 
 from employee_help.storage.models import (
     Chunk,
+    ContentCategory,
     ContentType,
     CrawlRun,
     CrawlStatus,
     Document,
+    Source,
+    SourceType,
 )
 
 _SCHEMA = """
+CREATE TABLE IF NOT EXISTS sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    source_type TEXT NOT NULL DEFAULT 'agency',
+    base_url TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS crawl_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id INTEGER REFERENCES sources(id),
     started_at TEXT NOT NULL,
     completed_at TEXT,
     status TEXT NOT NULL DEFAULT 'running',
@@ -27,6 +41,7 @@ CREATE TABLE IF NOT EXISTS crawl_runs (
 CREATE TABLE IF NOT EXISTS documents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     crawl_run_id INTEGER NOT NULL REFERENCES crawl_runs(id),
+    source_id INTEGER REFERENCES sources(id),
     source_url TEXT NOT NULL,
     title TEXT NOT NULL,
     content_type TEXT NOT NULL,
@@ -34,7 +49,8 @@ CREATE TABLE IF NOT EXISTS documents (
     content_hash TEXT NOT NULL,
     retrieved_at TEXT NOT NULL,
     last_modified TEXT,
-    language TEXT NOT NULL DEFAULT 'en'
+    language TEXT NOT NULL DEFAULT 'en',
+    content_category TEXT NOT NULL DEFAULT 'agency_guidance'
 );
 
 CREATE TABLE IF NOT EXISTS chunks (
@@ -46,14 +62,49 @@ CREATE TABLE IF NOT EXISTS chunks (
     token_count INTEGER NOT NULL,
     content_hash TEXT NOT NULL,
     embedding BLOB,
-    metadata TEXT NOT NULL DEFAULT '{}'
+    metadata TEXT NOT NULL DEFAULT '{}',
+    content_category TEXT NOT NULL DEFAULT 'agency_guidance',
+    citation TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE INDEX IF NOT EXISTS idx_documents_content_hash ON documents(content_hash);
 CREATE INDEX IF NOT EXISTS idx_documents_source_url ON documents(source_url);
+CREATE INDEX IF NOT EXISTS idx_documents_source_id ON documents(source_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_content_hash ON chunks(content_hash);
 CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
+CREATE INDEX IF NOT EXISTS idx_chunks_content_category ON chunks(content_category);
+CREATE INDEX IF NOT EXISTS idx_sources_slug ON sources(slug);
 """
+
+# Migrations for upgrading from Phase 1 schema to Phase 1.5 schema.
+# Each migration is idempotent — safe to run multiple times.
+_MIGRATIONS = [
+    # Add sources table
+    """
+    CREATE TABLE IF NOT EXISTS sources (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        slug TEXT NOT NULL UNIQUE,
+        source_type TEXT NOT NULL DEFAULT 'agency',
+        base_url TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL
+    );
+    """,
+    # source_id on crawl_runs (nullable for backward compat)
+    "ALTER TABLE crawl_runs ADD COLUMN source_id INTEGER REFERENCES sources(id);",
+    # source_id on documents
+    "ALTER TABLE documents ADD COLUMN source_id INTEGER REFERENCES sources(id);",
+    # content_category on documents
+    "ALTER TABLE documents ADD COLUMN content_category TEXT NOT NULL DEFAULT 'agency_guidance';",
+    # content_category on chunks
+    "ALTER TABLE chunks ADD COLUMN content_category TEXT NOT NULL DEFAULT 'agency_guidance';",
+    # citation on chunks
+    "ALTER TABLE chunks ADD COLUMN citation TEXT;",
+    # is_active on chunks
+    "ALTER TABLE chunks ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1;",
+]
 
 
 class Storage:
@@ -61,7 +112,8 @@ class Storage:
 
     def __init__(self, db_path: str | Path = "data/employee_help.db") -> None:
         self._db_path = Path(db_path)
-        self._db_path.parent.mkdir(parents=True, exist_ok=True)
+        if str(self._db_path) != ":memory:":
+            self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(str(self._db_path))
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
@@ -69,7 +121,28 @@ class Storage:
         self._init_schema()
 
     def _init_schema(self) -> None:
+        # First run migrations to handle upgrading from Phase 1 schema
+        self.migrate()
+        # Then create any missing tables/indexes (safe for fresh and migrated DBs)
         self._conn.executescript(_SCHEMA)
+
+    def migrate(self) -> None:
+        """Run schema migrations for upgrading from Phase 1 to Phase 1.5.
+
+        Each migration is idempotent — safe to run on an already-migrated DB.
+        """
+        for migration in _MIGRATIONS:
+            try:
+                self._conn.execute(migration)
+                self._conn.commit()
+            except sqlite3.OperationalError as e:
+                msg = str(e)
+                # "duplicate column name" means migration already applied
+                # "no such table" means fresh DB — tables will be created by _SCHEMA
+                # "already exists" means table/index was already created
+                if "duplicate column" in msg or "already exists" in msg or "no such table" in msg:
+                    continue
+                raise
 
     def close(self) -> None:
         self._conn.close()
@@ -80,13 +153,74 @@ class Storage:
     def __exit__(self, *exc: object) -> None:
         self.close()
 
+    # ── Sources ──────────────────────────────────────────────────
+
+    def create_source(self, source: Source) -> Source:
+        cur = self._conn.execute(
+            """INSERT INTO sources (name, slug, source_type, base_url, enabled, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                source.name,
+                source.slug,
+                source.source_type.value,
+                source.base_url,
+                1 if source.enabled else 0,
+                source.created_at.isoformat(),
+            ),
+        )
+        self._conn.commit()
+        source.id = cur.lastrowid
+        return source
+
+    def get_source(self, slug: str) -> Source | None:
+        row = self._conn.execute(
+            "SELECT * FROM sources WHERE slug = ?", (slug,)
+        ).fetchone()
+        if not row:
+            return None
+        return self._row_to_source(row)
+
+    def get_source_by_id(self, source_id: int) -> Source | None:
+        row = self._conn.execute(
+            "SELECT * FROM sources WHERE id = ?", (source_id,)
+        ).fetchone()
+        if not row:
+            return None
+        return self._row_to_source(row)
+
+    def get_all_sources(self, enabled_only: bool = False) -> list[Source]:
+        if enabled_only:
+            rows = self._conn.execute(
+                "SELECT * FROM sources WHERE enabled = 1 ORDER BY id"
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT * FROM sources ORDER BY id"
+            ).fetchall()
+        return [self._row_to_source(row) for row in rows]
+
+    def update_source(self, source: Source) -> None:
+        self._conn.execute(
+            """UPDATE sources SET name = ?, slug = ?, source_type = ?,
+               base_url = ?, enabled = ? WHERE id = ?""",
+            (
+                source.name,
+                source.slug,
+                source.source_type.value,
+                source.base_url,
+                1 if source.enabled else 0,
+                source.id,
+            ),
+        )
+        self._conn.commit()
+
     # ── Crawl Runs ──────────────────────────────────────────────
 
-    def create_run(self) -> CrawlRun:
-        run = CrawlRun()
+    def create_run(self, source_id: int | None = None) -> CrawlRun:
+        run = CrawlRun(source_id=source_id)
         cur = self._conn.execute(
-            "INSERT INTO crawl_runs (started_at, status, summary) VALUES (?, ?, ?)",
-            (run.started_at.isoformat(), run.status.value, json.dumps(run.summary)),
+            "INSERT INTO crawl_runs (source_id, started_at, status, summary) VALUES (?, ?, ?, ?)",
+            (source_id, run.started_at.isoformat(), run.status.value, json.dumps(run.summary)),
         )
         self._conn.commit()
         run.id = cur.lastrowid
@@ -107,20 +241,28 @@ class Storage:
             return None
         return {
             "id": row["id"],
+            "source_id": row["source_id"],
             "started_at": row["started_at"],
             "completed_at": row["completed_at"],
             "status": row["status"],
             "summary": json.loads(row["summary"]),
         }
 
-    def get_latest_run(self) -> dict | None:
-        row = self._conn.execute(
-            "SELECT * FROM crawl_runs ORDER BY id DESC LIMIT 1"
-        ).fetchone()
+    def get_latest_run(self, source_id: int | None = None) -> dict | None:
+        if source_id is not None:
+            row = self._conn.execute(
+                "SELECT * FROM crawl_runs WHERE source_id = ? ORDER BY id DESC LIMIT 1",
+                (source_id,),
+            ).fetchone()
+        else:
+            row = self._conn.execute(
+                "SELECT * FROM crawl_runs ORDER BY id DESC LIMIT 1"
+            ).fetchone()
         if not row:
             return None
         return {
             "id": row["id"],
+            "source_id": row["source_id"],
             "started_at": row["started_at"],
             "completed_at": row["completed_at"],
             "status": row["status"],
@@ -156,11 +298,12 @@ class Storage:
 
         cur = self._conn.execute(
             """INSERT INTO documents
-               (crawl_run_id, source_url, title, content_type, raw_content,
-                content_hash, retrieved_at, last_modified, language)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (crawl_run_id, source_id, source_url, title, content_type, raw_content,
+                content_hash, retrieved_at, last_modified, language, content_category)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 doc.crawl_run_id,
+                doc.source_id,
                 doc.source_url,
                 doc.title,
                 doc.content_type.value,
@@ -169,18 +312,31 @@ class Storage:
                 doc.retrieved_at.isoformat(),
                 doc.last_modified,
                 doc.language,
+                doc.content_category.value,
             ),
         )
         self._conn.commit()
         doc.id = cur.lastrowid
         return doc, True
 
-    def get_all_documents(self) -> list[Document]:
-        rows = self._conn.execute("SELECT * FROM documents ORDER BY id").fetchall()
+    def get_all_documents(self, source_id: int | None = None) -> list[Document]:
+        if source_id is not None:
+            rows = self._conn.execute(
+                "SELECT * FROM documents WHERE source_id = ? ORDER BY id",
+                (source_id,),
+            ).fetchall()
+        else:
+            rows = self._conn.execute("SELECT * FROM documents ORDER BY id").fetchall()
         return [self._row_to_document(row) for row in rows]
 
-    def get_document_count(self) -> int:
-        row = self._conn.execute("SELECT COUNT(*) as cnt FROM documents").fetchone()
+    def get_document_count(self, source_id: int | None = None) -> int:
+        if source_id is not None:
+            row = self._conn.execute(
+                "SELECT COUNT(*) as cnt FROM documents WHERE source_id = ?",
+                (source_id,),
+            ).fetchone()
+        else:
+            row = self._conn.execute("SELECT COUNT(*) as cnt FROM documents").fetchone()
         return row["cnt"]
 
     # ── Chunks ──────────────────────────────────────────────────
@@ -189,8 +345,8 @@ class Storage:
         self._conn.executemany(
             """INSERT INTO chunks
                (document_id, chunk_index, content, heading_path,
-                token_count, content_hash, metadata)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                token_count, content_hash, metadata, content_category, citation, is_active)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             [
                 (
                     c.document_id,
@@ -200,6 +356,9 @@ class Storage:
                     c.token_count,
                     c.content_hash,
                     json.dumps(c.metadata),
+                    c.content_category.value,
+                    c.citation,
+                    1 if c.is_active else 0,
                 )
                 for c in chunks
             ],
@@ -213,23 +372,142 @@ class Storage:
         ).fetchall()
         return [self._row_to_chunk(row) for row in rows]
 
-    def get_chunk_count(self) -> int:
-        row = self._conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()
+    def get_chunk_count(self, source_id: int | None = None) -> int:
+        if source_id is not None:
+            row = self._conn.execute(
+                """SELECT COUNT(*) as cnt FROM chunks c
+                   JOIN documents d ON c.document_id = d.id
+                   WHERE d.source_id = ?""",
+                (source_id,),
+            ).fetchone()
+        else:
+            row = self._conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()
         return row["cnt"]
 
-    def get_all_chunks(self) -> list[Chunk]:
-        rows = self._conn.execute(
-            "SELECT * FROM chunks ORDER BY document_id, chunk_index"
-        ).fetchall()
+    def deactivate_chunks_for_document(self, document_id: int) -> int:
+        """Mark all active chunks for a document as inactive (soft-delete).
+
+        Used when a statutory section is repealed — chunks are deactivated
+        rather than deleted so existing references don't break.
+
+        Returns:
+            Number of chunks deactivated.
+        """
+        cur = self._conn.execute(
+            "UPDATE chunks SET is_active = 0 WHERE document_id = ? AND is_active = 1",
+            (document_id,),
+        )
+        self._conn.commit()
+        return cur.rowcount
+
+    def deactivate_missing_sections(
+        self, source_id: int, current_section_urls: set[str]
+    ) -> int:
+        """Deactivate chunks for sections no longer present in the source.
+
+        Compares the set of section URLs from the latest extraction against
+        stored documents for this source.  Any stored document whose URL is
+        NOT in current_section_urls has its chunks marked inactive.
+
+        Args:
+            source_id: The source to check.
+            current_section_urls: URLs of sections found in the latest extraction.
+
+        Returns:
+            Total number of chunks deactivated.
+        """
+        docs = self.get_all_documents(source_id=source_id)
+        total_deactivated = 0
+        for doc in docs:
+            if doc.source_url not in current_section_urls and doc.id is not None:
+                count = self.deactivate_chunks_for_document(doc.id)
+                total_deactivated += count
+        return total_deactivated
+
+    def get_all_chunks(self, source_id: int | None = None) -> list[Chunk]:
+        if source_id is not None:
+            rows = self._conn.execute(
+                """SELECT c.* FROM chunks c
+                   JOIN documents d ON c.document_id = d.id
+                   WHERE d.source_id = ?
+                   ORDER BY c.document_id, c.chunk_index""",
+                (source_id,),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT * FROM chunks ORDER BY document_id, chunk_index"
+            ).fetchall()
         return [self._row_to_chunk(row) for row in rows]
 
+    # ── Cross-Source Duplicate Detection ────────────────────────
+
+    def find_cross_source_duplicates(self) -> list[dict]:
+        """Find chunks with identical content_hash across different sources.
+
+        Returns a list of dicts, each describing a set of duplicate chunks:
+        {
+            "content_hash": str,
+            "occurrences": [
+                {"chunk_id": int, "source_id": int, "source_slug": str,
+                 "citation": str | None, "content_category": str}
+            ]
+        }
+        """
+        rows = self._conn.execute(
+            """SELECT c.id as chunk_id, c.content_hash, c.citation,
+                      c.content_category, d.source_id, s.slug as source_slug
+               FROM chunks c
+               JOIN documents d ON c.document_id = d.id
+               LEFT JOIN sources s ON d.source_id = s.id
+               WHERE c.content_hash IN (
+                   SELECT c2.content_hash
+                   FROM chunks c2
+                   JOIN documents d2 ON c2.document_id = d2.id
+                   GROUP BY c2.content_hash
+                   HAVING COUNT(DISTINCT d2.source_id) > 1
+               )
+               ORDER BY c.content_hash, d.source_id"""
+        ).fetchall()
+
+        # Group by content_hash
+        duplicates: dict[str, list[dict]] = {}
+        for row in rows:
+            h = row["content_hash"]
+            if h not in duplicates:
+                duplicates[h] = []
+            duplicates[h].append({
+                "chunk_id": row["chunk_id"],
+                "source_id": row["source_id"],
+                "source_slug": row["source_slug"],
+                "citation": row["citation"],
+                "content_category": row["content_category"],
+            })
+
+        return [
+            {"content_hash": h, "occurrences": occs}
+            for h, occs in duplicates.items()
+        ]
+
     # ── Private helpers ─────────────────────────────────────────
+
+    @staticmethod
+    def _row_to_source(row: sqlite3.Row) -> Source:
+        return Source(
+            id=row["id"],
+            name=row["name"],
+            slug=row["slug"],
+            source_type=SourceType(row["source_type"]),
+            base_url=row["base_url"],
+            enabled=bool(row["enabled"]),
+            created_at=datetime.fromisoformat(row["created_at"]),
+        )
 
     @staticmethod
     def _row_to_document(row: sqlite3.Row) -> Document:
         return Document(
             id=row["id"],
             crawl_run_id=row["crawl_run_id"],
+            source_id=row["source_id"],
             source_url=row["source_url"],
             title=row["title"],
             content_type=ContentType(row["content_type"]),
@@ -238,6 +516,7 @@ class Storage:
             retrieved_at=datetime.fromisoformat(row["retrieved_at"]),
             last_modified=row["last_modified"],
             language=row["language"],
+            content_category=ContentCategory(row["content_category"]),
         )
 
     @staticmethod
@@ -251,4 +530,7 @@ class Storage:
             token_count=row["token_count"],
             content_hash=row["content_hash"],
             metadata=json.loads(row["metadata"]),
+            content_category=ContentCategory(row["content_category"]),
+            citation=row["citation"],
+            is_active=bool(row["is_active"]),
         )

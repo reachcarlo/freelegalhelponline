@@ -1,0 +1,101 @@
+# ============================================================
+# Employee Help — DIR/DLSE Source Configuration
+# ============================================================
+# California Department of Industrial Relations /
+# Division of Labor Standards Enforcement (dir.ca.gov/dlse/)
+# Wages, hours, overtime, sick leave, retaliation content.
+# ============================================================
+
+source:
+  name: "Department of Industrial Relations — DLSE"
+  slug: dir
+  source_type: agency
+  base_url: "https://www.dir.ca.gov"
+  enabled: true
+
+crawl:
+  seed_urls:
+    # Master FAQ index — links to all topic-specific FAQ pages
+    - "https://www.dir.ca.gov/dlse/dlse-faqs.htm"
+    # DLSE homepage — links to major sections, news, key resources
+    - "https://www.dir.ca.gov/dlse/"
+    # Wages & hours hub
+    - "https://www.dir.ca.gov/dlse/dlseWagesAndHours.html"
+    # How to file a wage claim
+    - "https://www.dir.ca.gov/dlse/HowToFileWageClaim.htm"
+    # Know Your Rights brochures
+    - "https://www.dir.ca.gov/dlse/Know_Your_Rights.html"
+    # Retaliation hub
+    - "https://www.dir.ca.gov/dlse/dlseRetaliation.html"
+    # Publications index
+    - "https://www.dir.ca.gov/dlse/DLSE-Publications.htm"
+    # IWC wage orders
+    - "https://www.dir.ca.gov/iwc/wageorderindustries.htm"
+
+  allowlist_patterns:
+    # DLSE main section (core employment/labor content)
+    - "dir\\.ca\\.gov/dlse/"
+    # IWC wage orders (employment standards)
+    - "dir\\.ca\\.gov/iwc/"
+    # Public works / prevailing wage
+    - "dir\\.ca\\.gov/Public-Works/"
+    # PAGA content (employment enforcement)
+    - "dir\\.ca\\.gov/Private-Attorneys-General-Act/"
+    # English PDFs under DLSE and IWC
+    - "dir\\.ca\\.gov/dlse/.*\\.pdf"
+    - "dir\\.ca\\.gov/iwc/.*\\.pdf"
+
+  blocklist_patterns:
+    # Non-employment DIR divisions
+    - "dir\\.ca\\.gov/dosh/"
+    - "dir\\.ca\\.gov/dwc/"
+    - "dir\\.ca\\.gov/osip/"
+    - "dir\\.ca\\.gov/das/"
+    - "dir\\.ca\\.gov/chswc/"
+    - "dir\\.ca\\.gov/od_pub/"
+    - "dir\\.ca\\.gov/title8/"
+    # Non-employment DLSE sub-sections
+    - "dir\\.ca\\.gov/dlse/ECU/"
+    - "dir\\.ca\\.gov/dlse/Registration_Services"
+    # Interactive databases (Salesforce apps, not scrapable)
+    - "cadir\\.my\\.site\\.com"
+    - "dir\\.ca\\.gov/dlse/DLSE-Databases\\.htm"
+    # Non-English content
+    - "dir\\.ca\\.gov/dlse/[Ss]panish/"
+    - "dir\\.ca\\.gov/dlse/Chinese/"
+    - "dir\\.ca\\.gov/dlse/Korean/"
+    - "dir\\.ca\\.gov/dlse/Tagalog/"
+    - "dir\\.ca\\.gov/dlse/Vietnamese/"
+    - "dir\\.ca\\.gov/dlse/Russian/"
+    - "dir\\.ca\\.gov/dlse/.*_(Spanish|Chinese|Korean|Tagalog|Vietnamese|Russian|Hmong|Punjabi)\\."
+    - "dir\\.ca\\.gov/dlse/.*Spanish\\.pdf"
+    # Non-informational content
+    - "dir\\.ca\\.gov/dlse/.*\\.xls"
+    - "dir\\.ca\\.gov/dlse/.*\\.xlsx"
+    # Administrative pages
+    - "dir\\.ca\\.gov/dlse/Career-with-LCO"
+    - "dir\\.ca\\.gov/dlse/Dlse_Online_Payment"
+    - "dir\\.ca\\.gov/dlse/DistrictOffices"
+    - "dir\\.ca\\.gov/dlse/AboutUs"
+    - "dir\\.ca\\.gov/dirjobs/"
+    - "dir\\.ca\\.gov/mediaroom"
+
+  rate_limit_seconds: 2.0
+  max_pages: 300
+
+extraction:
+  content_selector: "#main-content"
+  boilerplate_patterns:
+    - "Skip to Main Content"
+    - "Skip to Content"
+    - "Conditions of Use"
+    - "Privacy Policy"
+    - "Back to Top"
+
+chunking:
+  strategy: heading_based
+  min_tokens: 200
+  max_tokens: 1500
+  overlap_tokens: 100
+
+database_path: "data/employee_help.db"

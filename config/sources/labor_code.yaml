@@ -1,0 +1,43 @@
+# ============================================================
+# Employee Help — Labor Code Source Configuration
+# ============================================================
+# California Labor Code (leginfo.legislature.ca.gov)
+# All 7 divisions per PO decision: comprehensive coverage.
+# ============================================================
+
+source:
+  name: "California Labor Code"
+  slug: labor_code
+  source_type: statutory_code
+  base_url: "https://leginfo.legislature.ca.gov"
+  enabled: true
+
+crawl:
+  seed_urls: []  # Statutory sources use the StatutoryExtractor, not the web crawler
+  allowlist_patterns:
+    - "leginfo\\.legislature\\.ca\\.gov"
+  blocklist_patterns: []
+  rate_limit_seconds: 10.0
+  max_pages: 5000
+
+extraction:
+  content_selector: "#content_anchor"
+  boilerplate_patterns: []
+  content_category: statutory_code
+
+chunking:
+  strategy: section_boundary
+  min_tokens: 50
+  max_tokens: 2000
+  overlap_tokens: 0
+
+# Statutory-specific configuration
+statutory:
+  code_abbreviation: LAB
+  code_name: "Labor Code"
+  citation_prefix: "Cal. Lab. Code"
+  # All 7 divisions (PO decision: comprehensive)
+  target_divisions: []
+  method: pubinfo
+
+database_path: "data/employee_help.db"

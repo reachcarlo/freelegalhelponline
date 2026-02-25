@@ -255,7 +255,7 @@ class TestPipelineWithRealStorage:
         with patch.object(pipeline.crawler, "start"):
             with patch.object(pipeline.crawler, "stop"):
                 with patch.object(pipeline.crawler, "crawl") as mock_crawl:
-                    with patch("employee_help.pipeline.extract_pdf") as mock_extract:
+                    with patch("employee_help.scraper.extractors.pdf.extract_pdf") as mock_extract:
                         # Mock PDF extraction to return a result
                         from employee_help.scraper.extractors.pdf import PdfExtractionResult
                         mock_extract.return_value = PdfExtractionResult(

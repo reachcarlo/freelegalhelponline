@@ -1,0 +1,99 @@
+# ============================================================
+# Employee Help — CalHR Source Configuration
+# ============================================================
+# California Department of Human Resources (calhr.ca.gov)
+# State employee HR policies, benefits, compensation, leave.
+# NOTE: Tagged with "state_employees" metadata per PO decision.
+# ============================================================
+
+source:
+  name: "California Department of Human Resources"
+  slug: calhr
+  source_type: agency
+  base_url: "https://www.calhr.ca.gov"
+  enabled: true
+
+crawl:
+  seed_urls:
+    # Main audience landing pages
+    - "https://www.calhr.ca.gov/state-employees/"
+    - "https://www.calhr.ca.gov/state-hr-professionals/"
+    # Key policy areas
+    - "https://www.calhr.ca.gov/about-calhr/divisions-programs/personnel-management/leave-benefits/"
+    - "https://www.calhr.ca.gov/about-calhr/divisions-programs/personnel-management/salaries-compensation/"
+    - "https://www.calhr.ca.gov/about-calhr/divisions-programs/labor-relations/bargaining-contracts/"
+    - "https://www.calhr.ca.gov/about-calhr/divisions-programs/personnel-management/pay-scales/"
+    # Supporting sections
+    - "https://www.calhr.ca.gov/work-life/"
+    - "https://www.calhr.ca.gov/employment-career-services/"
+    - "https://www.calhr.ca.gov/calhr-forms/"
+
+  allowlist_patterns:
+    # Main site employee-facing content
+    - "www\\.calhr\\.ca\\.gov/state-employees"
+    - "www\\.calhr\\.ca\\.gov/state-supervisors-managers"
+    - "www\\.calhr\\.ca\\.gov/state-hr-professionals"
+    - "www\\.calhr\\.ca\\.gov/work-life"
+    - "www\\.calhr\\.ca\\.gov/employment-career-services"
+    - "www\\.calhr\\.ca\\.gov/calhr-forms"
+    - "www\\.calhr\\.ca\\.gov/statutory-appeals-unit"
+    # Division/program content
+    - "www\\.calhr\\.ca\\.gov/about-calhr/divisions-programs/personnel-management"
+    - "www\\.calhr\\.ca\\.gov/about-calhr/divisions-programs/labor-relations"
+    - "www\\.calhr\\.ca\\.gov/about-calhr/divisions-programs/workforce-development-division"
+    - "www\\.calhr\\.ca\\.gov/about-calhr/divisions-programs/selection-division"
+    - "www\\.calhr\\.ca\\.gov/about-calhr/divisions-programs/equity-accessibility-management-services"
+    - "www\\.calhr\\.ca\\.gov/about-calhr/divisions-programs/benefits"
+    # FAQ
+    - "www\\.calhr\\.ca\\.gov/about-calhr/frequently-asked-questions"
+    # PDF resources
+    - "www\\.calhr\\.ca\\.gov/wp-content/uploads/sites/361/.*\\.pdf"
+
+  blocklist_patterns:
+    # Dynamic Blazor web app (not scrapable)
+    - "eservices\\.calhr\\.ca\\.gov"
+    # External sites / different agencies
+    - "workforcalifornia\\.ca\\.gov"
+    - "calcareers\\.ca\\.gov"
+    - "calpers\\.ca\\.gov"
+    - "connect\\.sco\\.ca\\.gov"
+    - "wellness\\.calhr\\.ca\\.gov"
+    # Non-English PDFs
+    - "calhr\\.ca\\.gov/wp-content/uploads.*_(SP|SPANISH|ARABIC|CHINESE|KOREAN|HMONG|TAGALOG|VIETNAMESE|PUNJABI|ES|FARSI)\\."
+    - "calhr\\.ca\\.gov/wp-content/uploads.*-(SP|SPANISH|ARABIC|CHINESE|KOREAN|HMONG|TAGALOG|VIETNAMESE|PUNJABI|ES|FARSI)\\."
+    # News/blog posts (date-based, ephemeral)
+    - "www\\.calhr\\.ca\\.gov/\\d{4}/\\d{2}/"
+    # Organizational / administrative pages
+    - "www\\.calhr\\.ca\\.gov/about-calhr/executive-leadership"
+    - "www\\.calhr\\.ca\\.gov/about-calhr/calhr-organization-chart"
+    - "www\\.calhr\\.ca\\.gov/about-calhr/strategic-plan"
+    - "www\\.calhr\\.ca\\.gov/about-calhr/divisions-programs/financial-management"
+    - "www\\.calhr\\.ca\\.gov/about-calhr/divisions-programs/legal"
+    - "www\\.calhr\\.ca\\.gov/about-calhr/divisions-programs/california-state-payroll"
+    - "www\\.calhr\\.ca\\.gov/contact-calhr"
+    # Newsroom
+    - "www\\.calhr\\.ca\\.gov/newsroom"
+    # WordPress system files
+    - "calhr\\.ca\\.gov/wp-admin"
+    - "calhr\\.ca\\.gov/wp-login"
+    - "calhr\\.ca\\.gov/wp-json"
+    - "calhr\\.ca\\.gov/feed"
+
+  rate_limit_seconds: 2.0
+  max_pages: 300
+
+extraction:
+  content_selector: "#et-main-area"
+  boilerplate_patterns:
+    - "Skip to Main Content"
+    - "Skip to Content"
+    - "Conditions of Use"
+    - "Privacy Policy"
+
+chunking:
+  strategy: heading_based
+  min_tokens: 200
+  max_tokens: 1500
+  overlap_tokens: 100
+
+database_path: "data/employee_help.db"

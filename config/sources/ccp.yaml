@@ -1,0 +1,53 @@
+# ============================================================
+# Employee Help — Code of Civil Procedure Source Configuration
+# ============================================================
+# California Code of Civil Procedure — Employment-relevant provisions
+# (leginfo.legislature.ca.gov)
+# ============================================================
+#
+# NOTE: CCP uses "part=" rather than "division=" as its top-level
+# URL parameter on leginfo.  The target_divisions filter is a no-op
+# for this code.  All CCP sections will be ingested; the employment-
+# relevant sections are:
+#   § 340      — Statute of limitations for employment claims
+#   § 425.16   — Anti-SLAPP statute
+#   § 1021.5   — Private attorney general / fee-shifting
+# Retrieval precision (Phase 2) handles filtering at query time.
+
+source:
+  name: "Code of Civil Procedure — Employment Provisions"
+  slug: ccp
+  source_type: statutory_code
+  base_url: "https://leginfo.legislature.ca.gov"
+  enabled: true
+
+crawl:
+  seed_urls: []  # Statutory sources use the StatutoryExtractor
+  allowlist_patterns:
+    - "leginfo\\.legislature\\.ca\\.gov"
+  blocklist_patterns: []
+  rate_limit_seconds: 10.0
+  max_pages: 5000
+
+extraction:
+  content_selector: "#content_anchor"
+  boilerplate_patterns: []
+  content_category: statutory_code
+
+chunking:
+  strategy: section_boundary
+  min_tokens: 50
+  max_tokens: 2000
+  overlap_tokens: 0
+
+# Statutory-specific configuration
+statutory:
+  code_abbreviation: CCP
+  code_name: "Code of Civil Procedure"
+  citation_prefix: "Cal. Code Civ. Proc."
+  # CCP does not use division= in leginfo URLs; target_divisions is
+  # empty to ingest all parts.  Employment-relevant sections are in Part 2.
+  target_divisions: []
+  method: pubinfo
+
+database_path: "data/employee_help.db"

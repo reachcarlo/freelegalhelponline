@@ -1,0 +1,73 @@
+# ============================================================
+# Employee Help — CRD Source Configuration
+# ============================================================
+# California Civil Rights Department (calcivilrights.ca.gov)
+# Employment discrimination, harassment, and civil rights content.
+# ============================================================
+
+source:
+  name: "California Civil Rights Department"
+  slug: crd
+  source_type: agency
+  base_url: "https://calcivilrights.ca.gov"
+  enabled: true
+
+crawl:
+  seed_urls:
+    - "https://calcivilrights.ca.gov/employment/"
+    - "https://calcivilrights.ca.gov/complaintprocess/"
+    - "https://calcivilrights.ca.gov/Posters/?openTab=2"
+
+  allowlist_patterns:
+    - "calcivilrights\\.ca\\.gov/employment"
+    - "calcivilrights\\.ca\\.gov/complaintprocess"
+    - "calcivilrights\\.ca\\.gov/Posters"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads/sites/32/.*\\.pdf"
+
+  blocklist_patterns:
+    # Non-English PDFs (language suffixes)
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*_(SP|ARABIC|CHINESE|KOREAN|HMONG|TAGALOG|VIETNAMESE|PUNJABI|MIXTECO|CH|K|VT|TG|ES|FARSI)\\."
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*-(SP|ARABIC|CHINESE|KOREAN|HMONG|TAGALOG|VIETNAMESE|PUNJABI|MIXTECO|CH|K|VT|TG|ES|FARSI)\\."
+    # Non-employment domains
+    - "calcivilrights\\.ca\\.gov/housing"
+    - "calcivilrights\\.ca\\.gov/hate-violence"
+    - "calcivilrights\\.ca\\.gov/whistleblower"
+    - "calcivilrights\\.ca\\.gov/ralph"
+    # Annual reports (statistical, not guidance)
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Annual-Report"
+    # Regulatory filings
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*regulations"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Regulatory"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Final-Text"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Initial-Statement"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Attachment-B"
+    # Pay data reporting
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Pay.Data"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*PDR_"
+    # Non-employment fact sheets
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Fair-Housing"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Human-Trafficking"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Source-of-Income"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*SourceIncome"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Immigration-Rights"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Unruh"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Ralph"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Hate-Violence"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*California-Protects-The-Civil-Rights"
+
+  rate_limit_seconds: 2.0
+  max_pages: 100
+
+extraction:
+  content_selector: "#et-main-area"
+  boilerplate_patterns:
+    - "Skip to Main Content"
+    - "Skip to Content"
+
+chunking:
+  strategy: heading_based
+  min_tokens: 200
+  max_tokens: 1500
+  overlap_tokens: 100
+
+database_path: "data/employee_help.db"

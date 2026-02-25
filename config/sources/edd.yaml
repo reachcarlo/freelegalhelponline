@@ -1,0 +1,94 @@
+# ============================================================
+# Employee Help — EDD Source Configuration
+# ============================================================
+# California Employment Development Department (edd.ca.gov)
+# Unemployment Insurance, Disability Insurance, Paid Family Leave.
+# ============================================================
+
+source:
+  name: "Employment Development Department"
+  slug: edd
+  source_type: agency
+  base_url: "https://edd.ca.gov"
+  enabled: true
+
+crawl:
+  seed_urls:
+    # Unemployment Insurance landing
+    - "https://edd.ca.gov/en/unemployment/"
+    # Disability Insurance landing
+    - "https://edd.ca.gov/en/disability/disability_insurance/"
+    # Paid Family Leave landing
+    - "https://edd.ca.gov/en/disability/paid-family-leave/"
+    # Jobs and training
+    - "https://edd.ca.gov/en/jobs_and_training/"
+    # Disability section index (bridges DI and PFL)
+    - "https://edd.ca.gov/en/disability/"
+
+  allowlist_patterns:
+    # Unemployment Insurance section
+    - "edd\\.ca\\.gov/en/unemployment/"
+    # Disability Insurance section (DI + PFL)
+    - "edd\\.ca\\.gov/en/disability/"
+    # Contact and fraud reporting
+    - "edd\\.ca\\.gov/en/about_edd/contact_edd"
+    - "edd\\.ca\\.gov/en/about_edd/fraud"
+    - "edd\\.ca\\.gov/en/about_edd/disaster_related_services"
+    # Office locator
+    - "edd\\.ca\\.gov/en/Office_Locator"
+    # Job seeker content
+    - "edd\\.ca\\.gov/en/jobs_and_training/"
+    # PDF publications
+    - "edd\\.ca\\.gov/siteassets/files/pdf_pub_ctr/.*\\.pdf"
+
+  blocklist_patterns:
+    # Employer / tax administration
+    - "edd\\.ca\\.gov/en/payroll_taxes"
+    - "edd\\.ca\\.gov/en/employers/"
+    # Employer sub-pages within benefit sections
+    - "edd\\.ca\\.gov/en/disability/Employer-Information"
+    - "edd\\.ca\\.gov/en/disability/paid-family-leave/Employers"
+    - "edd\\.ca\\.gov/en/unemployment/Employer_Information"
+    - "edd\\.ca\\.gov/en/jobs_and_training/Employer_Information"
+    # Physician/practitioner pages
+    - "edd\\.ca\\.gov/en/disability/Physicians-Practitioners_Information"
+    - "edd\\.ca\\.gov/en/disability/paid-family-leave/Physicians-and-Practitioners"
+    # Voluntary Plan administration
+    - "edd\\.ca\\.gov/en/disability/Voluntary_Plan"
+    # Newsroom (press releases, not guidance)
+    - "edd\\.ca\\.gov/en/newsroom"
+    # Administrative About pages
+    - "edd\\.ca\\.gov/en/about_edd/about_edd"
+    - "edd\\.ca\\.gov/en/about_edd/mission_and_vision"
+    - "edd\\.ca\\.gov/en/about_edd/career_opportunities"
+    - "edd\\.ca\\.gov/en/about_edd/news_releases"
+    - "edd\\.ca\\.gov/en/about_edd/legislative"
+    - "edd\\.ca\\.gov/en/about_edd/public_records"
+    - "edd\\.ca\\.gov/en/about_edd/quick_statistics"
+    # Non-English pages
+    - "edd\\.ca\\.gov/es/"
+    - "edd\\.ca\\.gov/siteassets/files/pdf_pub_ctr/.*_(sp|spanish|chinese|korean|vietnamese|tagalog)\\.pdf"
+    # Subdomains (login portals, external tools)
+    - "myedd\\.edd\\.ca\\.gov"
+    - "askedd\\.edd\\.ca\\.gov"
+    - "eddservices\\.edd\\.ca\\.gov"
+    - "labormarketinfo\\.edd\\.ca\\.gov"
+
+  rate_limit_seconds: 2.0
+  max_pages: 200
+
+extraction:
+  content_selector: ".main-primary"
+  boilerplate_patterns:
+    - "Skip to Main Content"
+    - "Skip to Content"
+    - "Select Language"
+    - "Powered by Google Translate"
+
+chunking:
+  strategy: heading_based
+  min_tokens: 200
+  max_tokens: 1500
+  overlap_tokens: 100
+
+database_path: "data/employee_help.db"

@@ -1,0 +1,56 @@
+# ============================================================
+# Employee Help — Government Code (Whistleblower) Source Configuration
+# ============================================================
+# California Government Code — Whistleblower Protection sections
+# (leginfo.legislature.ca.gov)
+# ============================================================
+#
+# Separate from gov_code_feha.yaml (Division 3) to avoid re-ingesting
+# FEHA sections.  Targets Divisions 1 and 2 which contain:
+#   §§ 8547-8547.12  — State Whistleblower Protection Act (Title 2, Div 1)
+#   §§ 53296-53299   — Local Gov't Whistleblower Disclosure (Title 5, Div 2)
+#   § 12653          — False Claims Act / qui tam (Title 2, Div 3 — already
+#                      covered by gov_code_feha.yaml, included here for completeness)
+#
+# NOTE: Divisions 1 and 2 span multiple titles and contain content beyond
+# just whistleblower sections.  Retrieval precision (Phase 2) handles
+# filtering at query time.
+
+source:
+  name: "Government Code — Whistleblower Protection"
+  slug: gov_code_whistleblower
+  source_type: statutory_code
+  base_url: "https://leginfo.legislature.ca.gov"
+  enabled: true
+
+crawl:
+  seed_urls: []  # Statutory sources use the StatutoryExtractor
+  allowlist_patterns:
+    - "leginfo\\.legislature\\.ca\\.gov"
+  blocklist_patterns: []
+  rate_limit_seconds: 10.0
+  max_pages: 5000
+
+extraction:
+  content_selector: "#content_anchor"
+  boilerplate_patterns: []
+  content_category: statutory_code
+
+chunking:
+  strategy: section_boundary
+  min_tokens: 50
+  max_tokens: 2000
+  overlap_tokens: 0
+
+# Statutory-specific configuration
+statutory:
+  code_abbreviation: GOV
+  code_name: "Government Code"
+  citation_prefix: "Cal. Gov. Code"
+  # Division 1: State Whistleblower Protection Act (§§ 8547+)
+  # Division 2: Local government whistleblower (§§ 53296+)
+  # Division 3 is already covered by gov_code_feha.yaml (FEHA)
+  target_divisions: ["1.", "2."]
+  method: pubinfo
+
+database_path: "data/employee_help.db"
