@@ -3,7 +3,7 @@
 > **Project:** Employee Help — AI-Powered Legal Guidance Platform
 > **Author:** Claude (Opus 4.6) for Product Owner review
 > **Date:** 2026-02-25
-> **Status:** APPROVED — All PO decisions resolved (2026-02-25). **REVISED 2026-02-25**: Statutory ingestion pivoted from web scraping to PUBINFO database (see Assumptions 6–7, F-SC.2, 1.5C.8). **PHASE 1.5 IMPLEMENTATION COMPLETE (2026-02-25)**: All 9 sources ingested (6 statutory + 3 agency). 20,546 documents, 23,753 chunks. 32/33 validation checks pass (1 known issue: CalHR oversized chunk — chunker improvement deferred). Idempotency verified. Pending PO gate review (1.5D.6). **PHASE 2 CODE COMPLETE (2026-02-26)**: RAG pipeline fully implemented — embedding (bge-base-en-v1.5, 23,705 chunks in LanceDB), hybrid search (vector + BM25 + RRF), dual-mode retrieval (consumer/attorney), LLM answer generation (Claude Haiku 4.5 / Sonnet 4.6 with Citations API), and 60-question evaluation suite. 686 tests passing. Automated gates 2A.5b, 2A.10, 2B.5 PASS. Pending PO gate review (2C.5, 2C.6).
+> **Status:** APPROVED — All PO decisions resolved (2026-02-25). **REVISED 2026-02-25**: Statutory ingestion pivoted from web scraping to PUBINFO database (see Assumptions 6–7, F-SC.2, 1.5C.8). **PHASE 1.5 IMPLEMENTATION COMPLETE (2026-02-25)**: All 9 sources ingested (6 statutory + 3 agency). 20,546 documents, 23,753 chunks. 32/33 validation checks pass (1 known issue: CalHR oversized chunk — chunker improvement deferred). Idempotency verified. Pending PO gate review (1.5D.6). **PHASE 2 CODE COMPLETE (2026-02-26)**: RAG pipeline fully implemented — embedding (bge-base-en-v1.5, 23,705 chunks in LanceDB), hybrid search (vector + BM25 + RRF), dual-mode retrieval (consumer/attorney), LLM answer generation (Claude Haiku 4.5 / Sonnet 4.6 with Citations API), and 60-question evaluation suite. 686 tests passing. Automated gates 2A.5b, 2A.10, 2B.5 PASS. Pending PO gate review (2C.5, 2C.6). **ROADMAP REFRAMED (2026-02-26)**: Phases 3–5 restructured through Product Management and Venture Capital lenses — applying JTBD, Lean Startup, Business Model Canvas, Product-Led Growth, and customer validation frameworks. Phase 3 reframed from "build web app" to "validate demand + ship MVP + run beta." New Section 3.7 (Product Strategy & Go-to-Market) added. Risk & Assumption Registry added. 3 new PO decisions pending (Phase 3 approach, revenue model, web framework).
 > **Supersedes:** PHASE_1_KNOWLEDGE_ACQUISITION.md (Phase 1 scope preserved; Phases 2–5 expanded)
 
 ---
@@ -120,20 +120,29 @@ This document expands the project scope from a single-agency, discrimination-foc
 | **Consumer receives attorney-level complexity (or vice versa)** | Medium | Separate retrieval strategies and prompt templates per mode; mode selection is explicit, not inferred |
 | **leginfo robots.txt disallows all non-Googlebot crawlers** | Low | Web scraping is fallback only; primary ingestion uses PUBINFO download (no robots.txt concern). Scraper retained for spot-checking and individual section lookups only. |
 | **Inconsistent content quality across agencies** | Medium | Per-source quality validation; cleaner rules customizable per source; manual QA on first ingestion of each source |
+| **No validated user demand (desirability risk)** | Critical | Zero real users to date. Phase 2 validates feasibility (tech works), not desirability (users want it). Phase 3 must include customer discovery interviews and closed beta before full build. See Section 3.7. |
+| **No revenue model (viability risk)** | Critical | Revenue streams are undefined. Attorney willingness to pay is assumed, not validated. Phase 3 includes pricing validation experiment. Phase 4 implements payment. See Section 3.7.4. |
+| **User trust in AI legal information** | Critical | The #1 adoption barrier. Consumers may not trust AI-generated legal guidance enough to act on it. Mitigate with visible citations, source transparency, confidence indicators, and clear disclaimers. Validate in Phase 3C beta. |
+| **No distribution channel (acquisition risk)** | High | Building a product without a growth strategy. SEO is the primary acquisition hypothesis for consumers (employment law queries have high search volume). Attorney acquisition requires outreach to bar associations and legal tech communities. Validate in Phase 4B. |
+| **Consumer usage is episodic, not habitual** | Medium | Most employees face 0–2 employment issues in their career. Consumer growth must be viral (recommendations), not retention-driven. Design for first-impression quality and shareability. |
+| **Attorney adoption blocked by firm-mandated tools** | Medium | Attorneys may not be allowed to use tools outside Westlaw/Lexis for research. Target solo practitioners and small firms first. Enterprise sales to larger firms is a Phase 5 motion. |
+| **Per-query cost at scale** | Medium | Attorney mode at $0.032/query needs subscription pricing to be sustainable. At 1,000 attorney queries/day = ~$960/month in API costs alone. Monitor during Phase 4; optimize prompts for token efficiency. |
 
 ---
 
 ## 1. Vision & Context (Expanded)
 
-### 1.1 Product Vision (Revised)
+### 1.1 Product Vision (Revised 2026-02-26)
 
 Build an AI-powered legal guidance platform that helps **California employees understand their workplace rights** and helps **attorneys research California employment law** — drawing from a comprehensive, multi-source knowledge base of official government publications and statutory authority.
 
-The platform serves two distinct user personas:
+**The contrarian bet** (see Section 3.7.1): AI can provide trustworthy legal guidance that is good enough for employees to act on and accurate enough for attorneys to cite. If true, the addressable market is the first 30 minutes of every employment law consultation — ~19M California employees and ~90K California attorneys.
 
-- **Employee/Consumer Mode**: Plain-language guidance for workers with questions about wages, discrimination, leave, safety, retaliation, unemployment benefits, and other employment rights. Answers cite government agency sources by URL. Tone: reassuring, clear, actionable.
+The platform serves two distinct user personas, each with a distinct **job-to-be-done** (see Section 3.7.2):
 
-- **Attorney/Professional Mode**: Statutory analysis with precise legal citations for practitioners researching California employment law. Answers cite code sections with subdivision precision, cross-reference related statutes, and distinguish between statutory text and agency interpretation. Tone: precise, authoritative, well-sourced.
+- **Employee/Consumer Mode**: "Help me understand my rights so I can decide what to do about my workplace situation." Plain-language guidance for workers with questions about wages, discrimination, leave, safety, retaliation, unemployment benefits, and other employment rights. Answers cite government agency sources by URL. Tone: reassuring, clear, actionable. Growth model: free tier, SEO-driven acquisition, viral (recommendations).
+
+- **Attorney/Professional Mode**: "Help me quickly find the relevant statutes and build my legal analysis." Statutory analysis with precise legal citations for practitioners researching California employment law. Answers cite code sections with subdivision precision, cross-reference related statutes, and distinguish between statutory text and agency interpretation. Tone: precise, authoritative, well-sourced. Growth model: subscription ($49–99/month), bar association partnerships, habit-driven retention.
 
 ### 1.2 Phase 1 Status (Completed)
 
@@ -606,6 +615,129 @@ tests/
 
 ---
 
+### 3.7 Product Strategy & Go-to-Market (Added 2026-02-26)
+
+> This section applies Product Management and Venture Capital frameworks to the Employee Help product, developed through systematic analysis using Jobs-to-be-Done theory, Business Model Canvas, Value Proposition Design, Lean Startup methodology, Product-Led Growth, and habit formation principles. It challenges assumptions in the original roadmap and identifies risks that must be validated before significant investment in Phases 3–5.
+
+#### 3.7.1 The Contrarian Bet
+
+Every startup is built on a contrarian thesis — an important truth that few people agree with (Peter Thiel, *Zero to One*).
+
+**Employee Help's contrarian bet**: *AI can provide trustworthy legal guidance that is good enough for employees to act on and accurate enough for attorneys to cite.*
+
+Most people believe legal information requires human attorneys. If this bet is correct, the addressable market is enormous — replacing the first 30 minutes of every employment law consultation. If wrong, the product is a novelty.
+
+**Current evidence**: Phase 2 evaluation shows strong *feasibility* (consumer precision 0.888, attorney precision 0.808, citation top-1 accuracy 1.0). But feasibility alone does not validate the bet. The critical question is *desirability* — will users trust AI-generated legal information enough to act on it? This is entirely untested.
+
+**Implication for roadmap**: Phase 3 must be structured around validating desirability, not just building a web application. Shipping a polished web app to zero users proves nothing.
+
+#### 3.7.2 Jobs-to-be-Done Analysis
+
+Users don't buy products — they hire them to make progress in their lives (Alan Klement, *When Coffee and Kale Compete*).
+
+**Consumer job**: "Help me understand my rights so I can decide what to do about my workplace situation."
+- **Trigger event**: Something happens at work — termination, harassment, unpaid wages, denied leave
+- **Emotional dimension**: Anxiety, powerlessness, urgency, fear of retaliation
+- **Functional dimension**: Need accurate, understandable, actionable information
+- **Current alternatives**: Google (overwhelming, unreliable), government websites (accurate but impenetrable), asking friends (biased), calling a lawyer ($300+/hour, high barrier)
+
+**Attorney job**: "Help me quickly find the relevant statutes and build my legal analysis so I can focus on strategy and client counsel."
+- **Trigger event**: New case intake, client question, opposing counsel motion
+- **Emotional dimension**: Time pressure, fear of missing a statute, desire to be thorough
+- **Functional dimension**: Exact statutory citations, cross-references, structured analysis
+- **Current alternatives**: Westlaw/Lexis (~$200+/month, powerful but slow for targeted lookups), manual code searches, prior case files
+
+**Forces of Progress** (what determines whether users switch to Employee Help):
+
+| Force | Consumer | Attorney |
+|-------|----------|----------|
+| **Push** (away from status quo) | Confusion, cost of attorneys, scattered info, urgency | Research time, Westlaw complexity, risk of missing citations |
+| **Pull** (toward our product) | Instant answers, plain language, free/affordable, 24/7 | Fast statute lookup, cross-reference analysis, citation-ready output |
+| **Anxiety** (about switching) | "Is AI accurate for legal info?", "Can I trust this?", "Will this replace a real lawyer?" | "Will citations be correct?", "Is this admissible?", "What if it hallucinates?" |
+| **Habit** (keeping status quo) | Googling, avoiding the issue, asking family | Westlaw workflows, existing research habits, firm-mandated tools |
+
+**Key insight**: Consumer anxiety about AI legal accuracy is the #1 adoption barrier. Every design decision in Phase 3 must actively reduce this anxiety — through visible citations, source transparency, clear disclaimers, and confidence indicators.
+
+#### 3.7.3 Value Proposition Canvas
+
+**Consumer Segment**:
+
+| Customer Profile | Value Map |
+|-----------------|-----------|
+| **Jobs**: Understand rights, decide if I have a claim, know next steps, protect myself | **Products/Services**: AI-powered Q&A, plain-language answers, step-by-step guidance |
+| **Pains**: Legal jargon confusing, attorneys expensive, info scattered across agencies, fear of retaliation for asking employer | **Pain Relievers**: Plain language, free tier, one-stop source from all agencies, anonymous/private |
+| **Gains**: Confidence in understanding, clear action plan, knowing which agency to contact, feeling empowered | **Gain Creators**: Suggested next steps, "File a complaint" CTAs, related rights discovery, agency contact links |
+
+**Attorney Segment**:
+
+| Customer Profile | Value Map |
+|-----------------|-----------|
+| **Jobs**: Research statutes quickly, build legal analysis, stay current on changes, verify provisions | **Products/Services**: Statutory search, cross-reference analysis, citation-ready output |
+| **Pains**: Manual Westlaw searches take time, cross-referencing multiple codes, risk of citing wrong section, codes update frequently | **Pain Relievers**: Instant statute retrieval, automatic cross-references, citation validation, weekly-refreshed knowledge base |
+| **Gains**: Time savings on research, comprehensive analysis structure, confidence in citations, competitive advantage | **Gain Creators**: Structured analysis (elements/burden/defenses/remedies), copy-citation functionality, change alerts |
+
+**Three Types of Fit** (Osterwalder, *Value Proposition Design*):
+
+| Fit Type | Consumer Status | Attorney Status |
+|----------|----------------|-----------------|
+| **Problem-Solution Fit** (features address real pains) | Partially validated (Phase 2 eval metrics) | Partially validated (precision 0.808, citation accuracy 1.0) |
+| **Product-Market Fit** (users choose us over alternatives) | **NOT VALIDATED** — zero real users | **NOT VALIDATED** — zero real users |
+| **Business Model Fit** (sustainable revenue) | **NOT VALIDATED** — revenue model undefined | **NOT VALIDATED** — willingness to pay unknown |
+
+#### 3.7.4 Business Model Canvas (Current State)
+
+| Block | Assessment | Risk Level |
+|-------|-----------|------------|
+| **Customer Segments** | (1) CA employees with employment questions, (2) CA employment attorneys | Low |
+| **Value Propositions** | Instant, cited legal info (consumer); statutory analysis (attorney) | Medium — untested with real users |
+| **Channels** | Phase 3: Web app + SEO. Future: API, browser extension, legal platform integrations | High — no distribution strategy validated |
+| **Customer Relationships** | Self-service (consumer), productivity tool (attorney) | Medium — trust-building is critical and unproven |
+| **Revenue Streams** | TBD — Freemium (consumer)? Subscription (attorney)? API licensing (enterprise)? | **Critical — completely undefined** |
+| **Key Resources** | Knowledge base (23K+ chunks), RAG pipeline, Claude API, legal domain curation | Low — built and validated |
+| **Key Activities** | KB maintenance (weekly refresh), RAG quality improvement, user trust building | Medium — operational cost unknown at scale |
+| **Key Partnerships** | Anthropic (LLM), CA Legislature (PUBINFO), government agencies | Low |
+| **Cost Structure** | LLM API ($0.006–0.032/query), infrastructure, KB maintenance | Medium — scales linearly with usage |
+
+**Critical gaps**: Revenue Streams and Channels are the two largest unknowns. Phase 3 must address both.
+
+#### 3.7.5 Growth Strategy (Product-Led Growth)
+
+The product has strong PLG fundamentals (Wes Bush, *Product-Led Growth*):
+
+**MOAT Assessment**:
+- **M**arket: Large (19M CA employees, ~90K CA attorneys), high-intent (employment disputes are urgent)
+- **O**cean: Blue-ish — no AI-native competitor specifically for California employment law
+- **A**udience: Consumers can self-serve. Attorneys can partially self-serve (firm-level procurement for enterprise features).
+- **T**ime-to-value: Very fast — ask a question, get an answer in seconds. Ideal for PLG.
+
+**Recommended growth model**:
+- **Consumer**: Free tier (unlimited basic questions) → Premium (detailed analysis, conversation memory, complaint guidance). Acquisition via SEO (employment law questions have massive search volume) and word-of-mouth.
+- **Attorney**: Free trial (10 queries/month) → Professional subscription ($49–99/month for unlimited). Acquisition via legal tech communities, bar association partnerships, content marketing.
+- **Enterprise** (Phase 5): API access for HR platforms and legal tech tools. Outbound sales.
+
+**Habit formation analysis** (Nir Eyal, *Hooked*): Consumer queries are low-frequency (most employees face 0–2 employment issues in their career) but high-stakes. Attorney queries are higher-frequency (daily research tasks). **Consumer growth will be viral (recommendations), not habitual. Attorney growth can be habit-driven.** Design accordingly: consumer mode optimizes for shareability and first-impression quality; attorney mode optimizes for workflow integration and daily-use efficiency.
+
+#### 3.7.6 Risk & Assumption Registry
+
+Every assumption below must be validated before significant investment. Ordered by risk severity.
+
+| # | Assumption | Risk Type | Evidence | Status | Validation Method |
+|---|-----------|-----------|----------|--------|--------------------|
+| R1 | Users will trust AI for legal information | Desirability | None | **CRITICAL** | Wizard-of-Oz test with 10–20 real users (Phase 3C) |
+| R2 | Employees will find and use this tool | Desirability | None | **High** | Landing page conversion test + SEO traffic (Phase 3A) |
+| R3 | Attorneys will use AI research tools alongside Westlaw | Desirability | Industry trend (positive) | Medium | Concierge: onboard 5 attorneys, track 30-day usage (Phase 3C) |
+| R4 | Freemium consumer + subscription attorney is viable | Viability | None | **High** | Pre-sale test: offer early-access attorney pricing (Phase 3C) |
+| R5 | SEO can drive consumer acquisition at scale | Viability | Employment law queries have high search volume | Medium | Measure organic traffic after Phase 4B content launch |
+| R6 | The AI is accurate enough for real-world use | Feasibility | Strong (P@5: 0.888/0.808) | **Validated** | Ongoing evaluation suite |
+| R7 | Citation accuracy is sufficient for attorneys | Feasibility | Strong (top-1: 1.0, completeness: 73%) | Partially validated | Live attorney feedback during beta |
+| R8 | Per-query costs are sustainable at scale | Viability | Modeled ($0.006–0.032/query) | Medium | Monitor during beta; optimize prompts |
+| R9 | California-only is a viable starting market | Viability | Large market (19M workers) | Medium | Validate during beta: what % of traffic seeks CA-specific info? |
+| R10 | Users understand the consumer/attorney mode distinction | Desirability | None | Medium | A/B test: explicit mode selection vs. auto-detection (Phase 3C) |
+
+**Phase 3 must resolve R1, R2, and R4 before Phase 4 investment is warranted.**
+
+---
+
 ## 4. Functional Requirements (Expanded)
 
 ### 4.1 Source Registry Management
@@ -757,50 +889,113 @@ Status: **Done.** 171 tests, 81% coverage. CRD employment discrimination content
 | 2C.5 | **Human evaluation** — Full 60-question run completed. Automated results: consumer disclaimer 100%, attorney disclaimer 92%, adversarial pass 100%, citation completeness 73%. | ⏳ PO | Awaiting PO review |
 | 2C.6 | **[GATE] Phase 2 acceptance** — All automated checks pass. 686 tests. | ⏳ PO | Awaiting PO sign-off |
 
-### Phase 3: Web Application (Revised for Dual Mode)
+### Phase 3: Customer Validation & MVP Web Application
 
-#### 3A — Application Shell
+> **Reframed (2026-02-26):** Phase 3 was originally "Web Application" — a build-first approach. Applying Lean Startup methodology (Eric Ries, *The Lean Startup*) and customer validation principles (Rob Fitzpatrick, *The Mom Test*), the phase is restructured to validate demand before scaling investment. The core insight: Phases 1–2 validated *feasibility* (the tech works) but not *desirability* (users want it) or *viability* (we can sustain it). Phase 3 addresses all three through a Build-Measure-Learn cycle. See Section 3.7 for the full product strategy analysis.
 
-| # | Task | Depends On | Deliverable |
-|---|------|------------|-------------|
-| 3A.1 | Initialize Reflex project; implement state class wrapping dual-mode RAG service. | 2B.4 | Reflex app skeleton |
-| 3A.2 | Design layout with **mode selector**: landing page lets users choose "I'm an employee with a question" (consumer mode) or "I'm a legal professional" (attorney mode). Persistent mode indicator and disclaimer banner. | 3A.1 | Dual-mode layout |
-| 3A.3 | Implement landing page with mode selection, value proposition, scope description, and starter questions (different per mode). | 3A.2 | Landing page |
+#### 3A — Customer Discovery & Landing Page (2–3 weeks)
 
-#### 3B — Chat Interfaces (One per Mode)
+The cheapest experiment that reduces the biggest risk. Before writing application code, validate that real users have the problem we're solving and are willing to engage with an AI-powered solution.
 
 | # | Task | Depends On | Deliverable |
 |---|------|------------|-------------|
-| 3B.1 | Implement **consumer chat**: message bubbles, plain-language rendering, source links with "as of" dates, suggested follow-up questions, "File a complaint" CTA when relevant. | 3A.2 | Consumer chat UI |
-| 3B.2 | Implement **attorney chat**: message bubbles with Markdown rendering of legal analysis, statutory citation rendering (clickable links to leginfo sections), code cross-reference display, "Copy citation" functionality. | 3A.2 | Attorney chat UI |
-| 3B.3 | Implement shared chat infrastructure: input component, conversation state, error handling, new conversation action. | 3B.1, 3B.2 | Chat infrastructure |
-| 3B.4 | **[GATE]** Both modes functional end-to-end. Consumer gets plain-language answers with source URLs. Attorney gets legal analysis with clickable statutory citations. | 3A–3B | **Phase 3 complete** |
+| 3A.1 | **Customer discovery interviews**: Conduct 10+ conversations (5 employees, 5 attorneys) following *The Mom Test* rules — talk about their life, not our product; ask about specifics in the past, not hypotheticals about the future. Document pain points, current solutions, switching barriers, and willingness to pay. | 2C.6 | Interview notes, pattern analysis |
+| 3A.2 | **Landing page test**: Build an SEO-optimized page with value proposition, scope description, 3 sample Q&A pairs (real answers from the pipeline), and email capture for early access. Deploy to a public URL. Measure visitor → sign-up conversion. | 2C.6 | Landing page with analytics |
+| 3A.3 | **Keyword research**: Identify top 50 California employment law search queries (Google Keyword Planner / Ahrefs). Validate that our knowledge base covers them. Prioritize content gaps. | 2C.6 | Keyword analysis, coverage report |
+| 3A.4 | **[GATE]** Landing page conversion > 5% (visitors → email sign-ups). Interview insights documented and synthesized. Key question answered: "Do people who face employment issues actually search online for help, and would they use an AI tool?" Decide: proceed to 3B, pivot positioning, or investigate further. | 3A.1–3A.3 | **Go/no-go for 3B** |
 
-### Phase 4: Production Readiness (Unchanged)
+#### 3B — Minimum Viable Web Application (4–6 weeks)
 
-Same as existing Phase 4 — infrastructure, deployment, monitoring, operations.
+Build the simplest thing that delivers core value. Not a full chat application — a question-answer interface that proves the product works in the real world. Apply the EUREKA framework (Ramli John, *Product-Led Onboarding*): the Aha Moment is the first accurate, well-cited answer to a real question.
 
-### Phase 5: Iteration & Expansion (Revised)
+| # | Task | Depends On | Deliverable |
+|---|------|------------|-------------|
+| 3B.1 | **[PO] Web framework decision**: Evaluate Reflex (Python-native, fast prototyping), Next.js + FastAPI (industry standard, superior SEO via SSR), or static site + API (simplest MVP). Decide based on: time-to-MVP, SEO capability, team skills. | 3A.4 | Framework decision |
+| 3B.2 | **MVP interface**: Single question input, answer display with citations and source links, mode toggle (consumer/attorney), persistent disclaimer. No chat history, no accounts, no persistence. Ship the minimum that delivers the core value. | 3B.1 | MVP web app |
+| 3B.3 | **SEO content pages**: Server-rendered or static pages for each topic area (wages, discrimination, leave, safety, etc.) with common questions and sample answers. These pages drive organic search traffic and demonstrate value before the user asks their own question. | 3B.2 | Topic landing pages |
+| 3B.4 | **Analytics**: Query volume, mode distribution, session duration, bounce rate, return visits. No PII collection. Use privacy-respecting analytics (Plausible or similar). | 3B.2 | Analytics dashboard |
+| 3B.5 | **Answer feedback**: Thumbs up/down on every answer. Store feedback with query hash, mode, and rating. This is the minimum viable feedback loop — the data that drives all future iteration. | 3B.2 | Feedback mechanism |
+| 3B.6 | **[GATE]** MVP deployed to public URL. Analytics collecting data. Feedback mechanism working. Ready for beta users. Core user flow works end-to-end in both modes. | 3B.2–3B.5 | **Live MVP** |
 
-#### 5A — Source Expansion (Ongoing)
+#### 3C — Closed Beta & Validation (4–6 weeks)
 
-| # | Task | Priority | Deliverable |
-|---|------|----------|-------------|
-| 5A.1 | Ingest P2 agency sources: PERB, ALRB, CDE Child Labor, Cal/OSHA | P2 | Additional agency content |
-| 5A.2 | Ingest P2 statutory codes: Health & Safety Code, Education Code, Civil Code | P2 | Additional statutory content |
-| 5A.3 | Add California Code of Regulations (CCR) — administrative regulations implementing statutes | P3 | Regulatory content |
-| 5A.4 | Automate content refresh: scheduled re-ingestion with change detection notifications. Statutory codes use PUBINFO daily deltas (`pubinfo_<Day>.zip`); agency sources use web re-crawl. | P2 | Automated freshness |
-| 5A.5 | Non-English content support (Spanish first) | P3 | Multi-language knowledge base |
+The critical phase. This is where we learn whether the product has real demand or is a technically impressive solution without a market. Every metric from this phase informs Phase 4 investment decisions.
 
-#### 5B — Experience Enhancements
+| # | Task | Depends On | Deliverable |
+|---|------|------------|-------------|
+| 3C.1 | **Recruit beta cohort**: 20–50 consumers (from landing page sign-ups, Reddit r/legaladvice, employment rights forums, legal aid organizations) + 5–10 attorneys (from bar association contacts, legal tech communities, solo practitioner networks). | 3B.6 | Beta cohort |
+| 3C.2 | **Run 4-week beta**: Track weekly — queries/user, return rate, feedback scores (thumbs up %), time-on-site, mode preference. Conduct exit interviews at week 2 and week 4 using Mom Test principles. | 3C.1 | Beta metrics report |
+| 3C.3 | **Iterate**: Expect 2–3 iteration cycles based on feedback. Common issues to watch for: trust signals (users want to see sources before the answer), answer quality gaps (specific topics where the KB has holes), UX friction (mode confusion, query formulation difficulty), citation presentation (too dense for consumers, not precise enough for attorneys). | 3C.2 | Improved MVP |
+| 3C.4 | **Pricing validation** (Bland & Osterwalder, *Testing Business Ideas*): At week 3, introduce a "premium features coming soon" prompt. For attorneys, offer early-access pricing ($49/month). Measure: do they click? Do they enter payment info? Even 3 commitments validates willingness to pay. | 3C.2 | Pricing signal |
+| 3C.5 | **[GATE]** Product-market fit signals: >30% 7-day return rate (consumers), >50% 7-day return rate (attorneys). Average feedback score >3.5/5. At least 3 attorneys express concrete willingness to pay. Interview data shows clear "pull" toward the product (users describe it solving a real problem, not just being "interesting"). If these signals are absent, diagnose why before proceeding to Phase 4. | 3C.1–3C.4 | **Product-market fit assessment** |
 
-| # | Task | Priority | Deliverable |
-|---|------|----------|-------------|
-| 5B.1 | Multi-turn conversation memory (separate context management per mode) | P2 | Conversation memory |
-| 5B.2 | Attorney mode: "Related statutes" sidebar — when viewing a code section, show cross-referenced sections | P2 | Cross-reference UI |
-| 5B.3 | Consumer mode: guided complaint filing workflow | P2 | Interactive workflow |
-| 5B.4 | Feedback mechanism (thumbs up/down) with quality improvement loop | P2 | Feedback system |
-| 5B.5 | Topic-guided browsing (by subject area: wages, discrimination, leave, safety, etc.) | P3 | Topic browse UI |
+### Phase 4: Production, Growth & Business Model
+
+> **Reframed (2026-02-26):** Phase 4 was originally "Production Readiness" — pure infrastructure. Infrastructure is necessary but not sufficient. A deployed product without distribution is a tree falling in an empty forest. Phase 4 is expanded to include growth engineering, business model implementation, and the analytics foundation for data-driven iteration. It is only warranted if Phase 3C demonstrates product-market fit signals.
+
+#### 4A — Production Infrastructure
+
+| # | Task | Depends On | Deliverable |
+|---|------|------------|-------------|
+| 4A.1 | [PO] Hosting decision: evaluate for cost at low scale (<1,000 queries/day), auto-scaling, deployment simplicity, and SEO support (SSR/SSG). | 3C.5 | Hosting decision |
+| 4A.2 | Production environment: domain, SSL, CDN, environment-specific configuration (dev/staging/production). | 4A.1 | Production environment |
+| 4A.3 | CI/CD pipeline: automated tests on PR, staging on merge to main, production with manual approval gate. Rollback procedure tested. | 4A.2 | CI/CD pipeline |
+| 4A.4 | Monitoring: error tracking (Sentry), structured log aggregation, uptime monitoring, LLM cost tracking with daily budget alerts. | 4A.3 | Monitoring stack |
+| 4A.5 | Security: rate limiting, input sanitization (prompt injection prevention), HTTPS enforcement, dependency vulnerability scanning. Legal disclaimer text reviewed by an actual attorney. | 4A.3 | Security audit |
+
+#### 4B — Growth & Acquisition
+
+| # | Task | Depends On | Deliverable |
+|---|------|------------|-------------|
+| 4B.1 | **SEO execution**: Target top 50 employment law queries from 3A.3. Publish optimized topic pages with schema.org FAQ/LegalService markup. Monitor ranking progress weekly. | 4A.3 | SEO-optimized content |
+| 4B.2 | **Content marketing**: Publish 10 pillar articles on high-volume topics ("California minimum wage 2026", "wrongful termination California", "FEHA discrimination claims"). Each article links to the interactive Q&A tool. | 4B.1 | Content funnel |
+| 4B.3 | **Referral mechanism**: "Share this answer" button generating a shareable link with the question pre-loaded. Track viral coefficient (shares per user, new users per share). | 4A.3 | Referral system |
+| 4B.4 | **Attorney outreach**: Partner with 2–3 California bar association sections (Labor & Employment Law, Solo/Small Firm). Offer free access in exchange for feedback, testimonials, and co-marketing. | 4A.3 | Bar association partnerships |
+| 4B.5 | **Email engagement**: Weekly digest of California employment law changes for subscribers (sourced from PUBINFO delta processing). Drives return visits and positions the product as the authoritative source. | 4A.3 | Email channel |
+
+#### 4C — Business Model Implementation
+
+| # | Task | Depends On | Deliverable |
+|---|------|------------|-------------|
+| 4C.1 | [PO] Finalize pricing based on 3C.4 beta data. Recommended starting point: free consumer tier (5 questions/day), attorney professional ($49–99/month unlimited). | 3C.5 | Pricing decision |
+| 4C.2 | Payment infrastructure (Stripe): subscription management, usage tracking, free tier enforcement. | 4C.1 | Payment system |
+| 4C.3 | Attorney onboarding: account creation, firm profile, usage dashboard, billing management. | 4C.2 | Attorney portal |
+| 4C.4 | Unit economics tracking: cost per query (LLM + infrastructure), revenue per user, CAC (customer acquisition cost), LTV (lifetime value). Target LTV:CAC > 3:1. | 4C.2 | Financial dashboard |
+| 4C.5 | **[GATE]** Production launch with payment. Targets: 100+ active free users, 5+ paying attorney subscribers, positive unit economics (revenue > variable costs per user). Monthly burn rate documented and sustainable. | 4A–4C | **Revenue milestone** |
+
+### Phase 5: Scale, Expand & Deepen
+
+> **Reframed (2026-02-26):** Phase 5 was originally a grab bag of features organized by technical category. It is restructured around validated user needs from Phase 3–4 data, prioritized by impact on retention, revenue, and competitive moat. Features are sequenced highest-impact-first. The specific prioritization should be updated based on actual beta and production usage data — the ordering below is a hypothesis.
+
+#### 5A — Retention & Engagement (Highest Priority — Close the Loop)
+
+| # | Task | Priority | Rationale |
+|---|------|----------|-----------|
+| 5A.1 | **Multi-turn conversation memory** (session-based, no accounts required for consumers) | P0 | #1 most-requested feature in legal AI tools. Users ask follow-up questions naturally. Without memory, each question starts cold — breaking the Hook cycle (Nir Eyal). |
+| 5A.2 | **Feedback-driven quality loop**: Use thumbs-down data to identify weak topics, refine prompts, and expand knowledge base for coverage gaps. | P0 | Closes the Build-Measure-Learn loop. Without this, quality improvements are guesswork. |
+| 5A.3 | **Suggested follow-up questions** after each answer. Context-generated, not hardcoded. | P1 | Increases session depth (queries/session). Reduces effort for the next action — the Investment phase of the Hook Model that creates the next Trigger. |
+| 5A.4 | **Consumer: guided complaint filing workflow** (step-by-step: identify issue → find agency → gather documents → file). | P1 | Transforms the product from information tool to action tool. The highest-value differentiator for consumers — no competitor does this. |
+| 5A.5 | **Attorney: copy citation / copy analysis / export to Word/PDF**. | P1 | Reduces friction for the attorney's real workflow: the analysis goes into a brief or memo, not into Employee Help. Without easy export, the tool creates extra work instead of saving it. |
+
+#### 5B — Knowledge Base Expansion (Demand-Driven — Expand Where Users Pull)
+
+| # | Task | Priority | Rationale |
+|---|------|----------|-----------|
+| 5B.1 | **Automated content refresh**: scheduled weekly re-ingestion with change detection and re-embedding. | P0 | Without this, the knowledge base decays. California laws change every January 1. Stale content destroys trust — the hardest-won and most fragile asset. |
+| 5B.2 | **P2 agency sources** (PERB, ALRB, CDE, Cal/OSHA) — prioritize based on query data showing unserved topics. | P1 | Data-driven: only expand to sources where users are asking questions we cannot answer. |
+| 5B.3 | **P2 statutory codes** (Health & Safety, Education, Civil) — prioritize based on attorney query patterns. | P1 | Same: expand where demand exists, not where content is available. |
+| 5B.4 | **CCR (California Code of Regulations)** — administrative regulations implementing statutes. | P2 | Adds the regulatory layer. High value for attorneys but significant ingestion effort. |
+| 5B.5 | **Spanish language support**: ingest Spanish-language fact sheets from CRD and DIR. Evaluate multilingual embedding model. | P2 | ~39% of CA workforce is Hispanic/Latino. Massive underserved market. But requires multilingual RAG pipeline evaluation. |
+
+#### 5C — Platform & Moat (Revenue-Driven — Build Defensibility)
+
+| # | Task | Priority | Rationale |
+|---|------|----------|-----------|
+| 5C.1 | **Attorney: cross-reference sidebar** — when a statute references another, show the related section inline. | P1 | A "delighter" feature (Kano Model) that no competitor does well. Builds on existing citation metadata. Creates switching costs. |
+| 5C.2 | **Topic-guided browsing** by subject area with pre-built queries and landing pages. | P1 | Reduces cold-start friction. Serves users who don't know what to ask. Excellent for SEO long-tail capture. |
+| 5C.3 | **API access** for legal tech platforms and HR software. RESTful API with auth, rate limiting, usage billing. | P2 | Enterprise revenue channel. HR platforms (Gusto, Rippling, BambooHR) could embed employment law guidance. This is the "network effects" play from Zero to One. |
+| 5C.4 | **Statutory change alerts**: notify subscribed attorneys when statutes in their practice areas are amended. | P2 | Retention mechanism for attorney subscribers. Uses existing PUBINFO delta processing. Creates a habit trigger (Hooked model: external trigger → return visit). |
+| 5C.5 | **Multi-state expansion**: Template the California pipeline for other states, starting with the largest employment markets (TX, NY, FL, IL). | P3 | Massive TAM expansion but requires per-state knowledge base build. Only pursue after California PMF is proven and the unit economics work. This is the 1-to-n scaling play — only valid after the 0-to-1 is confirmed. |
 
 ---
 
@@ -1413,212 +1608,429 @@ All Phase 1 work is done. 162 tests passing, 81% coverage.
 
 ---
 
-### Phase 3: Web Application (Dual-Mode)
+### Phase 3: Customer Validation & MVP Web Application
 
-#### 3A — Application Shell
+> **Strategic context (2026-02-26):** Phase 3 is the critical inflection point. Phases 1–2 validated feasibility; Phase 3 validates desirability and early viability signals. The phase follows a Lean Startup Build-Measure-Learn cycle: discover (3A) → build minimum (3B) → test with real users (3C). See Section 3.7 for the full product strategy rationale.
 
-**Goal:** Build the Reflex web app skeleton with mode selection and shared infrastructure.
+#### 3A — Customer Discovery & Landing Page
 
-- [ ] **3A.1 — Reflex project initialization**
-  - [ ] Initialize Reflex project in appropriate directory
-  - [ ] Create app state class wrapping dual-mode RAG service
-  - [ ] Configure Reflex with environment-based settings (dev/prod)
-  - [ ] Set up project structure (pages, components, state, styles)
-  - [ ] Verify basic Reflex app runs locally
+**Goal:** Validate demand before writing application code. The cheapest experiment that reduces the biggest risk (R1: user trust, R2: discoverability). Follows *The Mom Test* methodology for customer conversations.
 
-- [ ] **3A.2 — Mode selection and layout**
-  - [ ] Design and implement landing page layout
-  - [ ] Implement mode selector: "I'm an employee with a question" vs. "I'm a legal professional"
-  - [ ] Implement persistent mode indicator (header/sidebar badge)
-  - [ ] Implement mode-specific disclaimer banners
-  - [ ] Implement shared navigation (mode switch, new conversation, about)
-  - [ ] Implement responsive layout (desktop + mobile)
-  - [ ] Write component tests
+- [ ] **3A.1 — Customer discovery interviews**
+  - [ ] Identify and recruit 10+ interview subjects (5 employees who have had employment issues, 5 California employment attorneys — solo practitioners or small firms)
+  - [ ] Prepare interview guide following Mom Test rules:
+    - [ ] For employees: "Tell me about the last time you had a question about your rights at work. What did you do?" / "How much time/money did you spend?" / "Did you end up talking to a lawyer? Why or why not?"
+    - [ ] For attorneys: "Walk me through your typical process for researching a new employment law case." / "What tools do you use? What frustrates you?" / "Have you tried any AI tools for legal research?"
+  - [ ] Conduct interviews (30 min each, recorded with consent)
+  - [ ] Synthesize findings: common pain points, current solutions, switching barriers, willingness to engage with AI tools
+  - [ ] Document patterns in a customer discovery report
+  - [ ] Identify the strongest "push" forces (what drives people away from current solutions)
 
-- [ ] **3A.3 — Landing page implementation**
-  - [ ] Value proposition copy (different per mode)
-  - [ ] Scope description: what topics are covered
-  - [ ] Starter questions (5+ per mode, clickable to start a conversation)
-  - [ ] Legal disclaimer (always visible)
-  - [ ] Links to source agencies
-  - [ ] Write page tests
+- [ ] **3A.2 — Landing page and conversion test**
+  - [ ] Build a single-page site: headline value proposition, scope description (what topics we cover), 3 real sample Q&A pairs (generated from the Phase 2 pipeline), email capture for early access
+  - [ ] Deploy to a public URL with a memorable domain
+  - [ ] Set up privacy-respecting analytics (Plausible, Fathom, or similar)
+  - [ ] Drive initial traffic: post to r/legaladvice, employment rights forums, Hacker News (Show HN), legal tech communities
+  - [ ] Track: visitor count, sign-up conversion rate, traffic sources, time on page
+  - [ ] Run for 2 weeks minimum to collect meaningful data
+
+- [ ] **3A.3 — Keyword and SEO research**
+  - [ ] Use keyword research tools (Google Keyword Planner, Ahrefs, or Ubersuggest) to identify top 50 California employment law search queries by volume
+  - [ ] Map each query to our knowledge base: can we answer this? If not, what content gap exists?
+  - [ ] Prioritize: which queries have high volume + strong coverage in our KB?
+  - [ ] Document findings for SEO content strategy in Phase 4B
+
+- [ ] **[GATE] 3A.4 — Discovery validation**
+  - [ ] Landing page conversion > 5% (visitors → sign-ups) OR 50+ sign-ups collected
+  - [ ] Customer interview insights synthesized: clear evidence that (a) people search online for employment law help, (b) current solutions are frustrating, (c) AI-powered answers are not an automatic disqualifier
+  - [ ] [PO] Decision: proceed to 3B (build MVP), pivot positioning/messaging, or investigate a different market entry
+  - [ ] If interviews reveal unexpected insights (e.g., attorneys won't use AI, consumers want human review), update the product strategy (Section 3.7) before proceeding
 
 ---
 
-#### 3B — Chat Interfaces
+#### 3B — Minimum Viable Web Application
 
-**Goal:** Build mode-specific chat experiences sharing one knowledge base.
+**Goal:** Build the simplest web application that delivers core value. Not a full chat application — a question-answer interface. Apply the 40-60% rule (Ramli John, *Product-Led Onboarding*): 40-60% of SaaS users who sign up never return after their first session. The first answer must be excellent. Ship fast, learn faster.
 
-- [ ] **3B.1 — Consumer chat interface**
-  - [ ] Implement chat message bubbles (user + assistant)
-  - [ ] Implement plain-language answer rendering
-  - [ ] Implement source link display ("as of" dates, clickable URLs)
-  - [ ] Implement suggested follow-up questions (generated from context)
-  - [ ] Implement "File a complaint" CTA button when relevant
-  - [ ] Implement "I need more help" → link to relevant agency
-  - [ ] Implement input component with placeholder text
-  - [ ] Implement loading state (streaming response display)
-  - [ ] Write component tests
+- [ ] **3B.1 — [PO] Web framework decision**
+  - [ ] Evaluate options against MVP criteria:
+    - [ ] **Next.js + FastAPI**: Industry standard, excellent SEO (SSR/SSG), large ecosystem, but requires JS/TS + Python dual stack
+    - [ ] **Reflex**: Python-native (team familiarity), fast prototyping, but weaker SEO story (client-rendered), smaller ecosystem
+    - [ ] **Static site + API**: Simplest MVP (HTML/CSS + REST API), excellent SEO, minimal framework lock-in, but less interactive
+  - [ ] Decision criteria: (1) time to ship MVP, (2) SEO capability for organic growth, (3) team skills, (4) migration cost if we change later
+  - [ ] [PO] Select framework and document rationale
 
-- [ ] **3B.2 — Attorney chat interface**
-  - [ ] Implement chat message bubbles (user + assistant)
-  - [ ] Implement Markdown rendering for legal analysis
-  - [ ] Implement statutory citation rendering:
-    - [ ] Clickable links to leginfo sections
-    - [ ] Formatted with standard legal citation style
-  - [ ] Implement code cross-reference display (sidebar or inline)
-  - [ ] Implement "Copy citation" button for individual citations
-  - [ ] Implement "Copy full analysis" button
-  - [ ] Implement input component with placeholder text
-  - [ ] Implement loading state (streaming response display)
-  - [ ] Write component tests
+- [ ] **3B.2 — MVP web interface**
+  - [ ] Single question input (prominent, centered, with placeholder text suggesting a question)
+  - [ ] Answer display: formatted text with inline citations linked to source URLs
+  - [ ] Mode toggle: "Employee" / "Legal Professional" — simple, clear, no jargon
+  - [ ] Persistent legal disclaimer (footer or banner, always visible)
+  - [ ] Source attribution: "Sources used" section below each answer listing the retrieved chunks' sources
+  - [ ] Loading state: streaming response display (tokens appear as generated)
+  - [ ] Error handling: clear messages for API failures, rate limits, empty queries
+  - [ ] Mobile responsive (employment issues are often searched on mobile devices)
+  - [ ] **Explicitly NOT in MVP**: chat history, user accounts, conversation memory, persistence, sign-up walls
+  - [ ] Write end-to-end tests: input → API → answer → display
 
-- [ ] **3B.3 — Shared chat infrastructure**
-  - [ ] Implement conversation state management
-  - [ ] Implement message history (current session)
-  - [ ] Implement "New conversation" action (clears history)
-  - [ ] Implement error handling UI (LLM errors, network errors, rate limits)
-  - [ ] Implement input validation and sanitization
-  - [ ] Implement keyboard shortcuts (Enter to send, Shift+Enter for newline)
-  - [ ] Write integration tests (end-to-end: input → API → response → display)
+- [ ] **3B.3 — SEO topic pages**
+  - [ ] Create server-rendered or static pages for each subject area from Appendix A taxonomy
+  - [ ] Each page includes: topic overview, 5 common questions with pre-generated answers, "Ask your own question" CTA
+  - [ ] Implement schema.org FAQPage markup for search engine rich results
+  - [ ] Internal linking between related topics
+  - [ ] Meta descriptions optimized for search intent
 
-- [ ] **[GATE] 3B.4 — Phase 3 acceptance**
-  - [ ] Consumer mode: end-to-end functional (question → plain-language answer with sources)
-  - [ ] Attorney mode: end-to-end functional (question → legal analysis with clickable citations)
-  - [ ] Mode switching works seamlessly
-  - [ ] Mobile responsive
-  - [ ] Disclaimers visible in both modes
-  - [ ] PO sign-off on user experience
+- [ ] **3B.4 — Analytics and feedback**
+  - [ ] Install privacy-respecting analytics (same as landing page)
+  - [ ] Track: query volume per day, mode distribution (consumer vs. attorney), session duration, bounce rate, pages/session, return visits (7-day and 30-day), traffic sources
+  - [ ] Implement thumbs up/down feedback on every answer
+  - [ ] Store feedback: query hash (not raw query, for privacy), mode, rating, timestamp
+  - [ ] Build a simple feedback dashboard (even a CLI command that summarizes feedback data)
+
+- [ ] **[GATE] 3B.5 — MVP launch readiness**
+  - [ ] MVP deployed to public URL
+  - [ ] Analytics collecting data
+  - [ ] Feedback mechanism working
+  - [ ] Both modes functional end-to-end (consumer: plain-language + source URLs, attorney: legal analysis + statutory citations)
+  - [ ] Disclaimer visible on every page
+  - [ ] Responsive on mobile
+  - [ ] Page load time < 3 seconds
+  - [ ] Basic rate limiting in place (prevent abuse before beta)
+  - [ ] **MVP is live and ready for beta users**
+
+---
+
+#### 3C — Closed Beta & Validation
+
+**Goal:** Test the product with real users and measure product-market fit signals. This is the most important phase in the entire project — it determines whether the remaining phases are warranted. Apply innovation accounting (Eric Ries, *The Lean Startup*): establish baseline metrics, then tune toward ideal.
+
+- [ ] **3C.1 — Beta cohort recruitment**
+  - [ ] Consumer cohort (target 20–50 users):
+    - [ ] Landing page email sign-ups (from 3A.2)
+    - [ ] Reddit r/legaladvice, r/AskHR, California employment law subreddits
+    - [ ] Local legal aid organizations (they serve people who can't afford attorneys)
+    - [ ] Employee rights advocacy groups
+  - [ ] Attorney cohort (target 5–10):
+    - [ ] California Lawyers Association — Labor & Employment Law Section
+    - [ ] Solo practitioner and small firm networks
+    - [ ] Legal tech early adopter communities
+  - [ ] Prepare onboarding email: what the product does, what we're testing, how to give feedback, how their data is handled (privacy commitment)
+
+- [ ] **3C.2 — 4-week structured beta**
+  - [ ] Week 1: Launch to cohort. Monitor for crashes, errors, and showstoppers. Track first-session behavior: do users ask a question? Do they read the full answer? Do they engage with citations?
+  - [ ] Week 2: First exit interviews (5 users). Ask: "What was helpful? What was confusing? Did you trust the answer? What would you do differently?" Track 7-day return rate.
+  - [ ] Week 3: Introduce pricing signal (see 3C.4). Continue monitoring engagement. Identify the top 3 pain points from feedback data.
+  - [ ] Week 4: Final exit interviews (5 users). Measure: 7-day and 30-day return rates, average feedback score, queries/user, mode preference split.
+  - [ ] Document all findings in a beta results report
+
+- [ ] **3C.3 — Iterate based on feedback**
+  - [ ] Expect 2–3 iteration cycles during the 4-week beta
+  - [ ] Common issues to watch for and remediation:
+    - [ ] Trust gap: users want to see sources BEFORE the answer → add "searching sources..." animation with source preview
+    - [ ] Topic gaps: users ask about areas where our KB is thin → fast-track content expansion for high-demand topics
+    - [ ] Mode confusion: users don't understand consumer vs. attorney → test single-mode entry with auto-detection
+    - [ ] Answer quality: specific question types produce weak answers → refine prompts, add evaluation questions
+    - [ ] Citation density: consumers find citations distracting, attorneys want more → mode-specific citation rendering
+  - [ ] Ship fixes within 48 hours of identifying critical issues
+
+- [ ] **3C.4 — Pricing validation experiment**
+  - [ ] At beta week 3, introduce a prompt: "We're launching premium features soon — early access pricing available"
+  - [ ] For attorneys: display a pricing page ($49/month early-access, $99/month regular) with "Reserve your spot" button
+  - [ ] Measure: click-through rate on pricing prompt, pricing page views, "Reserve" button clicks
+  - [ ] Even 3 attorney commitments validates willingness to pay
+  - [ ] For consumers: test a "Support this project" / "Unlock detailed analysis" prompt to gauge upgrade interest
+
+- [ ] **[GATE] 3C.5 — Product-market fit assessment**
+  - [ ] **Quantitative signals**:
+    - [ ] Consumer 7-day return rate > 30% (target)
+    - [ ] Attorney 7-day return rate > 50% (target)
+    - [ ] Average feedback score > 3.5/5
+    - [ ] At least 3 attorneys express concrete willingness to pay (pricing experiment conversions)
+  - [ ] **Qualitative signals** (from interviews):
+    - [ ] Users describe the product solving a real problem (not just "interesting" or "cool")
+    - [ ] At least 2 users report recommending it to someone else (organic referral)
+    - [ ] Users describe specific scenarios where they would use it again
+  - [ ] **Red flags that require deeper investigation before Phase 4**:
+    - [ ] Return rate < 15% (users try once and leave)
+    - [ ] Feedback score < 3.0/5 (answers are not meeting expectations)
+    - [ ] Zero attorney willingness to pay (business model may need rethinking)
+    - [ ] Trust concerns dominate interviews (may need human-in-the-loop review layer)
+  - [ ] [PO] Decision: proceed to Phase 4 (strong signals), iterate on Phase 3 (mixed signals), or pivot (weak signals)
   - [ ] **Phase 3 COMPLETE**
 
 ---
 
-### Phase 4: Production Readiness
+### Phase 4: Production, Growth & Business Model
 
-**Goal:** Deploy the application to production with monitoring and operational controls.
+> **Strategic context (2026-02-26):** Phase 4 only proceeds if Phase 3C demonstrates product-market fit signals. It combines production infrastructure (necessary) with growth engineering and business model implementation (sufficient for a sustainable product). The three sub-phases can partially overlap: 4A enables 4B and 4C.
 
-- [ ] **4.1 — Infrastructure setup**
-  - [ ] [PO] Select hosting provider (cloud provider, VPS, or PaaS)
-  - [ ] Set up production environment (server, domain, SSL)
-  - [ ] Configure production database (SQLite → PostgreSQL if needed at scale)
-  - [ ] Set up vector database in production
-  - [ ] Configure LLM API keys and environment variables
-  - [ ] Set up environment-specific configuration (dev, staging, production)
+#### 4A — Production Infrastructure
 
-- [ ] **4.2 — Deployment pipeline**
-  - [ ] Set up CI/CD pipeline (GitHub Actions or similar)
-  - [ ] Automated test suite runs on every PR
+**Goal:** Deploy a production-grade application with monitoring, security, and operational procedures.
+
+- [ ] **4A.1 — Hosting and deployment**
+  - [ ] [PO] Select hosting provider: evaluate for cost at low scale (<1,000 queries/day), auto-scaling capability, deployment simplicity, and SSR/SSG support for SEO
+  - [ ] Set up production environment: domain, SSL, CDN for static assets
+  - [ ] Configure environment-specific settings (dev, staging, production)
+  - [ ] Set up production database (SQLite for initial scale; plan PostgreSQL migration trigger at ~10K concurrent users)
+  - [ ] Set up production vector database (LanceDB or migration to hosted vector DB)
+  - [ ] Configure LLM API keys and environment variables (secrets management)
+
+- [ ] **4A.2 — CI/CD pipeline**
+  - [ ] Set up CI/CD (GitHub Actions or similar)
+  - [ ] Automated test suite on every PR (686+ tests)
   - [ ] Automated linting and type checking
   - [ ] Staging deployment on merge to main
   - [ ] Production deployment with manual approval gate
   - [ ] Database migration automation
   - [ ] Rollback procedure documented and tested
+  - [ ] Deployment takes < 5 minutes (fast iteration is a competitive advantage)
 
-- [ ] **4.3 — Monitoring and observability**
+- [ ] **4A.3 — Monitoring and observability**
   - [ ] Application error tracking (Sentry or similar)
   - [ ] Structured log aggregation
-  - [ ] API response time monitoring
-  - [ ] LLM API usage and cost tracking
-  - [ ] Vector database query performance monitoring
-  - [ ] Uptime monitoring and alerting
-  - [ ] Usage analytics (queries per day, mode split, popular topics)
+  - [ ] API response time monitoring (target: < 5s consumer, < 15s attorney end-to-end)
+  - [ ] LLM API usage and cost tracking with daily budget alerts (alert at 80% of monthly budget)
+  - [ ] Uptime monitoring and alerting (target: 99.5% uptime)
+  - [ ] Usage analytics dashboard: queries/day, mode split, popular topics, geographic distribution, return rate
 
-- [ ] **4.4 — Security and compliance**
-  - [ ] No PII collection or storage (verify)
-  - [ ] Rate limiting on public API endpoints
-  - [ ] Input sanitization (prevent prompt injection)
-  - [ ] HTTPS enforced
-  - [ ] Dependency vulnerability scanning
-  - [ ] Legal disclaimer review (actual attorney review recommended)
+- [ ] **4A.4 — Security hardening**
+  - [ ] Rate limiting on public endpoints (consumer: 5 queries/min, attorney free tier: 2 queries/min)
+  - [ ] Input sanitization: prompt injection prevention (detect and reject adversarial inputs)
+  - [ ] HTTPS enforced, HSTS headers
+  - [ ] Dependency vulnerability scanning (Dependabot or similar, weekly)
+  - [ ] No PII collection or storage verified (queries may contain sensitive employment info — never log raw queries)
+  - [ ] Legal disclaimer text reviewed by an actual California employment attorney
+  - [ ] Privacy policy published (describe what data is collected, how it's used, how long it's retained)
 
-- [ ] **4.5 — Operational procedures**
-  - [ ] Content refresh runbook (how to re-ingest sources)
-  - [ ] Incident response procedure
-  - [ ] Backup and recovery procedure
-  - [ ] Cost monitoring and budget alerts (LLM API costs)
-  - [ ] On-call rotation (if applicable)
-
-- [ ] **[GATE] 4.6 — Production launch**
-  - [ ] All monitoring in place
-  - [ ] Security review complete
-  - [ ] Runbooks documented
-  - [ ] Staging environment validated
-  - [ ] PO sign-off on production readiness
-  - [ ] **Phase 4 COMPLETE — PRODUCTION LAUNCH**
+- [ ] **4A.5 — Operational procedures**
+  - [ ] Content refresh runbook: how to re-ingest sources (weekly for agencies, monthly for statutory codes)
+  - [ ] Incident response procedure: escalation path, communication template, post-mortem format
+  - [ ] Backup and recovery: database backups, LanceDB index rebuild procedure
+  - [ ] Cost monitoring: monthly LLM spend review, automatic alerts, model-tier adjustment playbook
+  - [ ] On-call rotation (if applicable) or async monitoring setup
 
 ---
 
-### Phase 5: Iteration & Expansion
+#### 4B — Growth & Acquisition
 
-#### 5A — Source Expansion (Ongoing)
+**Goal:** Build the distribution channels that bring users to the product. A great product with no distribution is just a demo. Applies Product-Led Growth principles: the product drives acquisition through value delivery and virality.
 
-- [ ] **5A.1 — P2 agency sources**
-  - [ ] Create and validate `config/sources/perb.yaml` (Public Employment Relations Board)
-  - [ ] Create and validate `config/sources/alrb.yaml` (Agricultural Labor Relations Board)
-  - [ ] Create and validate `config/sources/cde.yaml` (CDE Child Labor)
-  - [ ] Create and validate `config/sources/cal_osha.yaml` (Cal/OSHA — via DIR)
-  - [ ] Run full pipeline for each; spot-check quality
+- [ ] **4B.1 — SEO execution**
+  - [ ] Optimize topic pages from 3B.3 for top 50 target keywords (from 3A.3 research)
+  - [ ] Implement schema.org markup: FAQPage, LegalService, WebApplication
+  - [ ] Build internal linking structure between related topics
+  - [ ] Submit sitemap to Google Search Console; monitor indexing and ranking progress weekly
+  - [ ] Target: page 1 ranking for 10+ target keywords within 3 months
+  - [ ] Measure: organic traffic growth, conversion (visitor → question asked)
 
-- [ ] **5A.2 — P2 statutory codes**
-  - [ ] Create and validate `config/sources/health_safety_code.yaml`
-  - [ ] Create and validate `config/sources/education_code.yaml` (child labor sections)
-  - [ ] Create and validate `config/sources/civil_code.yaml` (relevant employment sections)
-  - [ ] Run statutory pipeline for each; verify citation accuracy
+- [ ] **4B.2 — Content marketing**
+  - [ ] Publish 10 pillar articles on highest-volume topics: "California minimum wage [year]", "wrongful termination California", "FEHA discrimination", "whistleblower protections California", "California overtime law", etc.
+  - [ ] Each article: authoritative content + "Ask a follow-up question" CTA linking to the interactive tool
+  - [ ] Distribute via: social media, legal forums, employment rights communities
+  - [ ] Measure: traffic per article, CTR to interactive tool, conversion to question asked
 
-- [ ] **5A.3 — California Code of Regulations (CCR)**
-  - [ ] [SPIKE] Investigate CCR source (regulations.ca.gov or westlaw/lexis alternative)
-  - [ ] Implement CCR extractor if new source structure
-  - [ ] Ingest employment-related CCR titles (Title 2, Title 8)
+- [ ] **4B.3 — Referral and virality**
+  - [ ] "Share this answer" button: generates a shareable URL with the question pre-loaded (answer regenerated for the recipient — not cached, to ensure freshness)
+  - [ ] Social sharing: Open Graph meta tags for rich previews when shared on social media
+  - [ ] Track viral coefficient: shares per user, new users per share, share-to-question conversion
+  - [ ] Target: viral coefficient > 0.3 (each 10 users bring 3 new users)
+
+- [ ] **4B.4 — Attorney channel development**
+  - [ ] Reach out to California Lawyers Association — Labor & Employment Law Section
+  - [ ] Reach out to local bar associations in major CA markets (LA, SF, San Diego, Sacramento)
+  - [ ] Offer: free 90-day access in exchange for feedback and testimonials
+  - [ ] Co-marketing opportunity: "Recommended by [X] attorneys" social proof
+  - [ ] Attend 1–2 legal tech conferences or bar CLE events to demo the product
+  - [ ] Measure: attorney sign-ups from each channel, cost per acquisition
+
+- [ ] **4B.5 — Email engagement channel**
+  - [ ] Implement opt-in email capture (landing page, post-answer "Get updates" prompt)
+  - [ ] Weekly California employment law digest: summarize statutory changes (from PUBINFO delta), new agency guidance, trending questions
+  - [ ] Segment by mode preference: consumer digest (plain language) vs. attorney digest (citations + analysis)
+  - [ ] Measure: open rate, click-through rate, return visits driven by email
+  - [ ] Target: 20% open rate, 5% CTR
+
+---
+
+#### 4C — Business Model Implementation
+
+**Goal:** Turn usage into revenue. Validate unit economics. The business model is a hypothesis until real users are paying. Applies Lean Startup innovation accounting: establish baseline, tune engine, assess viability.
+
+- [ ] **4C.1 — [PO] Pricing decision**
+  - [ ] Review Phase 3C pricing experiment data
+  - [ ] Recommended starting model (to be validated):
+    - [ ] **Consumer free tier**: 5 questions/day, basic answers, disclaimers. No account required.
+    - [ ] **Consumer premium** (optional, if demand signals exist): $9/month — conversation memory, detailed analysis, complaint guidance workflow. Requires account.
+    - [ ] **Attorney professional**: $49/month (early-access) / $99/month (regular) — unlimited questions, copy/export, citation alerts, priority response.
+    - [ ] **Enterprise/API**: Custom pricing — for HR platforms, legal tech tools, law firm integrations. Requires outbound sales.
+  - [ ] [PO] Approve or adjust pricing tiers
+
+- [ ] **4C.2 — Payment infrastructure**
+  - [ ] Integrate Stripe: subscription management, usage tracking, invoicing
+  - [ ] Implement free tier enforcement (query count per day, reset at midnight)
+  - [ ] Implement upgrade prompts: non-intrusive, shown after value is delivered (e.g., after 3rd question of the day)
+  - [ ] Implement downgrade/cancellation flow
+  - [ ] Write tests for payment edge cases (failed payments, expired cards, refunds)
+
+- [ ] **4C.3 — Attorney portal**
+  - [ ] Account creation and authentication (email + password or OAuth)
+  - [ ] Usage dashboard: queries this month, remaining quota (free trial), cost savings estimate
+  - [ ] Billing management: payment method, invoice history, plan changes
+  - [ ] Query history: searchable list of past questions and answers (opt-in, stored server-side)
+  - [ ] Firm profile (optional): firm name, practice areas, for future multi-seat plans
+
+- [ ] **4C.4 — Unit economics monitoring**
+  - [ ] Build financial dashboard tracking:
+    - [ ] Revenue: MRR (monthly recurring revenue), subscriber count, churn rate
+    - [ ] Costs: LLM API cost per query (by mode), infrastructure cost, total variable cost per user
+    - [ ] Efficiency: LTV (lifetime value), CAC (customer acquisition cost), LTV:CAC ratio
+    - [ ] Health: monthly burn rate, runway at current growth rate
+  - [ ] Set alerts: notify PO if LTV:CAC < 2:1 or if monthly LLM costs exceed revenue
+  - [ ] Monthly financial review: are we trending toward sustainability?
+
+- [ ] **[GATE] 4C.5 — Revenue milestone**
+  - [ ] 100+ active free users (asked at least 1 question in the past 30 days)
+  - [ ] 5+ paying attorney subscribers
+  - [ ] Positive unit economics: revenue from paying users > variable costs (LLM + infrastructure) for those users
+  - [ ] Monthly burn rate documented; runway > 12 months at current pace
+  - [ ] Growth trend: user base growing month-over-month
+  - [ ] [PO] Sign-off on business viability and Phase 5 investment
+  - [ ] **Phase 4 COMPLETE — SUSTAINABLE BUSINESS FOUNDATION**
+
+---
+
+### Phase 5: Scale, Expand & Deepen
+
+> **Strategic context (2026-02-26):** Phase 5 is driven by validated user demand from Phase 3–4 data. Features are prioritized by impact on retention (5A), knowledge quality (5B), and revenue/moat (5C). The specific ordering below is a hypothesis — it should be updated based on actual usage data, feedback patterns, and revenue signals. The principle: invest where users pull, not where technology pushes.
+
+#### 5A — Retention & Engagement (Close the Build-Measure-Learn Loop)
+
+**Goal:** Turn first-time users into repeat users. Address the top friction points identified during Phase 3C beta and Phase 4 production monitoring.
+
+- [ ] **5A.1 — Multi-turn conversation memory**
+  - [ ] Implement conversation session storage (session-based, no account required for consumers)
+  - [ ] Context window management: summarize older turns to fit token budget
+  - [ ] Mode-specific context handling: consumer preserves simple context, attorney preserves citations and analysis structure
+  - [ ] Session expiry: conversations reset after 24 hours of inactivity (privacy + cost management)
+  - [ ] Write tests for conversation state management
+  - [ ] Measure impact: session depth (queries/session) before vs. after
+
+- [ ] **5A.2 — Feedback-driven quality improvement loop**
+  - [ ] Build feedback analysis pipeline: aggregate thumbs-down by topic, question type, and mode
+  - [ ] Identify top 10 "pain topics" (questions that consistently get negative feedback)
+  - [ ] For each pain topic: diagnose root cause (knowledge gap? prompt issue? retrieval miss?) and remediate
+  - [ ] Implement weekly quality review cadence: review feedback data, prioritize improvements, ship fixes
+  - [ ] Track quality improvement over time: average feedback score by week
+  - [ ] This is the single most important operational process for product quality
+
+- [ ] **5A.3 — Suggested follow-up questions**
+  - [ ] After each answer, generate 2–3 relevant follow-up questions from the context
+  - [ ] Follow-ups should deepen understanding (consumer) or expand analysis (attorney)
+  - [ ] Clickable — one click to ask the follow-up, reducing effort for the next action
+  - [ ] Measure: what % of users click a follow-up? Which follow-ups have highest engagement?
+
+- [ ] **5A.4 — Consumer: guided complaint filing workflow**
+  - [ ] Design step-by-step wizard: identify issue type → determine which agency → gather required documents → link to agency complaint form
+  - [ ] Include timeline expectations (e.g., "CRD complaints typically take 60–90 days to investigate")
+  - [ ] Include documentation checklists (e.g., "Gather: termination letter, pay stubs, written communications")
+  - [ ] Link to relevant agency forms and instructions at each step
+  - [ ] This transforms the product from information → action, the highest-value differentiation for consumers
+
+- [ ] **5A.5 — Attorney: citation export and workflow integration**
+  - [ ] "Copy citation" button for individual statutory citations (formatted for legal briefs)
+  - [ ] "Copy full analysis" button (Markdown-formatted analysis for pasting into documents)
+  - [ ] "Export to Word" for the complete analysis (DOCX format with proper heading styles)
+  - [ ] These features reduce friction in the attorney's actual workflow — the value of Employee Help is the analysis, but the work product is a brief or memo
+
+---
+
+#### 5B — Knowledge Base Expansion (Demand-Driven)
+
+**Goal:** Expand content coverage based on validated user demand. The principle: expand where users are asking questions we cannot answer, not where content is available.
+
+- [ ] **5B.1 — Automated content refresh**
+  - [ ] Implement scheduled re-ingestion: weekly for agency sources (web re-crawl), monthly for statutory codes (PUBINFO re-download)
+  - [ ] Change detection: compare new content hashes to stored hashes, only re-embed changed chunks
+  - [ ] Notification on changes: email or webhook alerting the team when statutory content changes
+  - [ ] Implement re-embedding pipeline for changed chunks only (incremental, not full rebuild)
+  - [ ] Write tests for change detection and incremental re-embedding
+  - [ ] This is P0 — without it, content decays and trust erodes
+
+- [ ] **5B.2 — P2 agency sources (demand-driven)**
+  - [ ] Review Phase 4 query logs: which topics are users asking about that we can't answer?
+  - [ ] Prioritize P2 sources by demand:
+    - [ ] Cal/OSHA (`config/sources/cal_osha.yaml`) — if workplace safety questions are common
+    - [ ] PERB (`config/sources/perb.yaml`) — if public sector collective bargaining questions arise
+    - [ ] ALRB (`config/sources/alrb.yaml`) — if agricultural labor questions arise
+    - [ ] CDE (`config/sources/cde.yaml`) — if child labor questions arise
+  - [ ] For each: create config, run pipeline, spot-check quality, embed, verify retrieval
+
+- [ ] **5B.3 — P2 statutory codes (demand-driven)**
+  - [ ] Review attorney query patterns: which codes are being referenced that we don't cover?
+  - [ ] Prioritize by demand:
+    - [ ] Health & Safety Code — if Cal/OSHA questions reference specific statutes
+    - [ ] Education Code (child labor sections) — if child labor questions arise
+    - [ ] Civil Code (Unruh Act, sexual battery) — if employment-adjacent civil claims arise
+  - [ ] For each: create config, run PUBINFO loader, verify citation accuracy, embed
+
+- [ ] **5B.4 — California Code of Regulations (CCR)**
+  - [ ] [SPIKE] Investigate CCR data source (regulations.ca.gov, or official regulatory dump)
+  - [ ] Implement CCR extractor if needed (new source format)
+  - [ ] Ingest employment-related CCR titles (Title 2: Administration, Title 8: Industrial Relations)
   - [ ] Tag as `regulation` content_category
+  - [ ] Integrate into retrieval: regulations supplement statutes in attorney mode
 
-- [ ] **5A.4 — Automated content refresh**
-  - [ ] Implement scheduled re-ingestion (cron job or task scheduler)
-  - [ ] Implement change detection: compare new content hashes to stored hashes
-  - [ ] Implement notification on content changes (email or Slack webhook)
-  - [ ] Implement re-embedding for changed chunks only
-  - [ ] Write tests for change detection logic
-
-- [ ] **5A.5 — Non-English content support**
-  - [ ] [PO] Decide: Spanish first? Which agencies have Spanish content?
-  - [ ] Add `language` metadata to source configs and chunks
-  - [ ] Implement language-aware retrieval (match user's language preference)
-  - [ ] Evaluate multilingual embedding model
-  - [ ] Ingest Spanish-language fact sheets from CRD and DIR
+- [ ] **5B.5 — Spanish language support**
+  - [ ] [PO] Decide: Spanish first? (yes — ~39% of CA workforce is Hispanic/Latino)
+  - [ ] Identify which agencies provide Spanish content (CRD and DIR have Spanish fact sheets)
+  - [ ] Add `language` metadata to source configs, documents, and chunks
+  - [ ] Evaluate multilingual embedding model (e.g., BGE-M3 supports multilingual)
+  - [ ] Implement language-aware retrieval: detect query language, match to same-language content
+  - [ ] Ingest Spanish-language fact sheets
+  - [ ] Evaluate answer quality in Spanish (new evaluation dataset needed)
 
 ---
 
-#### 5B — Experience Enhancements
+#### 5C — Platform & Competitive Moat (Build Defensibility)
 
-- [ ] **5B.1 — Multi-turn conversation memory**
-  - [ ] Implement conversation session storage (per-user, per-session)
-  - [ ] Implement context window management (summarize older turns)
-  - [ ] Mode-specific context handling (consumer: simpler; attorney: preserve citations)
-  - [ ] Write tests for conversation memory
+**Goal:** Build features that create switching costs, defensibility, and new revenue channels. Applies Peter Thiel's monopoly theory: proprietary technology (10x better), network effects (API ecosystem), economies of scale (marginal cost approaches zero), and branding (the trusted source for CA employment law).
 
-- [ ] **5B.2 — Attorney mode: related statutes sidebar**
-  - [ ] Implement cross-reference extraction from statutory text (detect "Section XXXX" references)
-  - [ ] Build cross-reference index during ingestion
-  - [ ] Display "Related statutes" sidebar when viewing statutory citations
-  - [ ] Clickable cross-references that link to the referenced section
+- [ ] **5C.1 — Attorney: cross-reference sidebar**
+  - [ ] Implement cross-reference extraction from statutory text (detect "Section XXXX" references during ingestion)
+  - [ ] Build cross-reference index: for each section, which other sections reference it and which does it reference?
+  - [ ] Display "Related statutes" sidebar when viewing statutory citations in an answer
+  - [ ] Clickable cross-references that show the referenced section inline
+  - [ ] This is a Kano Model "delighter" — no competitor does this well, and it creates meaningful workflow value
 
-- [ ] **5B.3 — Consumer mode: guided complaint filing**
-  - [ ] Design complaint filing wizard (agency selection, issue type, next steps)
-  - [ ] Implement step-by-step workflow UI
-  - [ ] Link to appropriate agency complaint form at each step
-  - [ ] Include timeline expectations and documentation checklists
+- [ ] **5C.2 — Topic-guided browsing**
+  - [ ] Implement topic taxonomy navigation based on Appendix A (Wages, Discrimination, Leave, Safety, etc.)
+  - [ ] Pre-built queries per topic for quick access ("What is the minimum wage?" with one click)
+  - [ ] Topic landing pages with key information, common questions, and relevant statutes
+  - [ ] Browse by topic or by agency — two entry points to the same knowledge base
+  - [ ] Excellent for SEO long-tail capture (hundreds of topic-specific pages)
 
-- [ ] **5B.4 — Feedback mechanism**
-  - [ ] Implement thumbs up/down on each answer
-  - [ ] Store feedback with question, answer, mode, and rating
-  - [ ] Build feedback review dashboard
-  - [ ] Use feedback to identify quality improvement opportunities
-  - [ ] Periodic prompt tuning based on negative feedback patterns
+- [ ] **5C.3 — API access (Enterprise revenue channel)**
+  - [ ] Design RESTful API: `POST /v1/ask` with `query`, `mode`, `top_k` parameters
+  - [ ] Implement authentication (API keys), rate limiting (per-key), and usage tracking
+  - [ ] Build API documentation (OpenAPI/Swagger)
+  - [ ] Implement usage-based billing (per-query pricing for API access)
+  - [ ] Target integrations: HR platforms (Gusto, Rippling, BambooHR), legal tech tools, chatbot platforms
+  - [ ] This is the "network effects" play — each integration brings the platform's users to Employee Help's knowledge base
 
-- [ ] **5B.5 — Topic-guided browsing**
-  - [ ] Implement topic taxonomy navigation (Wages, Discrimination, Leave, Safety, etc.)
-  - [ ] Pre-built queries per topic for quick access
-  - [ ] Topic landing pages with key information and common questions
-  - [ ] Browse by agency or by topic dimension
+- [ ] **5C.4 — Statutory change alerts**
+  - [ ] Build alert subscription: attorneys select practice areas (discrimination, wages, whistleblower, etc.)
+  - [ ] When PUBINFO delta processing detects changes in subscribed statutes, generate a change summary
+  - [ ] Email notification with: what changed, old vs. new text diff, analysis of impact
+  - [ ] This creates a habit trigger (Hooked model: external trigger → return visit → variable reward → investment)
+  - [ ] Retention mechanism for attorney subscribers — they stay subscribed because the alerts are independently valuable
+
+- [ ] **5C.5 — Multi-state expansion**
+  - [ ] [PO] Only pursue after California PMF is proven and unit economics are positive
+  - [ ] Template the California pipeline for other states: identify equivalent statutory databases, agency sources, and citation formats
+  - [ ] Start with the largest employment markets: Texas, New York, Florida, Illinois
+  - [ ] Each state requires: statutory data source, agency source configs, state-specific prompt templates, evaluation dataset
+  - [ ] This is the 1-to-n scaling play (Zero to One) — only valid after the 0-to-1 is confirmed in California
+  - [ ] Estimate: each new state is ~4–6 weeks of pipeline + evaluation work, plus ongoing maintenance
 
 ---
 
@@ -1645,6 +2057,25 @@ These items apply throughout the project and should be maintained continuously.
   - [ ] Structured logging with source identity in every log entry
   - [ ] Error handling: retry with backoff for transient failures, skip + log for persistent
   - [ ] No single source failure should abort a multi-source run
+
+- [ ] **Product discipline (Phase 3+)**
+  - [ ] Every feature must trace back to a validated user job (Section 3.7.2) or a specific experiment from the Risk Registry (Section 3.7.6)
+  - [ ] Track activation metric from day one: % of visitors who ask their first question
+  - [ ] Maintain a "kill list" — features that seem important but lack evidence of user demand
+  - [ ] Review feedback data (thumbs up/down) weekly; identify the top 3 quality pain points
+  - [ ] Monitor unit economics monthly: cost per query, revenue per user, LTV:CAC ratio
+  - [ ] Ship small, measure fast: prefer weekly deploys over monthly launches. Minimize time through the Build-Measure-Learn loop.
+  - [ ] Apply the Kano Model to every feature decision: is it must-have, performance, or delighter? Must-haves are non-negotiable. Performance is where we compete. Delighters are how we differentiate.
+  - [ ] Before building any new feature, ask: "What is the cheapest experiment that could validate or invalidate this?" (Bland & Osterwalder, *Testing Business Ideas*)
+
+- [ ] **Trust & safety (Phase 3+)**
+  - [ ] Legal disclaimer visible on every page and every answer — text reviewed by an actual California employment attorney
+  - [ ] Citation transparency: every factual claim linked to its source; users can click to verify
+  - [ ] Confidence indicators: flag answers where retrieval quality is low (e.g., fewer than 3 relevant chunks retrieved)
+  - [ ] Prompt injection prevention: input sanitization, output monitoring for unexpected content
+  - [ ] No PII collection or storage — queries may contain sensitive employment information; never log raw query text in production
+  - [ ] Regular citation accuracy audits: monthly sample of 50 attorney answers, manually verified against source statutes
+  - [ ] Graceful degradation: if the LLM API is unavailable, show a clear message directing users to the source agencies rather than failing silently
 
 ---
 
@@ -1765,18 +2196,18 @@ uv run employee-help cross-validate
 
 ---
 
-## 9. Phase Summary (Revised)
+## 9. Phase Summary (Revised 2026-02-26)
 
-| Phase | Focus | Key Outcome |
-|-------|-------|-------------|
-| **Phase 1** ✅ | CRD Knowledge Acquisition | CRD employment discrimination content in SQLite (done) |
-| **Phase 1.5** ✅ (code complete, PO gate pending) | Multi-Source & Statutory Expansion | 9 sources ingested (6 statutory + 3 agency): 20,546 docs, 23,753 chunks. 32/33 validation checks pass. |
-| **Phase 2** ✅ (code complete, PO gate pending) | Dual-Mode RAG Pipeline | Embedding (bge-base-en-v1.5 + LanceDB), hybrid search, dual-mode retrieval, Claude answer generation (Haiku 4.5 / Sonnet 4.6), 60-question evaluation suite. 686 tests. |
-| **Phase 3** | Dual-Mode Web Application | Two chat experiences sharing one knowledge base |
-| **Phase 4** | Production Deployment | Live, monitored, cost-tracked platform |
-| **Phase 5** | Iteration & Expansion | P2 sources, CCR regulations, conversation memory, cross-references |
+| Phase | Focus | Key Outcome | Key Risk |
+|-------|-------|-------------|----------|
+| **Phase 1** ✅ | CRD Knowledge Acquisition | CRD employment discrimination content in SQLite (done) | — |
+| **Phase 1.5** ✅ (code complete, PO gate pending) | Multi-Source & Statutory Expansion | 9 sources ingested (6 statutory + 3 agency): 20,546 docs, 23,753 chunks. 32/33 validation checks pass. | — |
+| **Phase 2** ✅ (code complete, PO gate pending) | Dual-Mode RAG Pipeline | Embedding (bge-base-en-v1.5 + LanceDB), hybrid search, dual-mode retrieval, Claude answer generation (Haiku 4.5 / Sonnet 4.6), 60-question evaluation suite. 686 tests. | — |
+| **Phase 3** | Customer Validation & MVP | Validate desirability (user trust, demand), ship minimum viable web app, run closed beta, measure product-market fit signals | **Desirability** — zero real users; trust in AI legal info is untested |
+| **Phase 4** | Production, Growth & Business Model | SEO-driven acquisition, attorney subscriptions, payment infrastructure, production monitoring, unit economics | **Viability** — revenue model and unit economics are hypotheses |
+| **Phase 5** | Scale, Expand & Deepen | Retention features (conversation memory, feedback loop), demand-driven KB expansion, API platform, multi-state expansion | **Scalability** — per-query costs at high volume; multi-state is a 1-to-n play |
 
-> **Phases 1–4 are the MVP path.** Phase 1.5 adds ~15–20 tasks. The dual-mode experience in Phases 2–3 adds complexity but delivers dramatically more value than a single-mode approach.
+> **Phases 1–2 are the feasibility path** (validated: the technology works). **Phase 3 is the desirability inflection point** — it determines whether the product has real demand or is a technically impressive solution without a market. **Phase 4 is the viability test** — can we build a sustainable business? Phase 4 investment is only warranted if Phase 3 demonstrates product-market fit signals. **Phase 5 is the scale play** — driven by data from real users, not assumptions. Features are prioritized by validated demand, not by technical convenience.
 
 ---
 
@@ -1789,6 +2220,9 @@ uv run employee-help cross-validate
 | 3 | **Attorney mode MVP scope** | **A) Full citation mode from day one.** Attorney mode launches with precise § references, clickable leginfo links, and legal analysis structure. | Phase 2–3 are more complex, but the core attorney value proposition is delivered immediately. Consistent with the comprehensive statutory ingestion decision. |
 | 4 | **CalHR scope** | **A) Include with metadata tag.** CalHR content ingested into the unified knowledge base, tagged with "state_employees" metadata flag for filtering. | One knowledge base, metadata-driven filtering. Retrieval can de-prioritize CalHR content for private-sector questions. |
 | 5 | **Content refresh cadence** | **A) Add basic automation (cron) in Phase 1.5.** Weekly for agencies, monthly for statutory codes, with change detection. | Keeps content fresh without manual effort. Adds ~2–3 tasks to Phase 1.5D. |
+| 6 | **Phase 3 approach: build-first vs. validate-first** | **Pending PO review (2026-02-26).** Proposed: restructure Phase 3 around customer validation (Lean Startup methodology) before full web application build. Phase 3A = customer discovery + landing page test. Phase 3B = minimum viable web app. Phase 3C = closed beta with real users. | Major reframe: Phase 3 becomes a validation phase, not just a build phase. Investment in Phase 4 is contingent on Phase 3C product-market fit signals. See Section 3.7. |
+| 7 | **Revenue model** | **Pending PO decision.** Proposed: free consumer tier (5 questions/day) + attorney subscription ($49–99/month) + enterprise API (custom pricing). To be validated during Phase 3C beta. | Defines the business model for Phase 4C implementation. Cannot proceed with payment infrastructure until pricing is decided. |
+| 8 | **Web framework for Phase 3** | **Pending PO decision.** Options: Next.js + FastAPI (best SEO, industry standard), Reflex (Python-native, fast prototyping), or static site + API (simplest MVP). Recommend deciding at Phase 3B based on 3A findings. | Framework choice affects time-to-MVP, SEO capability, and long-term maintenance. |
 
 ---
 
