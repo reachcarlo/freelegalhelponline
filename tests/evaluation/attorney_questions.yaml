@@ -1,0 +1,119 @@
+# Attorney mode evaluation questions
+# Each question targets statutory interpretation and legal analysis
+# expected_citations: specific statute sections expected in the answer
+# expected_categories: content types that should appear in retrieval
+
+questions:
+  # Statutory Interpretation (8)
+  - question: "What are the elements of a FEHA retaliation claim under Government Code section 12940(h)?"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+    expected_structure: ["elements", "burden", "defenses", "remedies"]
+
+  - question: "What constitutes whistleblower retaliation under Labor Code section 1102.5?"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+    expected_structure: ["elements", "protected activity", "adverse action"]
+
+  - question: "What are the employer's obligations under FEHA regarding disability accommodation?"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+    expected_structure: ["interactive process", "reasonable accommodation", "undue hardship"]
+
+  - question: "What does Labor Code section 98.6 prohibit?"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["98.6"]
+
+  - question: "Explain the anti-SLAPP provisions applicable to employment retaliation claims"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["425.16"]
+
+  - question: "What are the statute of limitations for FEHA claims?"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12960"]
+
+  - question: "What remedies are available under Government Code section 12965?"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12965"]
+
+  - question: "How does Labor Code section 1102.6 allocate the burden of proof in whistleblower cases?"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.6"]
+
+  # Element Analysis (5)
+  - question: "What must a plaintiff prove to establish a wrongful termination in violation of public policy?"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: []
+    expected_structure: ["elements", "public policy", "causation"]
+
+  - question: "What are the elements of a harassment claim under FEHA?"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+    expected_structure: ["severe or pervasive", "hostile work environment"]
+
+  - question: "What constitutes an adverse employment action for purposes of a retaliation claim?"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: []
+
+  - question: "What are the requirements for a valid WARN Act notice under Labor Code?"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1400", "1401"]
+
+  - question: "What constitutes a 'protected activity' under the whistleblower statutes?"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+
+  # Cross-Statutory Issues (4)
+  - question: "How do FEHA and Labor Code whistleblower protections overlap for retaliation claims?"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940", "1102.5"]
+
+  - question: "Compare the remedies available under FEHA versus Labor Code section 1102.5"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12965", "1102.5"]
+
+  - question: "What is the relationship between SDI benefits and CFRA leave?"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: []
+
+  - question: "How do non-compete restrictions under Business and Professions Code section 16600 interact with trade secret protections?"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["16600"]
+
+  # Procedural Questions (3)
+  - question: "What is the administrative exhaustion requirement for FEHA claims?"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12960", "12965"]
+
+  - question: "What are the procedural requirements for filing a Labor Commissioner complaint?"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["98"]
+
+  - question: "What is the process for obtaining a right-to-sue letter from the CRD?"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12965"]
+
+  # Remedies Analysis (3)
+  - question: "What damages are available in a FEHA employment discrimination case?"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12965"]
+    expected_structure: ["compensatory", "punitive", "attorney fees"]
+
+  - question: "Can an employee recover attorney fees under Labor Code section 1102.5?"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+
+  - question: "What injunctive relief is available for unfair business practices under the UCL?"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["17200"]
+
+  # Citation Lookups (2) — pure citation queries where exact section must be top-1
+  - question: "Lab. Code section 1102.5"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+    citation_lookup: true
+
+  - question: "Gov. Code section 12940"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+    citation_lookup: true

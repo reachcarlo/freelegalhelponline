@@ -1,0 +1,217 @@
+"""Tests for the retrieval service."""
+
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from employee_help.retrieval.embedder import EmbeddingResult, EmbeddingService
+from employee_help.retrieval.query import QueryPreprocessor
+from employee_help.retrieval.reranker import Reranker
+from employee_help.retrieval.service import CONSUMER_CATEGORIES, RetrievalResult, RetrievalService
+from employee_help.retrieval.vector_store import VectorStore
+
+
+def _make_raw_result(chunk_id: int, category: str = "statutory_code", **kwargs):
+    """Helper to create a raw LanceDB result dict."""
+    defaults = {
+        "chunk_id": chunk_id,
+        "document_id": chunk_id * 10,
+        "source_id": 1,
+        "content": f"Content for chunk {chunk_id}",
+        "heading_path": f"Path > Chunk {chunk_id}",
+        "content_category": category,
+        "citation": f"§ {chunk_id}" if category == "statutory_code" else None,
+        "source_url": f"https://example.com/{chunk_id}",
+        "content_hash": f"hash_{chunk_id}",
+        "_relevance_score": 0.9 - chunk_id * 0.1,
+        "is_active": True,
+    }
+    defaults.update(kwargs)
+    return defaults
+
+
+@pytest.fixture
+def mock_embedding_service():
+    svc = MagicMock(spec=EmbeddingService)
+    svc.embed_query.return_value = EmbeddingResult(
+        dense_vector=[0.1] * 768,
+    )
+    return svc
+
+
+@pytest.fixture
+def mock_vector_store():
+    store = MagicMock(spec=VectorStore)
+    store.search_hybrid.return_value = [
+        _make_raw_result(1, "statutory_code"),
+        _make_raw_result(2, "agency_guidance"),
+        _make_raw_result(3, "fact_sheet"),
+        _make_raw_result(4, "statutory_code"),
+        _make_raw_result(5, "faq"),
+    ]
+    return store
+
+
+@pytest.fixture
+def mock_reranker():
+    rr = MagicMock(spec=Reranker)
+    # Reranker returns candidates in same order but with reranker scores
+    def fake_rerank(query, candidates, top_k):
+        for i, c in enumerate(candidates):
+            c.reranker_score = 1.0 - i * 0.1
+            c.relevance_score = c.reranker_score
+        return candidates[:top_k]
+    rr.rerank.side_effect = fake_rerank
+    return rr
+
+
+@pytest.fixture
+def service(mock_vector_store, mock_embedding_service, mock_reranker):
+    return RetrievalService(
+        vector_store=mock_vector_store,
+        embedding_service=mock_embedding_service,
+        reranker=mock_reranker,
+        top_k_search=50,
+        top_k_rerank=10,
+        top_k_final=5,
+    )
+
+
+class TestRetrievalService:
+    """Tests for the main RetrievalService."""
+
+    def test_retrieve_returns_results(self, service):
+        results = service.retrieve("test query", mode="consumer")
+        assert len(results) > 0
+
+    def test_retrieve_uses_embed_query(self, service, mock_embedding_service):
+        """Should use embed_query (with BGE prefix), not embed_text."""
+        service.retrieve("test query", mode="consumer")
+        mock_embedding_service.embed_query.assert_called_once()
+        mock_embedding_service.embed_text.assert_not_called()
+
+    def test_retrieve_consumer_mode(self, service, mock_vector_store):
+        service.retrieve("test query", mode="consumer")
+        # Check that filter was applied
+        call_kwargs = mock_vector_store.search_hybrid.call_args
+        filter_expr = call_kwargs.kwargs.get("filter_expr") or call_kwargs[1].get("filter_expr")
+        assert "content_category" in filter_expr
+        assert "agency_guidance" in filter_expr
+
+    def test_retrieve_attorney_mode_no_category_filter(self, service, mock_vector_store):
+        service.retrieve("test query", mode="attorney")
+        call_kwargs = mock_vector_store.search_hybrid.call_args
+        filter_expr = call_kwargs.kwargs.get("filter_expr") or call_kwargs[1].get("filter_expr")
+        # Attorney mode should only filter by is_active, not content_category
+        assert "content_category" not in filter_expr
+
+    def test_retrieve_respects_top_k(self, service):
+        results = service.retrieve("test query", mode="consumer", top_k=2)
+        assert len(results) <= 2
+
+    def test_retrieve_empty_results(self, service, mock_vector_store):
+        mock_vector_store.search_hybrid.return_value = []
+        results = service.retrieve("obscure query", mode="consumer")
+        assert results == []
+
+    def test_retrieve_results_have_content_hash(self, service):
+        results = service.retrieve("test query", mode="attorney")
+        for r in results:
+            assert hasattr(r, "content_hash")
+
+    def test_attorney_mode_statutory_boost(self, service, mock_vector_store):
+        """Attorney mode should boost statutory_code chunks."""
+        mock_vector_store.search_hybrid.return_value = [
+            _make_raw_result(1, "agency_guidance", _relevance_score=0.8),
+            _make_raw_result(2, "statutory_code", _relevance_score=0.8),
+        ]
+
+        results = service.retrieve("test query", mode="attorney")
+
+        statutory_results = [r for r in results if r.content_category == "statutory_code"]
+        agency_results = [r for r in results if r.content_category == "agency_guidance"]
+
+        assert len(statutory_results) > 0, "Expected statutory results"
+        assert len(agency_results) > 0, "Expected agency results"
+        assert statutory_results[0].relevance_score >= agency_results[0].relevance_score
+
+    def test_citation_boost(self, service, mock_vector_store):
+        """Citation queries should boost matching chunks."""
+        mock_vector_store.search_hybrid.return_value = [
+            _make_raw_result(1, "statutory_code", citation="Cal. Lab. Code § 1102.5"),
+            _make_raw_result(2, "statutory_code", citation="Cal. Lab. Code § 98.6"),
+        ]
+
+        results = service.retrieve(
+            "Lab. Code section 1102.5", mode="attorney"
+        )
+
+        assert len(results) >= 2, "Expected at least 2 results"
+        matching = [r for r in results if r.citation and "1102.5" in r.citation]
+        non_matching = [r for r in results if r.citation and "1102.5" not in r.citation]
+        assert len(matching) > 0, "Expected matching citation result"
+        assert len(non_matching) > 0, "Expected non-matching citation result"
+        assert matching[0].relevance_score >= non_matching[0].relevance_score
+
+    def test_reranker_failure_falls_back(self, service, mock_reranker, mock_vector_store):
+        """Reranker failure should fall back to hybrid search scores."""
+        mock_reranker.rerank.side_effect = RuntimeError("model failed")
+        results = service.retrieve("test query", mode="consumer")
+        # Should still return results (from hybrid search, unreranked)
+        assert len(results) > 0
+
+
+class TestDeduplication:
+    """Tests for result deduplication."""
+
+    def test_duplicate_content_removed(self, service, mock_vector_store):
+        mock_vector_store.search_hybrid.return_value = [
+            _make_raw_result(1, content="Same content here", content_hash="same_hash"),
+            _make_raw_result(2, content="Same content here", content_hash="same_hash"),
+            _make_raw_result(3, content="Different content", content_hash="diff_hash"),
+        ]
+
+        results = service.retrieve("test", mode="attorney")
+        contents = [r.content for r in results]
+        assert len(set(contents)) == len(contents)
+
+    def test_dedup_uses_content_hash(self, service, mock_vector_store):
+        """Dedup should prefer content_hash over content prefix."""
+        mock_vector_store.search_hybrid.return_value = [
+            _make_raw_result(1, content="Different text A", content_hash="shared_hash"),
+            _make_raw_result(2, content="Different text B", content_hash="shared_hash"),
+            _make_raw_result(3, content="Other text", content_hash="unique_hash"),
+        ]
+
+        results = service.retrieve("test", mode="attorney")
+        # Should deduplicate by hash even though content differs
+        assert len(results) == 2
+
+
+class TestSourceDiversity:
+    """Tests for source diversity enforcement."""
+
+    def test_max_per_document(self, service, mock_vector_store):
+        # All from same document
+        mock_vector_store.search_hybrid.return_value = [
+            _make_raw_result(i, document_id=1) for i in range(10)
+        ]
+
+        results = service.retrieve("test", mode="attorney")
+        assert len(results) <= service.diversity_max_per_doc
+
+
+class TestFilterBuilding:
+    """Tests for filter expression building."""
+
+    def test_consumer_filter(self, service):
+        filter_expr = service._build_filter("consumer")
+        assert "is_active = true" in filter_expr
+        assert "content_category" in filter_expr
+
+    def test_attorney_filter(self, service):
+        filter_expr = service._build_filter("attorney")
+        assert "is_active = true" in filter_expr
+        assert "content_category" not in filter_expr

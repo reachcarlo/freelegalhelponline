@@ -1,0 +1,113 @@
+# Consumer mode evaluation questions
+# Each question targets a specific employment law topic area
+# expected_categories: content types that should appear in retrieval results
+# expected_elements: key concepts the answer should mention
+
+questions:
+  # Wages & Overtime (5)
+  - question: "My employer didn't pay me for overtime. What can I do?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["overtime", "time and a half", "file a claim", "Labor Commissioner"]
+
+  - question: "What is the minimum wage in California?"
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    expected_elements: ["minimum wage", "per hour"]
+
+  - question: "Can my employer deduct money from my paycheck without my permission?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["deductions", "paycheck", "authorized"]
+
+  - question: "How often does my employer have to pay me?"
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    expected_elements: ["pay period", "semi-monthly", "payday"]
+
+  - question: "Am I entitled to meal and rest breaks at work?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["meal break", "rest break", "30 minutes", "10 minutes"]
+
+  # Discrimination & Harassment (5)
+  - question: "My boss treats me differently because of my race. Is that illegal?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["discrimination", "race", "FEHA", "complaint"]
+
+  - question: "I'm being sexually harassed at work. What are my options?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["sexual harassment", "complaint", "Civil Rights Department"]
+
+  - question: "Can my employer fire me because I'm pregnant?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["pregnancy", "discrimination", "leave", "protected"]
+
+  - question: "My employer won't accommodate my disability. What should I do?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["disability", "reasonable accommodation", "interactive process"]
+
+  - question: "Is age discrimination illegal in California?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["age", "discrimination", "40", "FEHA"]
+
+  # Retaliation & Whistleblower (3)
+  - question: "I reported safety violations and now my employer is retaliating against me"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["retaliation", "whistleblower", "protected activity"]
+
+  - question: "Can I be fired for filing a workers' compensation claim?"
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    expected_elements: ["retaliation", "workers' compensation", "protected"]
+
+  - question: "My employer demoted me after I complained about discrimination"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["retaliation", "adverse action", "complaint"]
+
+  # Leave / CFRA / FMLA (3)
+  - question: "How much family leave can I take in California?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["CFRA", "12 weeks", "family", "leave"]
+
+  - question: "Can I take time off work to care for a sick family member?"
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    expected_elements: ["family leave", "care", "CFRA"]
+
+  - question: "Do I get paid during maternity leave?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["maternity", "SDI", "Paid Family Leave", "disability"]
+
+  # Workplace Safety (2)
+  - question: "My workplace is unsafe. How do I file a complaint?"
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    expected_elements: ["Cal/OSHA", "safety", "complaint", "inspection"]
+
+  - question: "Does my employer have to provide safety training?"
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    expected_elements: ["training", "safety", "employer", "required"]
+
+  # Unemployment / SDI / PFL (4)
+  - question: "How do I apply for unemployment benefits in California?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["unemployment", "EDD", "apply", "benefits"]
+
+  - question: "What is State Disability Insurance and how do I get it?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["SDI", "disability", "benefits", "EDD"]
+
+  - question: "Can I get Paid Family Leave to bond with my new baby?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["Paid Family Leave", "bonding", "baby", "benefits"]
+
+  - question: "I was laid off. What benefits am I eligible for?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["unemployment", "layoff", "benefits"]
+
+  # Non-compete / Trade Secrets (2)
+  - question: "Is my non-compete agreement enforceable in California?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["non-compete", "void", "California"]
+
+  - question: "Can my employer prevent me from working for a competitor?"
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    expected_elements: ["non-compete", "restraint of trade", "unlawful"]
+
+  # General Process (1)
+  - question: "Where do I file an employment complaint in California?"
+    expected_categories: ["agency_guidance", "fact_sheet", "faq"]
+    expected_elements: ["complaint", "agency", "DIR", "CRD"]

@@ -152,6 +152,169 @@ def main() -> int:
         help="Number of statutory citations to sample (default: 30).",
     )
 
+    # Embed command
+    embed_parser = subparsers.add_parser(
+        "embed",
+        help="Generate vector embeddings for chunks.",
+    )
+    embed_parser.add_argument(
+        "--all",
+        action="store_true",
+        dest="embed_all",
+        help="Embed all un-embedded chunks.",
+    )
+    embed_parser.add_argument(
+        "--source",
+        type=str,
+        default=None,
+        help="Embed chunks for a specific source slug.",
+    )
+    embed_parser.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="Delete and rebuild entire vector index from scratch.",
+    )
+    embed_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/employee_help.db",
+        help="Database path (default: data/employee_help.db).",
+    )
+
+    # Embed-status command
+    embed_status_parser = subparsers.add_parser(
+        "embed-status",
+        help="Show embedding coverage and index stats.",
+    )
+    embed_status_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/employee_help.db",
+        help="Database path (default: data/employee_help.db).",
+    )
+
+    # Search command
+    search_parser = subparsers.add_parser(
+        "search",
+        help="Search the knowledge base using hybrid retrieval.",
+    )
+    search_parser.add_argument(
+        "query",
+        type=str,
+        help="Search query.",
+    )
+    search_parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["consumer", "attorney"],
+        default="consumer",
+        help="Search mode (default: consumer).",
+    )
+    search_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=5,
+        help="Number of results to return (default: 5).",
+    )
+    search_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show full content and debug info.",
+    )
+    search_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output results as JSON.",
+    )
+    search_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/employee_help.db",
+        help="Database path (default: data/employee_help.db).",
+    )
+
+    # Ask command
+    ask_parser = subparsers.add_parser(
+        "ask",
+        help="Ask a question and get a RAG-generated answer.",
+    )
+    ask_parser.add_argument(
+        "query",
+        type=str,
+        help="Question to ask.",
+    )
+    ask_parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["consumer", "attorney"],
+        default="consumer",
+        help="Answer mode (default: consumer).",
+    )
+    ask_parser.add_argument(
+        "--no-stream",
+        action="store_true",
+        help="Wait for complete response before displaying.",
+    )
+    ask_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Show retrieval results and prompt debug info.",
+    )
+    ask_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output structured answer as JSON.",
+    )
+    ask_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/employee_help.db",
+        help="Database path (default: data/employee_help.db).",
+    )
+
+    # Evaluate-retrieval command
+    eval_retrieval_parser = subparsers.add_parser(
+        "evaluate-retrieval",
+        help="Run automated retrieval quality evaluation.",
+    )
+    eval_retrieval_parser.add_argument(
+        "--output",
+        type=str,
+        default="data/evaluation",
+        help="Output directory for evaluation report (default: data/evaluation).",
+    )
+    eval_retrieval_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/employee_help.db",
+        help="Database path (default: data/employee_help.db).",
+    )
+
+    # Evaluate-answers command
+    eval_answers_parser = subparsers.add_parser(
+        "evaluate-answers",
+        help="Run automated answer quality evaluation.",
+    )
+    eval_answers_parser.add_argument(
+        "--output",
+        type=str,
+        default="data/evaluation",
+        help="Output directory for evaluation report (default: data/evaluation).",
+    )
+    eval_answers_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Run retrieval only, skip LLM calls.",
+    )
+    eval_answers_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/employee_help.db",
+        help="Database path (default: data/employee_help.db).",
+    )
+
     # Pubinfo-download command
     pubinfo_parser = subparsers.add_parser(
         "pubinfo-download",
@@ -194,6 +357,18 @@ def main() -> int:
             return _handle_cross_validate(args)
         elif args.command == "pubinfo-download":
             return _handle_pubinfo_download(args)
+        elif args.command == "embed":
+            return _handle_embed(args)
+        elif args.command == "embed-status":
+            return _handle_embed_status(args)
+        elif args.command == "search":
+            return _handle_search(args)
+        elif args.command == "ask":
+            return _handle_ask(args)
+        elif args.command == "evaluate-retrieval":
+            return _handle_evaluate_retrieval(args)
+        elif args.command == "evaluate-answers":
+            return _handle_evaluate_answers(args)
         else:
             parser.print_help()
             return 1
@@ -504,6 +679,539 @@ def _handle_pubinfo_download(args) -> int:
     except Exception as e:
         print(f"Error downloading PUBINFO: {e}", file=sys.stderr)
         return 1
+
+
+def _load_rag_config() -> dict:
+    """Load RAG pipeline configuration."""
+    import yaml
+
+    config_path = Path("config/rag.yaml")
+    if config_path.exists():
+        with open(config_path) as f:
+            return yaml.safe_load(f)
+    return {}
+
+
+def _build_retrieval_service(db_path: str = "data/employee_help.db"):
+    """Build and return a configured RetrievalService."""
+    from employee_help.retrieval.embedder import EmbeddingService
+    from employee_help.retrieval.query import QueryPreprocessor
+    from employee_help.retrieval.reranker import Reranker
+    from employee_help.retrieval.service import RetrievalService
+    from employee_help.retrieval.vector_store import VectorStore
+
+    rag_config = _load_rag_config()
+
+    emb_cfg = rag_config.get("embedding", {})
+    embedding_service = EmbeddingService(
+        model_name=emb_cfg.get("model", "BAAI/bge-base-en-v1.5"),
+        device=emb_cfg.get("device", "cpu"),
+    )
+
+    vs_cfg = rag_config.get("vector_store", {})
+    vector_store = VectorStore(
+        db_path=vs_cfg.get("path", "data/lancedb"),
+    )
+
+    rr_cfg = rag_config.get("reranker", {})
+    reranker = None
+    if rr_cfg.get("enabled", True):
+        reranker = Reranker(
+            model_name=rr_cfg.get("model", "mixedbread-ai/mxbai-rerank-base-v2"),
+            device=rr_cfg.get("device", "cpu"),
+        )
+
+    ret_cfg = rag_config.get("retrieval", {})
+    return RetrievalService(
+        vector_store=vector_store,
+        embedding_service=embedding_service,
+        reranker=reranker,
+        query_preprocessor=QueryPreprocessor(),
+        top_k_search=ret_cfg.get("top_k_search", 50),
+        top_k_rerank=ret_cfg.get("top_k_rerank", 10),
+        top_k_final=ret_cfg.get("top_k_final", 5),
+        citation_boost=ret_cfg.get("citation_boost", 1.5),
+        statutory_boost=ret_cfg.get("statutory_boost", 1.2),
+        diversity_max_per_doc=ret_cfg.get("diversity_max_per_doc", 3),
+    )
+
+
+def _handle_embed(args) -> int:
+    """Generate vector embeddings for chunks."""
+    from employee_help.retrieval.embedder import EmbeddingService
+    from employee_help.retrieval.vector_store import VectorStore
+    from employee_help.storage.storage import Storage
+
+    rag_config = _load_rag_config()
+    emb_cfg = rag_config.get("embedding", {})
+    vs_cfg = rag_config.get("vector_store", {})
+
+    storage = Storage(args.db)
+    embedding_service = EmbeddingService(
+        model_name=emb_cfg.get("model", "BAAI/bge-base-en-v1.5"),
+        device=emb_cfg.get("device", "cpu"),
+    )
+    vector_store = VectorStore(
+        db_path=vs_cfg.get("path", "data/lancedb"),
+    )
+
+    try:
+        if args.rebuild:
+            print("Rebuilding vector index from scratch...")
+            return _embed_all(storage, embedding_service, vector_store, rebuild=True)
+
+        if args.source:
+            return _embed_source(
+                args.source, storage, embedding_service, vector_store
+            )
+
+        if args.embed_all:
+            return _embed_all(storage, embedding_service, vector_store)
+
+        print("Error: Specify --all, --source <slug>, or --rebuild.", file=sys.stderr)
+        return 1
+    finally:
+        storage.close()
+
+
+def _embed_all(storage, embedding_service, vector_store, rebuild=False) -> int:
+    """Embed all un-embedded chunks (or all chunks if rebuild=True)."""
+    all_chunks = storage.get_all_chunks()
+    active_chunks = [c for c in all_chunks if c.is_active]
+    inactive_chunks = [c for c in all_chunks if not c.is_active]
+
+    if not rebuild:
+        # Incremental: only embed chunks not yet in the vector store
+        embedded_hashes = vector_store.get_embedded_content_hashes()
+        chunks_to_embed = [
+            c for c in active_chunks if c.content_hash not in embedded_hashes
+        ]
+    else:
+        chunks_to_embed = active_chunks
+
+    # Deactivation sync: remove inactive chunks from vector store
+    if inactive_chunks and not rebuild:
+        inactive_ids = [c.id for c in inactive_chunks if c.id]
+        if inactive_ids:
+            embedded_ids = vector_store.get_embedded_chunk_ids()
+            ids_to_remove = [cid for cid in inactive_ids if cid in embedded_ids]
+            if ids_to_remove:
+                vector_store.delete_embeddings(ids_to_remove)
+                print(f"Deactivated {len(ids_to_remove)} inactive chunks in vector store.")
+
+    if not chunks_to_embed:
+        print("All chunks are already embedded. Nothing to do.")
+        return 0
+
+    print(f"Embedding {len(chunks_to_embed)} chunks (total active: {len(active_chunks)})...")
+
+    # Build doc URL map for source_url metadata
+    all_docs = storage.get_all_documents()
+    doc_url_map = {d.id: d.source_url for d in all_docs if d.id}
+
+    # Build source_id map from documents
+    doc_source_map = {d.id: d.source_id for d in all_docs if d.id}
+
+    # Embed in batches
+    embeddings = embedding_service.embed_chunks(
+        chunks_to_embed,
+        source_id=0,  # Will be overridden per-chunk below
+        doc_url_map=doc_url_map,
+    )
+
+    # Fix source_id per embedding
+    for emb, chunk in zip(embeddings, chunks_to_embed):
+        emb.source_id = doc_source_map.get(chunk.document_id, 0) or 0
+
+    if rebuild:
+        vector_store.create_table(embeddings)
+    else:
+        vector_store.upsert_embeddings(embeddings)
+
+    print(f"Embedded {len(embeddings)} chunks successfully.")
+    stats = vector_store.get_stats()
+    print(f"Vector index: {stats.get('embedding_count', 0)} total embeddings")
+    return 0
+
+
+def _embed_source(slug, storage, embedding_service, vector_store) -> int:
+    """Embed chunks for a specific source."""
+    source = storage.get_source(slug)
+    if not source:
+        print(f"Error: Source '{slug}' not found in database.", file=sys.stderr)
+        return 1
+
+    chunks = storage.get_all_chunks(source_id=source.id)
+    active_chunks = [c for c in chunks if c.is_active]
+
+    if not active_chunks:
+        print(f"No active chunks found for source '{slug}'.")
+        return 0
+
+    # Check which need embedding
+    embedded_hashes = vector_store.get_embedded_content_hashes()
+    chunks_to_embed = [
+        c for c in active_chunks if c.content_hash not in embedded_hashes
+    ]
+
+    if not chunks_to_embed:
+        print(f"All {len(active_chunks)} chunks for '{slug}' are already embedded.")
+        return 0
+
+    print(f"Embedding {len(chunks_to_embed)} chunks for source '{slug}'...")
+
+    all_docs = storage.get_all_documents(source_id=source.id)
+    doc_url_map = {d.id: d.source_url for d in all_docs if d.id}
+
+    embeddings = embedding_service.embed_chunks(
+        chunks_to_embed,
+        source_id=source.id or 0,
+        doc_url_map=doc_url_map,
+    )
+
+    vector_store.upsert_embeddings(embeddings)
+    print(f"Embedded {len(embeddings)} chunks for '{slug}'.")
+    return 0
+
+
+def _handle_embed_status(args) -> int:
+    """Show embedding coverage and index stats."""
+    from employee_help.retrieval.vector_store import VectorStore
+    from employee_help.storage.storage import Storage
+
+    rag_config = _load_rag_config()
+    vs_cfg = rag_config.get("vector_store", {})
+
+    storage = Storage(args.db)
+    vector_store = VectorStore(
+        db_path=vs_cfg.get("path", "data/lancedb"),
+    )
+
+    try:
+        # Get total chunk counts per source
+        sources = storage.get_all_sources()
+        stats = vector_store.get_stats()
+
+        print("\n" + "=" * 60)
+        print("EMBEDDING STATUS")
+        print("=" * 60)
+        print(f"Vector store:  {vs_cfg.get('path', 'data/lancedb')}")
+        print(f"Table exists:  {stats.get('table_exists', False)}")
+        print(f"Total vectors: {stats.get('embedding_count', 0)}")
+        print(f"Active:        {stats.get('active_count', 0)}")
+
+        emb_cfg = rag_config.get("embedding", {})
+        print(f"Model:         {emb_cfg.get('model', 'BAAI/bge-base-en-v1.5')}")
+
+        # Per-source breakdown
+        total_chunks = 0
+        print("\nPer-source coverage:")
+        for source in sources:
+            source_chunks = storage.get_all_chunks(source_id=source.id)
+            active_count = sum(1 for c in source_chunks if c.is_active)
+            total_chunks += active_count
+            print(f"  {source.slug:30s} {active_count:>6d} active chunks")
+
+        embedded_count = stats.get("embedding_count", 0)
+        coverage = (embedded_count / total_chunks * 100) if total_chunks > 0 else 0
+        print(f"\nCoverage: {embedded_count}/{total_chunks} ({coverage:.1f}%)")
+
+        if stats.get("content_categories"):
+            print("\nBy content category:")
+            for cat, count in sorted(stats["content_categories"].items()):
+                print(f"  {cat:30s} {count:>6d}")
+
+        print("=" * 60 + "\n")
+        return 0
+    finally:
+        storage.close()
+
+
+def _handle_search(args) -> int:
+    """Run hybrid search and display results."""
+    import json as json_module
+
+    retrieval_service = _build_retrieval_service(args.db)
+
+    results = retrieval_service.retrieve(
+        query=args.query,
+        mode=args.mode,
+        top_k=args.top_k,
+    )
+
+    if args.json_output:
+        output = [
+            {
+                "rank": i + 1,
+                "chunk_id": r.chunk_id,
+                "relevance_score": round(r.relevance_score, 4),
+                "content_category": r.content_category,
+                "citation": r.citation,
+                "heading_path": r.heading_path,
+                "content": r.content if args.verbose else r.content[:200],
+                "source_url": r.source_url,
+            }
+            for i, r in enumerate(results)
+        ]
+        print(json_module.dumps(output, indent=2))
+        return 0
+
+    if not results:
+        print("No results found.")
+        return 0
+
+    print(f"\nSearch results for: {args.query}")
+    print(f"Mode: {args.mode} | Results: {len(results)}")
+    print("-" * 60)
+
+    for i, r in enumerate(results):
+        print(f"\n[{i + 1}] Score: {r.relevance_score:.4f} | {r.content_category}")
+        if r.citation:
+            print(f"    Citation: {r.citation}")
+        print(f"    Path: {r.heading_path}")
+        if r.source_url:
+            print(f"    URL: {r.source_url}")
+
+        if args.verbose:
+            print(f"    Content:\n    {r.content}")
+        else:
+            preview = r.content[:200].replace("\n", " ")
+            print(f"    Preview: {preview}...")
+
+    print()
+    return 0
+
+
+def _handle_ask(args) -> int:
+    """Generate a RAG answer to a question."""
+    import json as json_module
+
+    from employee_help.generation.llm import LLMClient
+    from employee_help.generation.prompts import PromptBuilder
+    from employee_help.generation.service import AnswerService
+
+    rag_config = _load_rag_config()
+    gen_cfg = rag_config.get("generation", {})
+
+    retrieval_service = _build_retrieval_service(args.db)
+
+    try:
+        llm_client = LLMClient(
+            timeout=gen_cfg.get("timeout_seconds", 30),
+            consumer_model=gen_cfg.get("consumer_model"),
+            attorney_model=gen_cfg.get("attorney_model"),
+        )
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        print(
+            "Set your API key with: export ANTHROPIC_API_KEY=your-key-here",
+            file=sys.stderr,
+        )
+        return 1
+
+    prompt_builder = PromptBuilder(
+        max_context_tokens=gen_cfg.get("max_context_tokens", 6000),
+    )
+
+    answer_service = AnswerService(
+        retrieval_service=retrieval_service,
+        llm_client=llm_client,
+        prompt_builder=prompt_builder,
+        citation_validation=gen_cfg.get("citation_validation", "strict"),
+    )
+
+    if not args.no_stream and not args.json_output:
+        # Streaming mode
+        stream, retrieval_results, stream_metadata = answer_service.generate_stream(
+            query=args.query,
+            mode=args.mode,
+        )
+
+        if args.debug:
+            print(f"\n--- Retrieval Results ({len(retrieval_results)} chunks) ---")
+            for i, r in enumerate(retrieval_results):
+                print(f"  [{i + 1}] {r.citation or r.heading_path} (score: {r.relevance_score:.4f})")
+            print()
+
+        print(f"\n{'=' * 60}")
+        print(f"Mode: {args.mode}")
+        print(f"{'=' * 60}\n")
+
+        for chunk in stream:
+            print(chunk, end="", flush=True)
+
+        print("\n")
+        print(f"{'=' * 60}")
+
+        # Show token usage and cost from stream metadata
+        if stream_metadata:
+            meta = stream_metadata[0]
+            model = meta.get("model", "")
+            in_tok = meta.get("input_tokens", 0)
+            out_tok = meta.get("output_tokens", 0)
+            if model:
+                print(f"Model:  {model}")
+            if in_tok or out_tok:
+                from employee_help.generation.models import TokenUsage
+                usage = TokenUsage(input_tokens=in_tok, output_tokens=out_tok, model=model)
+                print(f"Tokens: {in_tok} in / {out_tok} out")
+                print(f"Cost:   ${usage.cost_estimate:.4f}")
+
+        print(f"Sources: {len(retrieval_results)} chunks retrieved")
+        for r in retrieval_results:
+            label = r.citation or r.heading_path
+            print(f"  - {label}")
+        print(f"{'=' * 60}\n")
+    else:
+        # Non-streaming or JSON mode
+        if args.debug:
+            # Show retrieval results without making a separate call
+            # (generate() will call retrieve() internally)
+            pass
+
+        answer = answer_service.generate(query=args.query, mode=args.mode)
+
+        if args.debug:
+            print(f"\n--- Retrieval Results ({len(answer.retrieval_results)} chunks) ---")
+            for i, r in enumerate(answer.retrieval_results):
+                print(f"  [{i + 1}] {r.citation or r.heading_path} (score: {r.relevance_score:.4f})")
+            print()
+
+        if args.json_output:
+            output = {
+                "text": answer.text,
+                "mode": answer.mode,
+                "query": answer.query,
+                "model": answer.model_used,
+                "token_usage": {
+                    "input": answer.token_usage.input_tokens,
+                    "output": answer.token_usage.output_tokens,
+                    "cost_estimate": round(answer.token_usage.cost_estimate, 6),
+                },
+                "duration_ms": answer.duration_ms,
+                "citations": [
+                    {
+                        "claim": c.claim_text,
+                        "citation": c.citation,
+                        "source_url": c.source_url,
+                        "category": c.content_category,
+                    }
+                    for c in answer.citations
+                ],
+                "warnings": answer.warnings,
+            }
+            print(json_module.dumps(output, indent=2))
+        else:
+            print(f"\n{'=' * 60}")
+            print(f"Mode: {answer.mode} | Model: {answer.model_used}")
+            print(f"{'=' * 60}\n")
+            print(answer.text)
+            print(f"\n{'=' * 60}")
+            print(f"Tokens: {answer.token_usage.input_tokens} in / {answer.token_usage.output_tokens} out")
+            print(f"Cost:   ${answer.token_usage.cost_estimate:.4f}")
+            print(f"Time:   {answer.duration_ms}ms")
+            if answer.warnings:
+                print(f"Warnings: {', '.join(answer.warnings)}")
+            print(f"Sources: {len(answer.retrieval_results)} chunks")
+            for r in answer.retrieval_results:
+                label = r.citation or r.heading_path
+                print(f"  - {label}")
+            print(f"{'=' * 60}\n")
+
+    return 0
+
+
+def _handle_evaluate_retrieval(args) -> int:
+    """Run automated retrieval quality evaluation."""
+    from employee_help.evaluation.retrieval_metrics import run_retrieval_evaluation
+
+    retrieval_service = _build_retrieval_service(args.db)
+
+    output_dir = Path(args.output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    report = run_retrieval_evaluation(retrieval_service, output_dir)
+
+    pf = report.get("pass_fail", {})
+    print(f"\n{'=' * 60}")
+    print("RETRIEVAL EVALUATION REPORT")
+    print(f"{'=' * 60}")
+    print(f"Questions evaluated: {report['total_questions']}")
+    print(f"Consumer precision@5: {report['consumer_precision']:.3f} "
+          f"[{'PASS' if pf.get('consumer_precision') else 'FAIL'}]")
+    print(f"Attorney precision@5: {report['attorney_precision']:.3f} "
+          f"[{'PASS' if pf.get('attorney_precision') else 'FAIL'}]")
+    print(f"Citation top-1 accuracy: {report['citation_top1_accuracy']:.3f} "
+          f"[{'PASS' if pf.get('citation_top1') else 'FAIL'}]")
+    print(f"Overall MRR: {report['overall_mrr']:.3f}")
+    print(f"Overall: {'PASS' if report.get('overall_pass') else 'FAIL'}")
+    print(f"Report saved to: {output_dir}")
+    print(f"{'=' * 60}\n")
+
+    return 0
+
+
+def _handle_evaluate_answers(args) -> int:
+    """Run automated answer quality evaluation."""
+    from employee_help.evaluation.answer_metrics import run_answer_evaluation
+    from employee_help.generation.llm import LLMClient
+    from employee_help.generation.prompts import PromptBuilder
+    from employee_help.generation.service import AnswerService
+
+    rag_config = _load_rag_config()
+    gen_cfg = rag_config.get("generation", {})
+
+    retrieval_service = _build_retrieval_service(args.db)
+
+    if not args.dry_run:
+        try:
+            llm_client = LLMClient(
+                timeout=gen_cfg.get("timeout_seconds", 30),
+                consumer_model=gen_cfg.get("consumer_model"),
+                attorney_model=gen_cfg.get("attorney_model"),
+            )
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+
+        prompt_builder = PromptBuilder(
+            max_context_tokens=gen_cfg.get("max_context_tokens", 6000),
+        )
+
+        answer_service = AnswerService(
+            retrieval_service=retrieval_service,
+            llm_client=llm_client,
+            prompt_builder=prompt_builder,
+            citation_validation=gen_cfg.get("citation_validation", "strict"),
+        )
+    else:
+        answer_service = None
+
+    output_dir = Path(args.output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    report = run_answer_evaluation(
+        retrieval_service=retrieval_service,
+        answer_service=answer_service,
+        output_dir=output_dir,
+        dry_run=args.dry_run,
+    )
+
+    print(f"\n{'=' * 60}")
+    print("ANSWER EVALUATION REPORT")
+    print(f"{'=' * 60}")
+    print(f"Questions evaluated: {report['total_questions']}")
+    if not args.dry_run:
+        print(f"Disclaimer rate: {report.get('disclaimer_rate', 'N/A')}")
+        print(f"Avg reading level: {report.get('avg_reading_level', 'N/A')}")
+        print(f"Avg citation completeness: {report.get('avg_citation_completeness', 'N/A')}")
+        print(f"Avg cost per query: ${report.get('avg_cost', 0):.4f}")
+        if "adversarial_pass_rate" in report:
+            print(f"Adversarial pass rate: {report['adversarial_pass_rate']:.1%}")
+    print(f"Report saved to: {output_dir}")
+    print(f"{'=' * 60}\n")
+
+    return 0
 
 
 def _handle_status(args) -> int:

@@ -51,5 +51,11 @@ coverage.xml
 # uv
 .python-version
 
+# LanceDB
+data/lancedb/
+
+# ML model cache
+models/
+
 # Spike / scratch
 spike/

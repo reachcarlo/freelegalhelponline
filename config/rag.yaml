@@ -1,0 +1,36 @@
+# RAG pipeline configuration
+embedding:
+  model: "BAAI/bge-base-en-v1.5"
+  device: "cpu"  # "cpu" or "cuda"
+  batch_size: 32
+  max_seq_length: 512  # bge-base-en-v1.5 context limit
+
+vector_store:
+  path: "data/lancedb"
+  table_name: "chunk_embeddings"
+
+retrieval:
+  top_k_search: 50         # Candidates from hybrid search
+  top_k_rerank: 10         # Candidates after reranking
+  top_k_final: 5           # Final results returned
+  rrf_k: 60                # RRF constant (standard value)
+  citation_boost: 2.0      # Score multiplier for citation matches (substring match)
+  statutory_boost: 1.2     # Score multiplier for statutory chunks (attorney mode)
+  diversity_max_per_doc: 3  # Max chunks from same document
+
+reranker:
+  enabled: false  # Disabled: mxbai-rerank + bge-base together OOM on macOS x86_64 (~4GB combined)
+  model: "mixedbread-ai/mxbai-rerank-base-v2"
+  device: "cpu"
+
+generation:
+  consumer_model: "claude-haiku-4-5-20251001"
+  attorney_model: "claude-sonnet-4-6"
+  max_context_tokens: 6000   # Token budget for retrieved context
+  max_output_tokens: 2000    # Max answer length
+  temperature: 0.1           # Low temperature for factual accuracy
+  citations_enabled: true    # Use Claude Citations API
+  timeout_seconds: 120
+
+  # Citation validation
+  citation_validation: "strict"  # "strict" (remove hallucinated) or "permissive" (mark [unverified])

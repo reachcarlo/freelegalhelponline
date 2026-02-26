@@ -1,0 +1,13 @@
+The following sources from the California employment law knowledge base are relevant to the user's question. Use ONLY these sources to answer. Do not rely on information outside of what is provided here.
+
+{% for result in results %}
+<source index="{{ loop.index }}">
+<source_title>{{ result.citation or result.heading_path }}</source_title>
+<source_category>{{ result.content_category }}</source_category>
+{% if result.source_url %}<source_url>{{ result.source_url }}</source_url>{% endif %}
+<source_content>
+{{ result.content }}
+</source_content>
+</source>
+
+{% endfor %}

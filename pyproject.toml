@@ -20,6 +20,20 @@ dev = [
     "pytest-cov>=6.0",
     "pytest-asyncio>=0.24",
 ]
+rag = [
+    "sentence-transformers>=3.0,<3.5",
+    "torch>=2.0",
+    "transformers>=4.40,<4.50",
+    "numpy<2.0",
+    "lancedb>=0.6",
+    "anthropic>=0.40",
+    "jinja2>=3.1",
+]
+eval = [
+    "ragas>=0.2",
+    "deepeval>=1.0",
+    "textstat>=0.7",
+]
 
 [project.scripts]
 employee-help = "employee_help.cli:main"
@@ -35,6 +49,9 @@ addopts = [
 markers = [
     "integration: marks tests that hit live external services (deselect with '-m \"not integration\"')",
     "live: marks tests that hit live government websites (deselect with '-m \"not live\"')",
+    "slow: marks tests that require loading ML models (deselect with '-m \"not slow\"')",
+    "llm: marks tests that require a live LLM API key (deselect with '-m \"not llm\"')",
+    "evaluation: marks RAG evaluation tests (deselect with '-m \"not evaluation\"')",
 ]
 
 [tool.coverage.run]
