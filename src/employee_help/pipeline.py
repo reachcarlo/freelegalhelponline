@@ -208,6 +208,20 @@ class Pipeline:
 
         return loader.to_statute_sections(filtered)
 
+    def _extract_via_caci_pdf(self) -> list:
+        """Extract CACI jury instructions from the official PDF."""
+        from employee_help.scraper.extractors.caci import CACILoader
+
+        pdf_path = Path("data/caci/caci_2026.pdf")
+        if not pdf_path.exists():
+            raise FileNotFoundError(
+                f"CACI PDF not found at {pdf_path}. "
+                "Download from https://www.courts.ca.gov/partners/317.htm"
+            )
+
+        loader = CACILoader(pdf_path)
+        return loader.to_statute_sections()
+
     def _extract_via_web(self) -> tuple[list, int]:
         """Extract statutory sections using the web scraper. Returns (sections, request_count)."""
         from employee_help.scraper.extractors.statute import StatutoryExtractor
@@ -274,9 +288,19 @@ class Pipeline:
             if method == "pubinfo":
                 sections = self._extract_via_pubinfo()
                 stats.urls_crawled = 0  # No HTTP requests for pubinfo
+            elif method == "caci_pdf":
+                sections = self._extract_via_caci_pdf()
+                stats.urls_crawled = 0  # No HTTP requests for PDF
             else:
                 sections, request_count = self._extract_via_web()
                 stats.urls_crawled = request_count
+
+            # Determine content category from extraction config (defaults to STATUTORY_CODE)
+            category_str = self.source_config.extraction.content_category
+            try:
+                content_category = ContentCategory(category_str)
+            except ValueError:
+                content_category = ContentCategory.STATUTORY_CODE
 
             for section in sections:
                 try:
@@ -302,7 +326,7 @@ class Pipeline:
                             language="en",
                             crawl_run_id=run_id,
                             source_id=source_id,
-                            content_category=ContentCategory.STATUTORY_CODE,
+                            content_category=content_category,
                         )
 
                         stored_doc, is_new = self.storage.upsert_document(document)
@@ -316,7 +340,7 @@ class Pipeline:
                                     heading_path=chunk.heading_path,
                                     token_count=chunk.token_count,
                                     document_id=stored_doc.id,
-                                    content_category=ContentCategory.STATUTORY_CODE,
+                                    content_category=content_category,
                                     citation=section.citation,
                                 )
                                 for chunk in chunks

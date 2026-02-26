@@ -311,8 +311,8 @@ def load_source_config(config_path: str | Path) -> SourceConfig:
         citation_pfx = statutory_data.get("citation_prefix")
         if code_abbr and code_name_val and citation_pfx:
             method = statutory_data.get("method", "pubinfo")
-            if method not in ("pubinfo", "web"):
-                raise ValueError(f"Invalid statutory method: {method}. Must be 'pubinfo' or 'web'.")
+            if method not in ("pubinfo", "web", "caci_pdf"):
+                raise ValueError(f"Invalid statutory method: {method}. Must be 'pubinfo', 'web', or 'caci_pdf'.")
             statutory = StatutoryConfig(
                 code_abbreviation=code_abbr,
                 code_name=code_name_val,

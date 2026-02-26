@@ -215,3 +215,39 @@ class TestFilterBuilding:
         filter_expr = service._build_filter("attorney")
         assert "is_active = true" in filter_expr
         assert "content_category" not in filter_expr
+
+    def test_consumer_filter_excludes_jury_instruction(self, service):
+        """Consumer mode should exclude jury_instruction content."""
+        filter_expr = service._build_filter("consumer")
+        assert "jury_instruction" not in filter_expr
+        # jury_instruction is not in CONSUMER_CATEGORIES
+        assert "jury_instruction" not in CONSUMER_CATEGORIES
+
+
+class TestJuryInstructionBoost:
+    """Tests for CACI jury instruction scoring in attorney mode."""
+
+    def test_attorney_mode_jury_instruction_boost(self, service, mock_vector_store):
+        """Attorney mode should boost jury_instruction chunks by 1.3x."""
+        mock_vector_store.search_hybrid.return_value = [
+            _make_raw_result(1, "agency_guidance", _relevance_score=0.8),
+            _make_raw_result(
+                2, "jury_instruction",
+                _relevance_score=0.8,
+                citation="CACI No. 2430",
+            ),
+        ]
+        results = service.retrieve("wrongful discharge elements", mode="attorney")
+
+        jury_results = [r for r in results if r.content_category == "jury_instruction"]
+        agency_results = [r for r in results if r.content_category == "agency_guidance"]
+
+        assert len(jury_results) > 0, "Expected jury_instruction results"
+        assert len(agency_results) > 0, "Expected agency results"
+        assert jury_results[0].relevance_score > agency_results[0].relevance_score
+
+    def test_consumer_mode_no_jury_instructions(self, service, mock_vector_store):
+        """Consumer mode filter should not include jury_instruction."""
+        filter_expr = service._build_filter("consumer")
+        # The filter uses CONSUMER_CATEGORIES which doesn't include jury_instruction
+        assert "jury_instruction" not in filter_expr

@@ -3,7 +3,7 @@
 > **Project:** Employee Help — AI-Powered Legal Guidance Platform
 > **Author:** Claude (Opus 4.6) for Product Owner review
 > **Date:** 2026-02-25
-> **Status:** APPROVED — All PO decisions resolved (2026-02-25). **REVISED 2026-02-25**: Statutory ingestion pivoted from web scraping to PUBINFO database (see Assumptions 6–7, F-SC.2, 1.5C.8). **PHASE 1.5 IMPLEMENTATION COMPLETE (2026-02-25)**: All 9 sources ingested (6 statutory + 3 agency). 20,546 documents, 23,753 chunks. 32/33 validation checks pass (1 known issue: CalHR oversized chunk — chunker improvement deferred). Idempotency verified. Pending PO gate review (1.5D.6). **PHASE 2 CODE COMPLETE (2026-02-26)**: RAG pipeline fully implemented — embedding (bge-base-en-v1.5, 23,705 chunks in LanceDB), hybrid search (vector + BM25 + RRF), dual-mode retrieval (consumer/attorney), LLM answer generation (Claude Haiku 4.5 / Sonnet 4.6 with Citations API), and 60-question evaluation suite. 686 tests passing. Automated gates 2A.5b, 2A.10, 2B.5 PASS. Pending PO gate review (2C.5, 2C.6). **ROADMAP REFRAMED (2026-02-26)**: Phases 3–5 restructured through Product Management and Venture Capital lenses — applying JTBD, Lean Startup, Business Model Canvas, Product-Led Growth, and customer validation frameworks. Phase 3 reframed from "build web app" to "validate demand + ship MVP + run beta." New Section 3.7 (Product Strategy & Go-to-Market) added. Risk & Assumption Registry added. 3 new PO decisions pending (Phase 3 approach, revenue model, web framework).
+> **Status:** APPROVED — All PO decisions resolved (2026-02-25). **REVISED 2026-02-25**: Statutory ingestion pivoted from web scraping to PUBINFO database (see Assumptions 6–7, F-SC.2, 1.5C.8). **PHASE 1.5 IMPLEMENTATION COMPLETE (2026-02-25)**: All 9 sources ingested (6 statutory + 3 agency). 20,546 documents, 23,753 chunks. 32/33 validation checks pass (1 known issue: CalHR oversized chunk — chunker improvement deferred). Idempotency verified. Pending PO gate review (1.5D.6). **CACI JURY INSTRUCTIONS INTEGRATED (2026-02-26)**: 10th source added — 110 employment-related CACI instructions (series 2400–2800, 4600) parsed from 2026 PDF. 325 documents, 353 chunks. New `jury_instruction` content category with attorney-mode 1.3x retrieval boost. Consumer mode excluded by design. **PHASE 2 CODE COMPLETE (2026-02-26)**: RAG pipeline fully implemented — embedding (bge-base-en-v1.5, 24,058 chunks in LanceDB), hybrid search (vector + BM25 + RRF), dual-mode retrieval (consumer/attorney), LLM answer generation (Claude Haiku 4.5 / Sonnet 4.6 with Citations API), and 60-question evaluation suite. 750 tests passing. Automated gates 2A.5b, 2A.10, 2B.5 PASS. Pending PO gate review (2C.5, 2C.6). **ROADMAP REFRAMED (2026-02-26)**: Phases 3–5 restructured through Product Management and Venture Capital lenses — applying JTBD, Lean Startup, Business Model Canvas, Product-Led Growth, and customer validation frameworks. Phase 3 reframed from "build web app" to "validate demand + ship MVP + run beta." New Section 3.7 (Product Strategy & Go-to-Market) added. Risk & Assumption Registry added. 3 new PO decisions pending (Phase 3 approach, revenue model, web framework).
 > **Supersedes:** PHASE_1_KNOWLEDGE_ACQUISITION.md (Phase 1 scope preserved; Phases 2–5 expanded)
 
 ---
@@ -21,7 +21,7 @@ This document expands the project scope from a single-agency, discrimination-foc
 | **Subject matter** | Employment discrimination | All California employee/employer rights |
 | **User personas** | Generic user | Consumer/Employee + Attorney |
 | **Output style** | Plain-language guidance | + statutory citations with section-level precision |
-| **Estimated volume** | ~50 pages, ~500 chunks | ~5,000–10,000 pages, ~50,000–100,000 chunks (actual Phase 1.5: 20,546 docs, 23,705 chunks) |
+| **Estimated volume** | ~50 pages, ~500 chunks | ~5,000–10,000 pages, ~50,000–100,000 chunks (actual: 20,871 docs, 24,106 chunks across 10 sources) |
 
 ---
 
@@ -330,7 +330,7 @@ The existing data model (CrawlRun → Document → Chunk) is extended, not repla
 └──────────────┘     └──────────────────┘
 
 content_category enum: "agency_guidance" | "fact_sheet" | "statutory_code"
-                       | "regulation" | "poster" | "faq"
+                       | "regulation" | "poster" | "faq" | "jury_instruction"
 
 citation_meta (JSON, for statutory content):
 {
@@ -774,7 +774,7 @@ Every assumption below must be validated before significant investment. Ordered 
 
 | ID | Requirement | Rationale |
 |----|-------------|-----------|
-| F-CC.1 | Every stored document and chunk shall carry a **content_category** label: `agency_guidance`, `fact_sheet`, `statutory_code`, `regulation`, `poster`, or `faq`. | Enables mode-specific retrieval filtering (consumer mode filters to guidance; attorney mode includes statutes). |
+| F-CC.1 | Every stored document and chunk shall carry a **content_category** label: `agency_guidance`, `fact_sheet`, `statutory_code`, `regulation`, `poster`, `faq`, or `jury_instruction`. | Enables mode-specific retrieval filtering (consumer mode filters to guidance; attorney mode includes statutes and jury instructions). |
 | F-CC.2 | Content category shall be assigned based on source type and URL/content heuristics (e.g., PDF fact sheets from agency sources are `fact_sheet`; leginfo sections are `statutory_code`). | Automated classification reduces manual tagging burden. |
 
 ### 4.5 Dual-Mode Support (Data Layer)
@@ -809,7 +809,7 @@ Status: **Done.** 171 tests, 81% coverage. CRD employment discrimination content
 ### Phase 1.5: Multi-Source Foundation & Statutory Ingestion (CODE COMPLETE — awaiting PO gate 1.5D.6)
 
 > **Purpose:** Extend the Phase 1 pipeline to support multiple agency sources and statutory code ingestion. This is the data foundation for the dual-mode experience.
-> **Status:** 1.5A ✅ | 1.5B ✅ | 1.5C ✅ | 1.5D code ✅ (all 9 sources ingested: 20,546 docs, 23,753 chunks; 32/33 validation checks pass; pending PO gate 1.5D.6)
+> **Status:** 1.5A ✅ | 1.5B ✅ | 1.5C ✅ | 1.5D code ✅ | 1.5E ✅ (all 10 sources ingested: 20,871 docs, 24,106 chunks; 32/33 validation checks pass; pending PO gate 1.5D.6)
 
 #### 1.5A — Source Registry & Multi-Source Pipeline
 
@@ -850,9 +850,38 @@ Status: **Done.** 171 tests, 81% coverage. CRD employment discrimination content
 | 1.5D.2 | Comprehensive cross-source validation: total document count, total chunk count, content category distribution, citation sample validation, idempotency re-run. | 1.5B.5, 1.5D.1 | Validation report |
 | 1.5D.3 | **[GATE]** PO approves expanded knowledge base. All P0 and P1 sources ingested with acceptable quality. Foundation ready for Phase 2 dual-mode retrieval. | 1.5D.2 | **Phase 1.5 accepted** |
 
+#### 1.5E — CACI Jury Instructions (COMPLETE ✅ — 2026-02-26)
+
+> **Purpose:** Add CACI (California Civil Jury Instructions) to the knowledge base to improve attorney-mode retrieval quality for "elements of a claim" queries. CACI defines what a plaintiff must prove and cites primary statutory authority — it is the authoritative source for claim elements in California employment law.
+> **Scope:** Employment-related CACI series only (~110 instructions from 2026 PDF): 2400 (Wrongful Termination), 2500 (FEHA Discrimination & Harassment), 2600 (CFRA Leave), 2700 (Labor Code Violations), 2800 (Workers' Comp Discrimination), 4600 (Whistleblower Protection).
+
+| # | Task | Status | Deliverable |
+|---|------|--------|-------------|
+| 1.5E.1 | Add `JURY_INSTRUCTION = "jury_instruction"` to `ContentCategory` enum. New category keeps CACI distinct from statutory codes and enables precise mode-specific filtering. | ✅ | Updated `storage/models.py` |
+| 1.5E.2 | Update config validation to accept `caci_pdf` as a valid statutory `method` (alongside `pubinfo` and `web`). | ✅ | Updated `config.py` |
+| 1.5E.3 | Create source config `config/sources/caci.yaml` with `source_type: statutory_code`, `content_category: jury_instruction`, `method: caci_pdf`. | ✅ | `config/sources/caci.yaml` |
+| 1.5E.4 | Implement **CACILoader** (`scraper/extractors/caci.py`): PDF parser using pdfplumber that extracts instruction boundaries, splits into per-section chunks (instruction text, directions for use, sources and authority), filters to employment series, handles letter-suffix instructions (2521A/B/C), skips TOC pages and verdict forms. Returns `StatuteSection`-compatible objects. | ✅ | `caci.py`, 34 unit tests |
+| 1.5E.5 | Add `_extract_via_caci_pdf()` to Pipeline, route from `_run_statutory()` when `method == "caci_pdf"`. Made `content_category` configurable from source config (not hardcoded to STATUTORY_CODE). | ✅ | Updated `pipeline.py` |
+| 1.5E.6 | Add 1.3x retrieval boost for `jury_instruction` in attorney mode (`_apply_mode_scoring()`). Consumer mode auto-excluded via existing `CONSUMER_CATEGORIES` filter. | ✅ | Updated `retrieval/service.py` |
+| 1.5E.7 | Ingest and embed CACI: 110 instructions → 325 documents, 353 chunks, 353 vectors. All embedded at 100% coverage. | ✅ | CACI in knowledge base |
+| 1.5E.8 | Verified: attorney query "elements of sexual harassment" → CACI No. 2520 as top result. Consumer mode returns no CACI results. | ✅ | Retrieval quality verified |
+
+**CACI Knowledge Base Statistics:**
+
+| Metric | Value |
+|--------|-------|
+| Instructions parsed | 110 (from 3,560-page PDF) |
+| Employment series | 2400–2899, 4600–4699 |
+| Documents stored | 325 |
+| Chunks created | 353 |
+| Vectors embedded | 353 (100% coverage) |
+| Chunk sections | instruction_text, directions_for_use, sources_and_authority |
+| Citation format | `CACI No. 2430` |
+| Tests added | 40 (34 loader + 3 pipeline + 3 retrieval) |
+
 ### Phase 2: RAG Pipeline & Answer Generation (CODE COMPLETE — 2026-02-26)
 
-> **Status:** All code implemented and automated gates passed. 686 tests (143 Phase 2 specific). Pending PO human evaluation review (2C.5) and final sign-off (2C.6).
+> **Status:** All code implemented and automated gates passed. 750 tests (143 Phase 2 specific + 40 CACI). Pending PO human evaluation review (2C.5) and final sign-off (2C.6).
 
 #### 2A — Embedding & Retrieval Foundation (COMPLETE ✅)
 
@@ -861,10 +890,10 @@ Status: **Done.** 171 tests, 81% coverage. CRD employment discrimination content
 | 2A.1–2 | Embedding model evaluation: selected **bge-base-en-v1.5** (768-dim, 512 max seq, local CPU). BGE-M3 OOM'd (~2.4GB), bge-large too slow (0.9 c/s). bge-base: 2.8 c/s, ~544MB, same quality. | ✅ | Spike report, model selected |
 | 2A.3 | **EmbeddingService** (`retrieval/embedder.py`): batch embedding with BGE query prefix, progress logging, error handling. 13 unit + 8 integration tests. | ✅ | Embedding service |
 | 2A.4 | **VectorStore** (`retrieval/vector_store.py`): LanceDB embedded DB with hybrid search (vector + BM25 via FTS + RRF), upsert/delete, scalar indexes, FTS index. 24 unit tests. | ✅ | Vector store |
-| 2A.5 | Embed CLI (`embed`, `embed-status`): incremental embedding, per-source, rebuild. 23,705/23,705 chunks embedded (0 failures). | ✅ | CLI commands |
+| 2A.5 | Embed CLI (`embed`, `embed-status`): incremental embedding, per-source, rebuild. 24,058/24,058 chunks embedded (0 failures, includes 353 CACI chunks). | ✅ | CLI commands |
 | 2A.6 | **QueryPreprocessor** (`retrieval/query.py`): citation detection, legal term expansion, query normalization. | ✅ | Query preprocessor |
 | 2A.7 | **Reranker** (`retrieval/reranker.py`): mxbai-rerank-base-v2 cross-encoder. **Disabled** — OOM when co-loaded with embedding model on macOS x86_64 (<8GB RAM). | ✅ | Reranker (disabled) |
-| 2A.8 | **RetrievalService** (`retrieval/service.py`): dual-mode retrieval with citation boost (2.0x), statutory boost (1.2x), diversity enforcement (max 3/doc), deduplication. | ✅ | Dual retrieval service |
+| 2A.8 | **RetrievalService** (`retrieval/service.py`): dual-mode retrieval with citation boost (2.0x), statutory boost (1.2x), jury instruction boost (1.3x), diversity enforcement (max 3/doc), deduplication. | ✅ | Dual retrieval service |
 | 2A.9 | Search CLI (`search`): `--mode consumer|attorney`, `--verbose`, `--json`, ranked results display. | ✅ | CLI search command |
 | 2A.10 | **[GATE] Search quality benchmark** — Consumer P@5: **0.888** (≥0.6 ✅), Attorney P@5: **0.808** (≥0.7 ✅), Citation top-1: **1.000** (≥0.9 ✅), MRR: **0.907**. | ✅ PASS | Validated search quality |
 
@@ -887,7 +916,7 @@ Status: **Done.** 171 tests, 81% coverage. CRD employment discrimination content
 | 2C.3 | **Answer evaluation** (`evaluation/answer_metrics.py`): citation accuracy, citation completeness, disclaimer check, reading level, adversarial behavior verification. `evaluate-answers` CLI command. | ✅ | Automated answer eval |
 | 2C.4 | **Citation integrity tests** (`test_citation_integrity.py`): verify 0 hallucinated citations across all attorney questions. | ✅ | Citation regression suite |
 | 2C.5 | **Human evaluation** — Full 60-question run completed. Automated results: consumer disclaimer 100%, attorney disclaimer 92%, adversarial pass 100%, citation completeness 73%. | ⏳ PO | Awaiting PO review |
-| 2C.6 | **[GATE] Phase 2 acceptance** — All automated checks pass. 686 tests. | ⏳ PO | Awaiting PO sign-off |
+| 2C.6 | **[GATE] Phase 2 acceptance** — All automated checks pass. 750 tests. | ⏳ PO | Awaiting PO sign-off |
 
 ### Phase 3: Customer Validation & MVP Web Application
 
@@ -910,9 +939,9 @@ Build the simplest thing that delivers core value. Not a full chat application �
 
 | # | Task | Depends On | Deliverable |
 |---|------|------------|-------------|
-| 3B.1 | **[PO] Web framework decision**: Evaluate Reflex (Python-native, fast prototyping), Next.js + FastAPI (industry standard, superior SEO via SSR), or static site + API (simplest MVP). Decide based on: time-to-MVP, SEO capability, team skills. | 3A.4 | Framework decision |
-| 3B.2 | **MVP interface**: Single question input, answer display with citations and source links, mode toggle (consumer/attorney), persistent disclaimer. No chat history, no accounts, no persistence. Ship the minimum that delivers the core value. | 3B.1 | MVP web app |
-| 3B.3 | **SEO content pages**: Server-rendered or static pages for each topic area (wages, discrimination, leave, safety, etc.) with common questions and sample answers. These pages drive organic search traffic and demonstrate value before the user asks their own question. | 3B.2 | Topic landing pages |
+| 3B.1 | ✅ **[PO] Web framework decision**: Next.js (App Router) + FastAPI selected. Excellent SEO, streaming SSE, FastAPI wraps existing Python RAG pipeline directly. | 3A.4 | Framework decision |
+| 3B.2 | ✅ **MVP interface**: Single question input, streaming answer with react-markdown, mode toggle, source list, persistent disclaimer, rate limiting, error handling. | 3B.1 | MVP web app |
+| 3B.3 | ✅ **SEO content pages**: 11 static topic pages (SSG) with FAQPage schema.org markup, 5 FAQs each, internal linking, optimized meta descriptions. | 3B.2 | Topic landing pages |
 | 3B.4 | **Analytics**: Query volume, mode distribution, session duration, bounce rate, return visits. No PII collection. Use privacy-respecting analytics (Plausible or similar). | 3B.2 | Analytics dashboard |
 | 3B.5 | **Answer feedback**: Thumbs up/down on every answer. Store feedback with query hash, mode, and rating. This is the minimum viable feedback loop — the data that drives all future iteration. | 3B.2 | Feedback mechanism |
 | 3B.6 | **[GATE]** MVP deployed to public URL. Analytics collecting data. Feedback mechanism working. Ready for beta users. Core user flow works end-to-end in both modes. | 3B.2–3B.5 | **Live MVP** |
@@ -1316,9 +1345,9 @@ All Phase 1 work is done. 162 tests passing, 81% coverage.
   - [x] Generate validation report (JSON + Markdown) via `employee-help cross-validate` ✅
   - [x] Implemented in `validation_report.py` with 7 check types, 18 tests in `test_cross_source_validation.py` ✅
   - [x] Idempotency re-run: labor_code re-run confirmed 0 new documents/chunks ✅ (bug found & fixed: pipeline was creating duplicate chunks on re-runs; `is_new` check added)
-  - [x] Validation results (2026-02-25): 32/33 checks pass across 9 sources:
-    - 9 sources: 6 statutory + 3 agency (DIR, EDD, CalHR)
-    - 20,546 documents, 23,247 active chunks
+  - [x] Validation results (2026-02-25): 32/33 checks pass across 9 sources (pre-CACI):
+    - 9 sources: 6 statutory + 3 agency (DIR, EDD, CalHR) — updated to 10 sources after CACI integration (1.5E)
+    - 20,546 documents, 23,247 active chunks — updated to 20,871 docs, 24,106 chunks after CACI
     - 30/30 citation samples validated
     - 17 cross-source duplicate content_hashes (expected: same text in guidance + statutory)
     - 0 empty chunks
@@ -1350,7 +1379,7 @@ All Phase 1 work is done. 162 tests passing, 81% coverage.
   - [x] No sources exceed threshold; PUBINFO is dramatically faster than web scraping
 
 - [ ] **[GATE] 1.5D.6 — Phase 1.5 acceptance** (implementation complete; awaiting PO review)
-  - [x] All P0 and P1 sources ingested (9 sources: 6 statutory + 3 agency) ✅
+  - [x] All P0 and P1 sources ingested (10 sources: 6 statutory + 3 agency + 1 CACI jury instructions) ✅
   - [x] Validation report: 32/33 checks pass (1 known issue: CalHR oversized chunk) ✅
   - [x] Idempotency confirmed (re-run creates 0 new documents/chunks) ✅
   - [x] Citation accuracy verified (30/30 sampled citations valid) ✅
@@ -1362,7 +1391,7 @@ All Phase 1 work is done. 162 tests passing, 81% coverage.
 
 ### Phase 2: RAG Pipeline & Answer Generation `[x] CODE COMPLETE` (2026-02-26)
 
-> **Implementation complete.** All automated gates pass. 686 tests (143 Phase 2 specific). Awaiting PO human evaluation review (2C.5) and final acceptance (2C.6).
+> **Implementation complete.** All automated gates pass. 750 tests (143 Phase 2 specific + 40 CACI). Awaiting PO human evaluation review (2C.5) and final acceptance (2C.6).
 
 #### 2A — Embedding & Retrieval Foundation `[x] COMPLETE`
 
@@ -1418,7 +1447,7 @@ All Phase 1 work is done. 162 tests passing, 81% coverage.
   - [x] Deactivation sync: chunks with `is_active=0` in SQLite marked inactive in LanceDB
 
 - [x] **[GATE] 2A.5b — Embedding pipeline validated** ✅ PASS
-  - [x] 23,705/23,705 chunks embedded (0 failures)
+  - [x] 24,058/24,058 chunks embedded (0 failures, includes 353 CACI chunks added in 1.5E)
   - [x] `embed-status` shows 100% coverage
   - [x] Full embedding time: ~2h 9min (bge-base-en-v1.5 on macOS x86_64 CPU at 3.1 chunks/sec)
   - [x] Re-running `embed --all` after no changes embeds 0 new chunks (incremental works)
@@ -1601,7 +1630,7 @@ All Phase 1 work is done. 162 tests passing, 81% coverage.
   - [x] **Cost**: Consumer avg $0.006, Attorney avg $0.032
   - [x] **Latency**: Consumer ~11s, Attorney ~22s (including model loading; warm queries ~5s consumer, ~15s attorney)
   - [x] **Adversarial robustness**: 100% (10/10 handled correctly)
-  - [x] All unit and integration tests pass: **686 tests** (143 Phase 2)
+  - [x] All unit and integration tests pass: **750 tests** (143 Phase 2 + 40 CACI)
   - [ ] [PO] PO reviews answer evaluation report and approves answer quality
   - [ ] [PO] PO approves Phase 2 as foundation for Phase 3 (web application)
   - [ ] **Phase 2 COMPLETE** (pending PO sign-off)
@@ -1652,32 +1681,32 @@ All Phase 1 work is done. 162 tests passing, 81% coverage.
 
 **Goal:** Build the simplest web application that delivers core value. Not a full chat application — a question-answer interface. Apply the 40-60% rule (Ramli John, *Product-Led Onboarding*): 40-60% of SaaS users who sign up never return after their first session. The first answer must be excellent. Ship fast, learn faster.
 
-- [ ] **3B.1 — [PO] Web framework decision**
-  - [ ] Evaluate options against MVP criteria:
-    - [ ] **Next.js + FastAPI**: Industry standard, excellent SEO (SSR/SSG), large ecosystem, but requires JS/TS + Python dual stack
-    - [ ] **Reflex**: Python-native (team familiarity), fast prototyping, but weaker SEO story (client-rendered), smaller ecosystem
-    - [ ] **Static site + API**: Simplest MVP (HTML/CSS + REST API), excellent SEO, minimal framework lock-in, but less interactive
-  - [ ] Decision criteria: (1) time to ship MVP, (2) SEO capability for organic growth, (3) team skills, (4) migration cost if we change later
-  - [ ] [PO] Select framework and document rationale
+- [x] **3B.1 — [PO] Web framework decision** ✅ (2026-02-26)
+  - [x] Evaluate options against MVP criteria:
+    - [x] **Next.js + FastAPI**: SELECTED — Industry standard, excellent SEO (SSR/SSG), large ecosystem, streaming via SSE, FastAPI wraps existing Python RAG pipeline directly
+    - [x] **Reflex**: Rejected — weaker SEO (client-rendered SPA), smaller ecosystem, risk of stagnation
+    - [x] **Static site + API**: Rejected — too limiting for interactive streaming UX, would need a framework eventually
+  - [x] Decision criteria: (1) time to ship MVP, (2) SEO capability for organic growth, (3) team skills, (4) migration cost if we change later
+  - [x] [PO] Framework selected: Next.js (App Router) + FastAPI. Rationale documented in Phase 3B plan.
 
-- [ ] **3B.2 — MVP web interface**
-  - [ ] Single question input (prominent, centered, with placeholder text suggesting a question)
-  - [ ] Answer display: formatted text with inline citations linked to source URLs
-  - [ ] Mode toggle: "Employee" / "Legal Professional" — simple, clear, no jargon
-  - [ ] Persistent legal disclaimer (footer or banner, always visible)
-  - [ ] Source attribution: "Sources used" section below each answer listing the retrieved chunks' sources
-  - [ ] Loading state: streaming response display (tokens appear as generated)
-  - [ ] Error handling: clear messages for API failures, rate limits, empty queries
-  - [ ] Mobile responsive (employment issues are often searched on mobile devices)
-  - [ ] **Explicitly NOT in MVP**: chat history, user accounts, conversation memory, persistence, sign-up walls
-  - [ ] Write end-to-end tests: input → API → answer → display
+- [x] **3B.2 — MVP web interface** ✅ (2026-02-26)
+  - [x] Single question input (prominent, centered, with placeholder text suggesting a question)
+  - [x] Answer display: formatted text with inline citations linked to source URLs (react-markdown)
+  - [x] Mode toggle: "Employee" / "Legal Professional" — simple, clear, no jargon
+  - [x] Persistent legal disclaimer (footer, always visible)
+  - [x] Source attribution: "Sources" section below each answer listing retrieved chunks with category labels
+  - [x] Loading state: streaming response display (tokens appear as generated via SSE)
+  - [x] Error handling: clear messages for API failures, rate limits (429), empty queries (validation)
+  - [x] Mobile responsive (Tailwind responsive classes)
+  - [x] **Explicitly NOT in MVP**: chat history, user accounts, conversation memory, persistence, sign-up walls
+  - [x] Write end-to-end tests: 23 tests covering health, SSE streaming, validation, rate limiting, error handling, schemas
 
-- [ ] **3B.3 — SEO topic pages**
-  - [ ] Create server-rendered or static pages for each subject area from Appendix A taxonomy
-  - [ ] Each page includes: topic overview, 5 common questions with pre-generated answers, "Ask your own question" CTA
-  - [ ] Implement schema.org FAQPage markup for search engine rich results
-  - [ ] Internal linking between related topics
-  - [ ] Meta descriptions optimized for search intent
+- [x] **3B.3 — SEO topic pages** ✅ (2026-02-26)
+  - [x] Create static pages for 11 subject areas from Appendix A taxonomy (SSG via generateStaticParams)
+  - [x] Each page includes: topic overview, 5 common questions with pre-generated answers, "Ask your own question" CTA
+  - [x] Implement schema.org FAQPage markup for search engine rich results (JSON-LD)
+  - [x] Internal linking between related topics (related topics grid + topic pills on home page)
+  - [x] Meta descriptions optimized for search intent (per-topic metaDescription field)
 
 - [ ] **3B.4 — Analytics and feedback**
   - [ ] Install privacy-respecting analytics (same as landing page)
@@ -2101,7 +2130,7 @@ This section documents the project's testing approach. It is a living document, 
 Tests that the ingestion pipeline produces correct, complete, and well-structured data.
 
 - **Citation format validation**: 48 spot-check tests (`tests/test_ingestion_spot_check.py`) verify that stored statutory chunks have correctly formatted citations matching `Cal. <Code> Code § <section>` patterns. Covers all 6 statutory codes, including edge cases like decimal section numbers (1102.5), deep subdivisions, and sections with brackets in PUBINFO data.
-- **Cross-source validation**: 18 tests (`tests/test_cross_source_validation.py`) verify the `cross-validate` command produces correct reports. The live `employee-help cross-validate` command runs 7 check types across all 9 sources: source coverage, document counts, chunk counts, content category distribution, citation format sampling, cross-source duplicate detection, token bounds, and empty chunk detection. Results: 32/33 pass (1 known issue: CalHR oversized chunk).
+- **Cross-source validation**: 18 tests (`tests/test_cross_source_validation.py`) verify the `cross-validate` command produces correct reports. The live `employee-help cross-validate` command runs 7 check types across all 10 sources: source coverage, document counts, chunk counts, content category distribution, citation format sampling, cross-source duplicate detection, token bounds, and empty chunk detection. Results: 32/33 pass (1 known issue: CalHR oversized chunk).
 - **Pipeline idempotency**: Tests verify that re-running the pipeline on unchanged content creates 0 new documents or chunks (content_hash deduplication).
 - **Soft-delete handling**: Tests verify that repealed statutory sections (PUBINFO `active_flg='N'`) are excluded during ingestion and that chunks can be marked inactive without deletion.
 
@@ -2167,12 +2196,12 @@ The full automated evaluation runs all 60 questions through the complete pipelin
 
 - **Citation regression suite** (`tests/test_ingestion_spot_check.py`): 48 golden citation tests run on every CI build. If a code change breaks citation parsing, these tests catch it immediately.
 - **Retrieval quality thresholds**: The `evaluate-retrieval` command asserts aggregate metrics against configurable thresholds. A retrieval code change that degrades precision below threshold fails the evaluation.
-- **Unit test count monitoring**: Each phase documents the expected test count. Phase 1: 171. Phase 1.5: 436. Phase 2: 686. Significant drops indicate regressions.
+- **Unit test count monitoring**: Each phase documents the expected test count. Phase 1: 171. Phase 1.5: 436. Phase 2: 686. Phase 2 + CACI: 750. Significant drops indicate regressions.
 
 ### 8.3 Running Tests
 
 ```bash
-# All fast unit tests (default, ~686 tests)
+# All fast unit tests (default, ~750 tests)
 uv run pytest
 
 # Include slow integration tests (real embedding model)
@@ -2201,8 +2230,8 @@ uv run employee-help cross-validate
 | Phase | Focus | Key Outcome | Key Risk |
 |-------|-------|-------------|----------|
 | **Phase 1** ✅ | CRD Knowledge Acquisition | CRD employment discrimination content in SQLite (done) | — |
-| **Phase 1.5** ✅ (code complete, PO gate pending) | Multi-Source & Statutory Expansion | 9 sources ingested (6 statutory + 3 agency): 20,546 docs, 23,753 chunks. 32/33 validation checks pass. | — |
-| **Phase 2** ✅ (code complete, PO gate pending) | Dual-Mode RAG Pipeline | Embedding (bge-base-en-v1.5 + LanceDB), hybrid search, dual-mode retrieval, Claude answer generation (Haiku 4.5 / Sonnet 4.6), 60-question evaluation suite. 686 tests. | — |
+| **Phase 1.5** ✅ (code complete, PO gate pending) | Multi-Source & Statutory Expansion | 10 sources ingested (6 statutory + 3 agency + 1 CACI jury instructions): 20,871 docs, 24,106 chunks. 32/33 validation checks pass. | — |
+| **Phase 2** ✅ (code complete, PO gate pending) | Dual-Mode RAG Pipeline | Embedding (bge-base-en-v1.5 + LanceDB), hybrid search, dual-mode retrieval, Claude answer generation (Haiku 4.5 / Sonnet 4.6), 60-question evaluation suite. 750 tests. | — |
 | **Phase 3** | Customer Validation & MVP | Validate desirability (user trust, demand), ship minimum viable web app, run closed beta, measure product-market fit signals | **Desirability** — zero real users; trust in AI legal info is untested |
 | **Phase 4** | Production, Growth & Business Model | SEO-driven acquisition, attorney subscriptions, payment infrastructure, production monitoring, unit economics | **Viability** — revenue model and unit economics are hypotheses |
 | **Phase 5** | Scale, Expand & Deepen | Retention features (conversation memory, feedback loop), demand-driven KB expansion, API platform, multi-state expansion | **Scalability** — per-query costs at high volume; multi-state is a 1-to-n play |

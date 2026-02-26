@@ -1,0 +1,42 @@
+# ============================================================
+# Employee Help — CACI Jury Instructions Source Configuration
+# ============================================================
+# California Civil Jury Instructions (CACI) — Employment series
+# Parsed from official Judicial Council PDF.
+# Attorney mode only (consumer mode filters out jury_instruction).
+# ============================================================
+
+source:
+  name: "CACI Jury Instructions (Employment)"
+  slug: caci
+  source_type: statutory_code
+  base_url: "https://www.courts.ca.gov/partners/317.htm"
+  enabled: true
+
+crawl:
+  seed_urls: []
+  allowlist_patterns:
+    - "courts\\.ca\\.gov"
+  blocklist_patterns: []
+  rate_limit_seconds: 10.0
+  max_pages: 1
+
+extraction:
+  content_selector: ""
+  boilerplate_patterns: []
+  content_category: jury_instruction
+
+chunking:
+  strategy: section_boundary
+  min_tokens: 50
+  max_tokens: 1500
+  overlap_tokens: 100
+
+statutory:
+  code_abbreviation: CACI
+  code_name: "CACI Jury Instructions"
+  citation_prefix: "CACI No."
+  target_divisions: []
+  method: caci_pdf
+
+database_path: "data/employee_help.db"

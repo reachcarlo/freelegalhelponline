@@ -7,10 +7,10 @@ from unittest.mock import Mock, patch, MagicMock
 import pytest
 import yaml
 
-from employee_help.config import CrawlConfig, ChunkingConfig
+from employee_help.config import CrawlConfig, ChunkingConfig, SourceConfig, StatutoryConfig, ExtractionConfig
 from employee_help.pipeline import Pipeline, PipelineStats
 from employee_help.scraper.crawler import CrawlResult, UrlClassification
-from employee_help.storage.models import ContentType
+from employee_help.storage.models import ContentCategory, ContentType, SourceType
 
 
 @pytest.fixture
@@ -280,3 +280,89 @@ class TestPipelineWithRealStorage:
                         assert stats.documents_stored == 1
                         assert stats.chunks_created > 0
                         assert stats.errors == 0
+
+
+class TestCACIPipelineRouting:
+    """Tests for CACI PDF pipeline routing."""
+
+    def _make_caci_source_config(self) -> SourceConfig:
+        """Create a SourceConfig for CACI with caci_pdf method."""
+        return SourceConfig(
+            name="CACI Jury Instructions (Employment)",
+            slug="caci",
+            source_type=SourceType.STATUTORY_CODE,
+            base_url="https://www.courts.ca.gov/partners/317.htm",
+            extraction=ExtractionConfig(content_category="jury_instruction"),
+            chunking=ChunkingConfig(
+                min_tokens=50, max_tokens=1500, overlap_tokens=100,
+                strategy="section_boundary",
+            ),
+            statutory=StatutoryConfig(
+                code_abbreviation="CACI",
+                code_name="CACI Jury Instructions",
+                citation_prefix="CACI No.",
+                method="caci_pdf",
+            ),
+            database_path=":memory:",
+        )
+
+    def test_caci_pdf_routes_to_statutory_pipeline(self):
+        """Pipeline with caci_pdf method should route to _run_statutory."""
+        config = self._make_caci_source_config()
+        pipeline = Pipeline(config)
+
+        # Verify it's treated as statutory (no crawler)
+        assert pipeline.crawler is None
+
+    def test_caci_pdf_method_dispatches_correctly(self):
+        """_run_statutory should call _extract_via_caci_pdf for caci_pdf method."""
+        from employee_help.scraper.extractors.statute import StatuteSection, HierarchyPath
+
+        config = self._make_caci_source_config()
+        pipeline = Pipeline(config)
+
+        mock_section = StatuteSection(
+            section_number="2430",
+            code_abbreviation="CACI",
+            text="Test instruction text.",
+            citation="CACI No. 2430",
+            hierarchy=HierarchyPath(code_name="CACI"),
+            source_url="https://www.courts.ca.gov/partners/317.htm",
+        )
+
+        with patch.object(pipeline, "_extract_via_caci_pdf", return_value=[mock_section]) as mock_extract:
+            stats = pipeline.run(dry_run=False)
+
+            mock_extract.assert_called_once()
+            assert stats.documents_stored == 1
+            assert stats.chunks_created >= 1
+
+    def test_caci_pipeline_uses_jury_instruction_category(self):
+        """CACI pipeline should store chunks with jury_instruction category."""
+        from employee_help.scraper.extractors.statute import StatuteSection, HierarchyPath
+
+        config = self._make_caci_source_config()
+        pipeline = Pipeline(config)
+
+        mock_section = StatuteSection(
+            section_number="2430",
+            code_abbreviation="CACI",
+            text="Test instruction text for chunking.",
+            citation="CACI No. 2430",
+            hierarchy=HierarchyPath(code_name="CACI"),
+            source_url="https://www.courts.ca.gov/partners/317.htm",
+        )
+
+        with patch.object(pipeline, "_extract_via_caci_pdf", return_value=[mock_section]):
+            pipeline.run(dry_run=False)
+
+        # Verify the stored chunks have jury_instruction category
+        source = pipeline.storage.get_source("caci")
+        assert source is not None
+        docs = pipeline.storage.get_all_documents(source_id=source.id)
+        assert len(docs) > 0
+
+        chunks = pipeline.storage.get_chunks_for_document(docs[0].id)
+        assert len(chunks) > 0
+        for chunk in chunks:
+            assert chunk.content_category == ContentCategory.JURY_INSTRUCTION

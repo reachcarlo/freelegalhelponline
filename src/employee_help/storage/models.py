@@ -35,6 +35,7 @@ class ContentCategory(str, Enum):
     REGULATION = "regulation"
     POSTER = "poster"
     FAQ = "faq"
+    JURY_INSTRUCTION = "jury_instruction"
 
 
 @dataclass

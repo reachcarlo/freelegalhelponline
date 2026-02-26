@@ -216,6 +216,10 @@ class RetrievalService:
             if candidate.content_category == "statutory_code":
                 candidate.relevance_score *= self.statutory_boost
 
+            # CACI jury instruction boost in attorney mode
+            if candidate.content_category == "jury_instruction":
+                candidate.relevance_score *= 1.3
+
             # Citation match boost — strong boost for exact section match
             if (
                 processed.has_citation
