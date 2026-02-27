@@ -613,6 +613,95 @@ tests/
 | `employee-help evaluate-retrieval` | Run automated retrieval quality evaluation |
 | `employee-help evaluate-answers` | Run automated answer quality evaluation |
 
+### 3.6.1 Phase 3B Architecture: Web Application & Multi-Turn Conversation (Implemented 2026-02-26)
+
+Phase 3B adds a web interface (Next.js + FastAPI), multi-turn conversation, and a configurable response format on top of the Phase 2 RAG pipeline.
+
+**Web stack:**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Browser (localhost:3000)                                            │
+│                                                                      │
+│  Next.js (App Router) + Tailwind CSS + TypeScript                   │
+│  ├── SSG topic pages (11 pages, FAQPage schema.org)                 │
+│  ├── QuestionPanel → useConversation hook                           │
+│  │   ├── Turn 1: input at top → submit → answer streams            │
+│  │   ├── Turn 2+: input moves to bottom (chat UX)                  │
+│  │   ├── TurnProgress (segment dots), ConversationTurnView          │
+│  │   └── ConversationEnded (soft limit banner + New Chat)           │
+│  └── 30s response timeout (resets on each SSE event)                │
+│                                                                      │
+│  API proxy: next.config.ts rewrites /api/* → localhost:8000         │
+└─────────────────────────┬───────────────────────────────────────────┘
+                          │ POST /api/ask (SSE stream)
+                          ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  FastAPI (localhost:8000)                                            │
+│                                                                      │
+│  routes.py: ask_question()                                          │
+│  ├── No session_id → single-turn path (backward compatible)         │
+│  └── session_id present → multi-turn path:                          │
+│      ├── Validate history (length, alternating roles)               │
+│      ├── Enforce turn limit (returns TURN_LIMIT_EXCEEDED)           │
+│      ├── Short follow-up expansion (<6 words → prepend original Q)  │
+│      └── generate_stream_multiturn()                                │
+│                                                                      │
+│  Multi-turn messages to Claude API:                                  │
+│  ┌─────────────────────────────────────────────────────────┐        │
+│  │ [system: turn-aware prompt with response format]         │        │
+│  │ [user: "What is CFRA?"]              ← plain text       │        │
+│  │ [assistant: "CFRA is..."]            ← plain text       │        │
+│  │ [user: [doc_blocks..., "50 employees"]] ← current turn  │        │
+│  └─────────────────────────────────────────────────────────┘        │
+│  Only current turn gets fresh document blocks from retrieval.       │
+│  History trimmed to 2000-token budget (first pair + most recent).   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Configurable response format** (`config/rag.yaml` → `tone` section):
+
+The response structure is defined as a list of `{heading, instruction}` objects per mode, rendered by Jinja2 into the system prompt. To change the response format — add/remove/reorder sections or change wording — edit the YAML only. No code changes required.
+
+| Mode | Sections | Questioning Style |
+|------|----------|-------------------|
+| Attorney | tl;dr → Short Answer → Analysis → Follow-up Questions | Discerning: precise, challenging, tied to legal consequences |
+| Consumer | Short Answer → What You Should Know → Next Steps → A Few Questions | Inviting: warm, supportive, "I'd love to help narrow this down" |
+
+On the **final turn** of any conversation, sections containing "Omit this section on the final turn" in their instruction are automatically excluded from the system prompt (e.g., Follow-up Questions). The prompt explicitly instructs the model to deliver its best answer and not ask questions.
+
+**Progressive detail across turns:** Early turns hedge and ask for facts. As facts accumulate, answers become more specific and committed. Final turn = best answer with available information + pointers to resources.
+
+**New files (Phase 3B):**
+
+```
+src/employee_help/
+    api/
+        __init__.py
+        main.py              # FastAPI app with lifespan, CORS, rate limiting
+        routes.py            # /api/ask (SSE), /api/feedback, /api/health
+        schemas.py           # AskRequest (with conversation fields), AskMetadata, etc.
+        deps.py              # Service singletons, conversation config helper
+    feedback/
+        models.py            # QueryLogEntry (with session_id), FeedbackEntry
+        store.py             # FeedbackStore (with conversation_session table)
+frontend/
+    lib/
+        api.ts               # askQuestion() with conversation options
+        use-conversation.ts  # useConversation hook (session, turns, timeout)
+    components/
+        question-panel.tsx   # Conversation thread UI
+        question-input.tsx   # Dynamic placeholder prop
+        turn-progress.tsx    # "Turn 1 of 3" segment dots
+        conversation-turn.tsx # User bubble + sources + answer
+        conversation-ended.tsx # Soft limit banner + New Chat
+config/
+    rag.yaml                 # conversation + tone sections
+    prompts/
+        consumer_system.j2   # Turn-aware, response format from config
+        attorney_system.j2   # Turn-aware, response format from config
+```
+
 ---
 
 ### 3.7 Product Strategy & Go-to-Market (Added 2026-02-26)
@@ -942,9 +1031,10 @@ Build the simplest thing that delivers core value. Not a full chat application �
 | 3B.1 | ✅ **[PO] Web framework decision**: Next.js (App Router) + FastAPI selected. Excellent SEO, streaming SSE, FastAPI wraps existing Python RAG pipeline directly. | 3A.4 | Framework decision |
 | 3B.2 | ✅ **MVP interface**: Single question input, streaming answer with react-markdown, mode toggle, source list, persistent disclaimer, rate limiting, error handling. | 3B.1 | MVP web app |
 | 3B.3 | ✅ **SEO content pages**: 11 static topic pages (SSG) with FAQPage schema.org markup, 5 FAQs each, internal linking, optimized meta descriptions. | 3B.2 | Topic landing pages |
-| 3B.4 | **Analytics**: Query volume, mode distribution, session duration, bounce rate, return visits. No PII collection. Use privacy-respecting analytics (Plausible or similar). | 3B.2 | Analytics dashboard |
-| 3B.5 | **Answer feedback**: Thumbs up/down on every answer. Store feedback with query hash, mode, and rating. This is the minimum viable feedback loop — the data that drives all future iteration. | 3B.2 | Feedback mechanism |
-| 3B.6 | **[GATE]** MVP deployed to public URL. Analytics collecting data. Feedback mechanism working. Ready for beta users. Core user flow works end-to-end in both modes. | 3B.2–3B.5 | **Live MVP** |
+| 3B.4 | ✅ **Analytics and feedback**: Query logging, mode distribution, cost tracking, thumbs up/down feedback, Plausible analytics, CLI dashboard. 24 feedback tests. | 3B.2 | Analytics + feedback |
+| 3B.5 | ✅ **Multi-turn conversation**: Session-based conversation with configurable turn limits (consumer: 3, attorney: 5). Client-side history, server-side turn enforcement, short follow-up expansion for retrieval, turn-aware prompts (final turn: no questions, definitive answer). New Chat button, conversation thread UI with input at bottom. 30s response timeout. | 3B.4 | Multi-turn conversation |
+| 3B.6 | ✅ **Configurable response format and tone**: Config-driven response structure (tl;dr → Short Answer → Analysis → Follow-up Questions for attorney; Short Answer → What You Should Know → Next Steps → Questions for consumer). Progressive detail across turns. Questioning styles: "discerning" (attorney) vs "inviting" (consumer). All settings in `config/rag.yaml` — changeable without code. | 3B.5 | Response architecture |
+| 3B.7 | **[GATE]** MVP deployed to public URL. Analytics collecting data. Feedback mechanism working. Ready for beta users. Core user flow works end-to-end in both modes. | 3B.2–3B.6 | **Live MVP** |
 
 #### 3C — Closed Beta & Validation (4–6 weeks)
 
@@ -952,7 +1042,7 @@ The critical phase. This is where we learn whether the product has real demand o
 
 | # | Task | Depends On | Deliverable |
 |---|------|------------|-------------|
-| 3C.1 | **Recruit beta cohort**: 20–50 consumers (from landing page sign-ups, Reddit r/legaladvice, employment rights forums, legal aid organizations) + 5–10 attorneys (from bar association contacts, legal tech communities, solo practitioner networks). | 3B.6 | Beta cohort |
+| 3C.1 | **Recruit beta cohort**: 20–50 consumers (from landing page sign-ups, Reddit r/legaladvice, employment rights forums, legal aid organizations) + 5–10 attorneys (from bar association contacts, legal tech communities, solo practitioner networks). | 3B.7 | Beta cohort |
 | 3C.2 | **Run 4-week beta**: Track weekly — queries/user, return rate, feedback scores (thumbs up %), time-on-site, mode preference. Conduct exit interviews at week 2 and week 4 using Mom Test principles. | 3C.1 | Beta metrics report |
 | 3C.3 | **Iterate**: Expect 2–3 iteration cycles based on feedback. Common issues to watch for: trust signals (users want to see sources before the answer), answer quality gaps (specific topics where the KB has holes), UX friction (mode confusion, query formulation difficulty), citation presentation (too dense for consumers, not precise enough for attorneys). | 3C.2 | Improved MVP |
 | 3C.4 | **Pricing validation** (Bland & Osterwalder, *Testing Business Ideas*): At week 3, introduce a "premium features coming soon" prompt. For attorneys, offer early-access pricing ($49/month). Measure: do they click? Do they enter payment info? Even 3 commitments validates willingness to pay. | 3C.2 | Pricing signal |
@@ -1000,7 +1090,7 @@ The critical phase. This is where we learn whether the product has real demand o
 
 | # | Task | Priority | Rationale |
 |---|------|----------|-----------|
-| 5A.1 | **Multi-turn conversation memory** (session-based, no accounts required for consumers) | P0 | #1 most-requested feature in legal AI tools. Users ask follow-up questions naturally. Without memory, each question starts cold — breaking the Hook cycle (Nir Eyal). |
+| 5A.1 | ✅ **Multi-turn conversation memory** (session-based, no accounts required for consumers). DONE in Phase 3B.5 — pulled forward as essential for MVP. Turn limits (3 consumer, 5 attorney), turn-aware prompts, progressive detail, configurable response format (3B.6). | P0 | #1 most-requested feature in legal AI tools. Users ask follow-up questions naturally. Without memory, each question starts cold — breaking the Hook cycle (Nir Eyal). |
 | 5A.2 | **Feedback-driven quality loop**: Use thumbs-down data to identify weak topics, refine prompts, and expand knowledge base for coverage gaps. | P0 | Closes the Build-Measure-Learn loop. Without this, quality improvements are guesswork. |
 | 5A.3 | **Suggested follow-up questions** after each answer. Context-generated, not hardcoded. | P1 | Increases session depth (queries/session). Reduces effort for the next action — the Investment phase of the Hook Model that creates the next Trigger. |
 | 5A.4 | **Consumer: guided complaint filing workflow** (step-by-step: identify issue → find agency → gather documents → file). | P1 | Transforms the product from information tool to action tool. The highest-value differentiator for consumers — no competitor does this. |
@@ -1708,19 +1798,59 @@ All Phase 1 work is done. 162 tests passing, 81% coverage.
   - [x] Internal linking between related topics (related topics grid + topic pills on home page)
   - [x] Meta descriptions optimized for search intent (per-topic metaDescription field)
 
-- [ ] **3B.4 — Analytics and feedback**
-  - [ ] Install privacy-respecting analytics (same as landing page)
-  - [ ] Track: query volume per day, mode distribution (consumer vs. attorney), session duration, bounce rate, pages/session, return visits (7-day and 30-day), traffic sources
-  - [ ] Implement thumbs up/down feedback on every answer
-  - [ ] Store feedback: query hash (not raw query, for privacy), mode, rating, timestamp
-  - [ ] Build a simple feedback dashboard (even a CLI command that summarizes feedback data)
+- [x] **3B.4 — Analytics and feedback** ✅ (2026-02-26)
+  - [x] Install privacy-respecting analytics (Plausible script tag)
+  - [x] Track: query volume per day, mode distribution (consumer vs. attorney), cost per query, duration
+  - [x] Implement thumbs up/down feedback on every answer (FeedbackButtons component)
+  - [x] Store feedback: query hash (not raw query, for privacy), mode, rating, timestamp in SQLite WAL
+  - [x] Build CLI analytics dashboard (`employee-help analytics` command)
+  - [x] 24 tests covering query logging, feedback storage, feedback API, analytics queries
 
-- [ ] **[GATE] 3B.5 — MVP launch readiness**
+- [x] **3B.5 — Multi-turn conversation** ✅ (2026-02-26)
+  - [x] Add `conversation` config to `config/rag.yaml`: max_turns (consumer: 3, attorney: 5), history_token_budget (2000), short_followup_threshold (6)
+  - [x] API schema: `ConversationTurn`, `session_id`, `conversation_history`, `turn_number` on `AskRequest`; `session_id`, `turn_number`, `max_turns`, `is_final_turn` on `AskMetadata`
+  - [x] Backend generation: `build_prompt_multiturn()` (history trimming, turn-aware system prompts), `generate_stream_multiturn()` on LLMClient and AnswerService
+  - [x] Short follow-up expansion: queries < 6 words prepend original question for better retrieval
+  - [x] Server-side turn limit enforcement: returns `TURN_LIMIT_EXCEEDED` SSE error
+  - [x] Session storage: `conversation_session` table in feedback.db, backward-compatible schema migration
+  - [x] Turn-aware prompt templates: final turn instructs "Do not ask clarifying questions. Provide definitive answer."
+  - [x] Frontend: `useConversation` hook (session ID, turn tracking, history building, 30s response timeout)
+  - [x] Frontend: `TurnProgress` (segment dots), `ConversationTurnView` (user bubble + sources + answer), `ConversationEnded` (soft limit banner)
+  - [x] Frontend: input moves to bottom after first turn (chat-style UX), "New Chat" button in header
+  - [x] Backward compatible: requests without `session_id` behave identically to single-turn
+  - [x] 4 new files, 14 modified files, 0 new dependencies
+
+- [x] **3B.6 — Configurable response format and tone** ✅ (2026-02-26)
+  - [x] Add `tone` config section to `config/rag.yaml` with per-mode `response_format` (list of `{heading, instruction}`)
+  - [x] Attorney format: tl;dr (1 sentence) → Short Answer (2-3 sentences) → Analysis (3-5 paragraphs with citations) → Follow-up Questions (omitted on final turn)
+  - [x] Consumer format: Short Answer → What You Should Know → Next Steps → A Few Questions That Would Help (omitted on final turn)
+  - [x] Questioning styles: `"discerning"` (attorney — adversarial, precise probing) vs `"inviting"` (consumer — warm, supportive)
+  - [x] Progressive detail: early turns hedge and ask for facts; later turns commit; final turn delivers best answer + resources
+  - [x] `PromptBuilder` receives `rag_config` and passes `tone` dict to Jinja2 templates
+  - [x] Response format changes require only YAML edits — no code changes
+  - [x] Templates validated: all turn states render correctly, follow-up questions auto-omitted on final turn
+
+- [x] **3B.7 — Comprehensive validation testing** ✅ (2026-02-26)
+  - [x] Created 230-question validation test suite: 110 consumer + 120 attorney, across 27 categories
+  - [x] Created 12 multi-turn conversation test scenarios (7 consumer, 5 attorney)
+  - [x] Built automated test runner (`tests/evaluation/validation_runner.py`): sends questions to live API, parses SSE, validates format/quality/timing/cost
+  - [x] Results: 230/230 single-turn (100%), 12/12 conversations (100%), avg $0.007/consumer query, $0.037/attorney query
+  - [x] **Bug found and fixed**: `ConversationTurn.content max_length` too small (5,000 → 20,000) — was breaking all attorney conversations
+  - [x] **Bug found and fixed**: test runner httpx streaming error handling (`response.text` → `response.read().decode()`)
+  - [x] Implemented P0 recommendation: per-answer disclaimer in both system prompts and frontend (belt-and-suspenders)
+  - [x] Implemented P1 recommendation: attorney mode progress indicator ("Generating detailed analysis..." after 15s)
+  - [x] Implemented P1 recommendation: format enforcement language in consumer system prompt for short/edge-case answers
+  - [x] Updated timeout to 45s (backend rag.yaml + frontend use-conversation.ts + validation_runner.py)
+  - [x] Rate limit made configurable via env vars (`RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW`)
+  - [x] Full findings documented in `data/validation/VALIDATION_FINDINGS.md`
+
+- [ ] **[GATE] 3B.8 — MVP launch readiness**
   - [ ] MVP deployed to public URL
   - [ ] Analytics collecting data
   - [ ] Feedback mechanism working
-  - [ ] Both modes functional end-to-end (consumer: plain-language + source URLs, attorney: legal analysis + statutory citations)
-  - [ ] Disclaimer visible on every page
+  - [x] Both modes functional end-to-end (consumer: plain-language + source URLs, attorney: legal analysis + statutory citations)
+  - [x] Multi-turn conversation working in both modes (validated: 12/12 conversation tests pass)
+  - [x] Disclaimer visible on every page + per-answer disclaimer on every response
   - [ ] Responsive on mobile
   - [ ] Page load time < 3 seconds
   - [ ] Basic rate limiting in place (prevent abuse before beta)
@@ -1936,13 +2066,15 @@ All Phase 1 work is done. 162 tests passing, 81% coverage.
 
 **Goal:** Turn first-time users into repeat users. Address the top friction points identified during Phase 3C beta and Phase 4 production monitoring.
 
-- [ ] **5A.1 — Multi-turn conversation memory**
-  - [ ] Implement conversation session storage (session-based, no account required for consumers)
-  - [ ] Context window management: summarize older turns to fit token budget
-  - [ ] Mode-specific context handling: consumer preserves simple context, attorney preserves citations and analysis structure
-  - [ ] Session expiry: conversations reset after 24 hours of inactivity (privacy + cost management)
-  - [ ] Write tests for conversation state management
-  - [ ] Measure impact: session depth (queries/session) before vs. after
+- [x] **5A.1 — Multi-turn conversation memory** ✅ (Done in Phase 3B.5/3B.6 — pulled forward as essential for MVP)
+  - [x] Conversation session storage (client-side history, server-side session index — no account required)
+  - [x] History token budget (2000 tokens): trims to first turn + most recent turns
+  - [x] Mode-specific turn limits (consumer: 3, attorney: 5) with server-side enforcement
+  - [x] Turn-aware prompts with progressive detail and configurable response format
+  - [x] Questioning styles: "discerning" (attorney) vs "inviting" (consumer)
+  - [x] Final turn: definitive answer, no clarifying questions
+  - [x] Session expiry: reset on page refresh or mode change (stateless — no server-side TTL needed)
+  - [ ] **Remaining (future):** persistent conversation history across sessions (requires user accounts), conversation summarization for very long sessions, server-side session TTL
 
 - [ ] **5A.2 — Feedback-driven quality improvement loop**
   - [ ] Build feedback analysis pipeline: aggregate thumbs-down by topic, question type, and mode
@@ -2118,10 +2250,13 @@ This section documents the project's testing approach. It is a living document, 
 |----------|-------|--------|-------|
 | **Unit tests** | ~543 | (default) | Every build |
 | **Phase 2 unit tests** | ~143 | (default) | Every build |
+| **Phase 3B tests** (API e2e + feedback) | ~47 | (default) | Every build |
+| **CACI tests** | ~40 | (default) | Every build |
 | **Integration tests (slow)** | 8 | `@pytest.mark.slow` | Nightly / manual |
 | **Live LLM tests** | 5 | `@pytest.mark.llm` | Manual (requires API key) |
 | **Evaluation tests** | 60+ | `@pytest.mark.evaluation` | Manual / pre-release |
-| **Total** | **686** | | |
+| **Validation tests** | 230+12 | `@pytest.mark.validation` | Manual / pre-release (requires running API) |
+| **Total** | **774+ unit, 242 validation** | | |
 
 ### 8.2 What We Test (by Category)
 
@@ -2192,7 +2327,72 @@ The full automated evaluation runs all 60 questions through the complete pipelin
 
 - **Cross-mode comparison**: The same knowledge base serves both modes. A question like "What protections exist for whistleblowers?" retrieves agency fact sheets in consumer mode (plain-language explanation) and statutory code sections in attorney mode (Lab. Code § 1102.5 analysis with elements and burden of proof). The evaluation verifies that each mode returns the appropriate content type and tone.
 
-#### F. Regression Prevention
+#### F. Comprehensive Live API Validation (230-Question Suite) — Added 2026-02-26
+
+End-to-end validation testing against the live API. Tests real SSE streaming, multi-turn conversations, format compliance, answer quality, timing, and cost. Requires the FastAPI backend running at `localhost:8000`.
+
+**Test assets** (all in `tests/evaluation/`):
+- `consumer_validation.yaml` — 110 consumer questions across 12 categories
+- `attorney_validation.yaml` — 120 attorney questions across 15 categories
+- `consumer_conversations.yaml` — 7 multi-turn conversation scenarios (3 turns each + 1 turn-limit test)
+- `attorney_conversations.yaml` — 5 multi-turn conversation scenarios (5 turns each + 1 turn-limit test)
+- `validation_runner.py` — Automated test runner with SSE parsing, quality validation, and markdown reporting
+
+**Consumer mode results** (110 questions):
+
+| Metric | Result |
+|--------|--------|
+| Success rate | 100% (110/110) |
+| Format compliance | 95.5% (5 edge cases used shorter format — acceptable) |
+| On-topic rate | 97.3% (2 false positives from keyword matching) |
+| Element coverage | 78.1% (many "misses" are phrasing differences, not wrong answers) |
+| Disclaimer rate | 1.8% pre-fix → addressed via system prompt + frontend disclaimer |
+| Source/agency references | 98.2% |
+| Avg response time | 7.5s (median 7.3s, P95 11.2s) |
+| Avg cost/query | $0.0072 |
+| Avg answer length | 2,237 chars |
+
+Category breakdown: unemployment_disability (91% element coverage), filing_complaints (85%), independent_contractor (85%), family_medical_leave (82%), edge_cases (81%). Weakest: meal_rest_breaks (59% — keyword mismatch, not answer quality).
+
+**Attorney mode results** (120 questions):
+
+| Metric | Result |
+|--------|--------|
+| Success rate | 100% (120/120) |
+| Format compliance | 100% |
+| On-topic rate | 98.3% |
+| Element coverage | 85.4% |
+| Disclaimer rate | 0.8% pre-fix → addressed via system prompt + frontend disclaimer |
+| Source/agency references | 95.0% |
+| Avg response time | 27.9s (median 28.0s, P95 35.5s) |
+| Avg cost/query | $0.0366 |
+| Avg answer length | 5,141 chars |
+
+Category breakdown: edge_cases (100%), jury_instructions (100%), non_compete_trade_secrets (93%), cross_statutory (92%), retaliation_whistleblower (91%). Weakest: remedies_damages (72% — specific penalty amounts explained conceptually rather than numerically).
+
+**Multi-turn conversation results** (12 scenarios, all PASS after bug fix):
+
+| Scenario | Mode | Turns | Cost | Validates |
+|----------|------|-------|------|-----------|
+| Overtime + employer size follow-up | consumer | 3 | $0.027 | Short follow-up expansion |
+| Discrimination + short fact follow-up | consumer | 3 | $0.019 | Short follow-up expansion |
+| Topic switch (harassment → leave) | consumer | 3 | $0.024 | Topic switching, fresh retrieval |
+| Final turn definitive guidance | consumer | 3 | $0.020 | Final turn behavior |
+| Wage theft with facts-only | consumer | 3 | $0.025 | Facts-only input handling |
+| Consumer turn limit enforcement | consumer | 4 | $0.027 | Turn 4 blocked (TURN_LIMIT_EXCEEDED) |
+| Long detailed question | consumer | 3 | $0.023 | Long input handling |
+| FEHA retaliation + progressive facts | attorney | 5 | $0.204 | Multi-theory analysis |
+| Whistleblower + short follow-ups | attorney | 5 | $0.232 | Short follow-up expansion |
+| Attorney turn limit enforcement | attorney | 6 | $0.173 | Turn 6 blocked (TURN_LIMIT_EXCEEDED) |
+| Disability accommodation | attorney | 5 | $0.213 | Progressive fact accumulation |
+| Wage claim → PAGA pivot | attorney | 5 | $0.187 | Topic pivot within session |
+
+**Bugs found during validation testing:**
+1. **ConversationTurn.content max_length** (5,000 → 20,000): Attorney responses avg 5,141 chars, causing HTTP 422 on turn 2. Fixed in `schemas.py`.
+2. **httpx streaming error handling**: `response.text` in streaming context → `response.read().decode()`. Fixed in `validation_runner.py`.
+3. **Disclaimer rate critically low** (1.8% consumer, 0.8% attorney): Fixed via system prompt instructions + frontend per-answer disclaimer.
+
+#### G. Regression Prevention
 
 - **Citation regression suite** (`tests/test_ingestion_spot_check.py`): 48 golden citation tests run on every CI build. If a code change breaks citation parsing, these tests catch it immediately.
 - **Retrieval quality thresholds**: The `evaluate-retrieval` command asserts aggregate metrics against configurable thresholds. A retrieval code change that degrades precision below threshold fails the evaluation.
@@ -2232,9 +2432,9 @@ uv run employee-help cross-validate
 | **Phase 1** ✅ | CRD Knowledge Acquisition | CRD employment discrimination content in SQLite (done) | — |
 | **Phase 1.5** ✅ (code complete, PO gate pending) | Multi-Source & Statutory Expansion | 10 sources ingested (6 statutory + 3 agency + 1 CACI jury instructions): 20,871 docs, 24,106 chunks. 32/33 validation checks pass. | — |
 | **Phase 2** ✅ (code complete, PO gate pending) | Dual-Mode RAG Pipeline | Embedding (bge-base-en-v1.5 + LanceDB), hybrid search, dual-mode retrieval, Claude answer generation (Haiku 4.5 / Sonnet 4.6), 60-question evaluation suite. 750 tests. | — |
-| **Phase 3** | Customer Validation & MVP | Validate desirability (user trust, demand), ship minimum viable web app, run closed beta, measure product-market fit signals | **Desirability** — zero real users; trust in AI legal info is untested |
+| **Phase 3** (3B in progress) | Customer Validation & MVP | 3B.1–3B.6 ✅: MVP web app with multi-turn conversation, configurable response format, analytics, feedback. 3B.7 gate + 3C beta remaining. | **Desirability** — zero real users; trust in AI legal info is untested |
 | **Phase 4** | Production, Growth & Business Model | SEO-driven acquisition, attorney subscriptions, payment infrastructure, production monitoring, unit economics | **Viability** — revenue model and unit economics are hypotheses |
-| **Phase 5** | Scale, Expand & Deepen | Retention features (conversation memory, feedback loop), demand-driven KB expansion, API platform, multi-state expansion | **Scalability** — per-query costs at high volume; multi-state is a 1-to-n play |
+| **Phase 5** | Scale, Expand & Deepen | Retention features (feedback-driven quality loop, guided workflows, export tools — conversation memory done in 3B.5), demand-driven KB expansion, API platform, multi-state expansion | **Scalability** — per-query costs at high volume; multi-state is a 1-to-n play |
 
 > **Phases 1–2 are the feasibility path** (validated: the technology works). **Phase 3 is the desirability inflection point** — it determines whether the product has real demand or is a technically impressive solution without a market. **Phase 4 is the viability test** — can we build a sustainable business? Phase 4 investment is only warranted if Phase 3 demonstrates product-market fit signals. **Phase 5 is the scale play** — driven by data from real users, not assumptions. Features are prioritized by validated demand, not by technical convenience.
 
@@ -2249,9 +2449,9 @@ uv run employee-help cross-validate
 | 3 | **Attorney mode MVP scope** | **A) Full citation mode from day one.** Attorney mode launches with precise § references, clickable leginfo links, and legal analysis structure. | Phase 2–3 are more complex, but the core attorney value proposition is delivered immediately. Consistent with the comprehensive statutory ingestion decision. |
 | 4 | **CalHR scope** | **A) Include with metadata tag.** CalHR content ingested into the unified knowledge base, tagged with "state_employees" metadata flag for filtering. | One knowledge base, metadata-driven filtering. Retrieval can de-prioritize CalHR content for private-sector questions. |
 | 5 | **Content refresh cadence** | **A) Add basic automation (cron) in Phase 1.5.** Weekly for agencies, monthly for statutory codes, with change detection. | Keeps content fresh without manual effort. Adds ~2–3 tasks to Phase 1.5D. |
-| 6 | **Phase 3 approach: build-first vs. validate-first** | **Pending PO review (2026-02-26).** Proposed: restructure Phase 3 around customer validation (Lean Startup methodology) before full web application build. Phase 3A = customer discovery + landing page test. Phase 3B = minimum viable web app. Phase 3C = closed beta with real users. | Major reframe: Phase 3 becomes a validation phase, not just a build phase. Investment in Phase 4 is contingent on Phase 3C product-market fit signals. See Section 3.7. |
-| 7 | **Revenue model** | **Pending PO decision.** Proposed: free consumer tier (5 questions/day) + attorney subscription ($49–99/month) + enterprise API (custom pricing). To be validated during Phase 3C beta. | Defines the business model for Phase 4C implementation. Cannot proceed with payment infrastructure until pricing is decided. |
-| 8 | **Web framework for Phase 3** | **Pending PO decision.** Options: Next.js + FastAPI (best SEO, industry standard), Reflex (Python-native, fast prototyping), or static site + API (simplest MVP). Recommend deciding at Phase 3B based on 3A findings. | Framework choice affects time-to-MVP, SEO capability, and long-term maintenance. |
+| 6 | **Phase 3 approach: build-first vs. validate-first** | **Resolved (2026-02-26).** Restructured Phase 3 around customer validation. 3A = discovery, 3B = MVP web app (in progress — 3B.1–3B.6 complete), 3C = closed beta. Multi-turn conversation (originally Phase 5A.1) pulled forward into 3B.5 as essential for MVP. | Phase 3 is a validation phase. Phase 4 investment is contingent on Phase 3C product-market fit signals. |
+| 7 | **Revenue model** | **Pending PO decision.** Proposed: free consumer tier (5 questions/day) + attorney subscription ($49–99/month) + enterprise API (custom pricing). Turn limits (3 consumer, 5 attorney) are the natural paywall insertion point — raising the limit is the simplest premium upgrade. To be validated during Phase 3C beta. | Defines the business model for Phase 4C implementation. Turn limit infrastructure is already in place (3B.5). |
+| 8 | **Web framework for Phase 3** | **Resolved (2026-02-26).** Next.js (App Router) + FastAPI selected. See 3B.1. | Next.js provides SSR/SSG for SEO, App Router for streaming, Tailwind for styling. FastAPI wraps existing Python RAG pipeline directly. |
 
 ---
 

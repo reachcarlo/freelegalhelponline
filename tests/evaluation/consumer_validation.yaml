@@ -1,0 +1,712 @@
+# Consumer mode validation questions (100+)
+# Research-backed questions from DIR, EDD, CRD, Cal/OSHA, Nolo, Avvo, legal aid orgs
+# expected_elements: key terms/concepts the answer should mention
+# expected_categories: content_category values expected in retrieval sources
+# topic_keywords: terms used for on-topic validation
+
+questions:
+  # ==========================================
+  # WAGES & OVERTIME (15 questions)
+  # ==========================================
+  - question: "What is the current minimum wage in California?"
+    category: "wages_overtime"
+    expected_elements: ["minimum wage", "per hour", "local"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["minimum wage", "california"]
+
+  - question: "How is overtime calculated in California?"
+    category: "wages_overtime"
+    expected_elements: ["overtime", "time and a half", "eight hours", "double time"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["overtime", "hours"]
+
+  - question: "When must my employer pay me my final paycheck after I am fired?"
+    category: "wages_overtime"
+    expected_elements: ["immediately", "termination", "final pay", "waiting time"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["final paycheck", "fired"]
+
+  - question: "When must my employer pay me my final paycheck if I quit?"
+    category: "wages_overtime"
+    expected_elements: ["72 hours", "notice", "last day"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["final paycheck", "quit", "resign"]
+
+  - question: "Can my employer deduct money from my paycheck for a cash register shortage?"
+    category: "wages_overtime"
+    expected_elements: ["deduction", "prohibited", "paycheck"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["deduction", "paycheck", "shortage"]
+
+  - question: "Am I entitled to paid sick leave in California and how much?"
+    category: "wages_overtime"
+    expected_elements: ["sick leave", "paid", "hours", "accrual"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["sick leave", "paid"]
+
+  - question: "Is my employer allowed to take a portion of my tips?"
+    category: "wages_overtime"
+    expected_elements: ["tips", "employer", "tip pooling"]
+    expected_categories: ["agency_guidance", "fact_sheet", "statutory"]
+    topic_keywords: ["tips", "gratuities"]
+
+  - question: "Am I considered an exempt or non-exempt employee in California?"
+    category: "wages_overtime"
+    expected_elements: ["exempt", "salary", "duties", "overtime"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["exempt", "non-exempt", "classification"]
+
+  - question: "What is wage theft and what can I do about it?"
+    category: "wages_overtime"
+    expected_elements: ["wage theft", "unpaid", "Labor Commissioner", "claim"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["wage theft"]
+
+  - question: "How often does my employer have to pay me?"
+    category: "wages_overtime"
+    expected_elements: ["pay period", "semi-monthly", "payday"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["pay period", "payday"]
+
+  - question: "My employer pays me in cash and doesn't give me a pay stub. Is that legal?"
+    category: "wages_overtime"
+    expected_elements: ["pay stub", "itemized", "statement", "wages"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["pay stub", "cash", "statement"]
+
+  - question: "Can my employer make me work 12 hours a day without overtime pay?"
+    category: "wages_overtime"
+    expected_elements: ["overtime", "eight hours", "double time", "twelve"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["overtime", "twelve hours", "work"]
+
+  - question: "I work from home. Am I still entitled to overtime in California?"
+    category: "wages_overtime"
+    expected_elements: ["overtime", "remote", "non-exempt"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["overtime", "remote", "home"]
+
+  - question: "What is the penalty if my employer doesn't pay me on time?"
+    category: "wages_overtime"
+    expected_elements: ["waiting time", "penalty", "daily rate"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["penalty", "late", "pay"]
+
+  - question: "Can my employer round my time clock punches?"
+    category: "wages_overtime"
+    expected_elements: ["rounding", "time", "neutral", "favor"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["time clock", "rounding"]
+
+  # ==========================================
+  # MEAL & REST BREAKS (8 questions)
+  # ==========================================
+  - question: "What meal breaks am I entitled to in California?"
+    category: "meal_rest_breaks"
+    expected_elements: ["30 minutes", "meal break", "five hours"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["meal break", "lunch"]
+
+  - question: "What rest breaks am I entitled to in California?"
+    category: "meal_rest_breaks"
+    expected_elements: ["10 minutes", "rest break", "four hours", "paid"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["rest break"]
+
+  - question: "What happens if my employer doesn't give me my meal or rest breaks?"
+    category: "meal_rest_breaks"
+    expected_elements: ["premium pay", "one hour", "additional", "penalty"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["missed break", "penalty"]
+
+  - question: "Can my employer require me to stay on the premises during my lunch break?"
+    category: "meal_rest_breaks"
+    expected_elements: ["meal break", "duty-free", "relieve", "premises"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["lunch", "premises", "stay"]
+
+  - question: "Can I waive my meal break in California?"
+    category: "meal_rest_breaks"
+    expected_elements: ["waive", "six hours", "mutual", "agreement"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["waive", "meal break"]
+
+  - question: "My employer says I have to clock out for my break but I still have to be available for work. Is that legal?"
+    category: "meal_rest_breaks"
+    expected_elements: ["on-duty", "meal", "relieved", "duties"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["clock out", "available", "break"]
+
+  - question: "Do part-time workers get breaks in California?"
+    category: "meal_rest_breaks"
+    expected_elements: ["break", "hours", "part-time"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["part-time", "breaks"]
+
+  - question: "I work a 10-hour shift. How many breaks do I get?"
+    category: "meal_rest_breaks"
+    expected_elements: ["two meal breaks", "rest break", "ten hours"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["ten hour", "shift", "breaks"]
+
+  # ==========================================
+  # WRONGFUL TERMINATION (10 questions)
+  # ==========================================
+  - question: "California is an at-will state. Does that mean my employer can fire me for any reason?"
+    category: "wrongful_termination"
+    expected_elements: ["at-will", "illegal reasons", "discrimination", "retaliation"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["at-will", "fired", "reason"]
+
+  - question: "What are the most common grounds for a wrongful termination claim in California?"
+    category: "wrongful_termination"
+    expected_elements: ["discrimination", "retaliation", "public policy", "wrongful termination"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["wrongful termination", "grounds"]
+
+  - question: "Can I be fired for filing a workers' compensation claim?"
+    category: "wrongful_termination"
+    expected_elements: ["workers' compensation", "retaliation", "illegal", "public policy"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["fired", "workers compensation"]
+
+  - question: "What is constructive dismissal in California?"
+    category: "wrongful_termination"
+    expected_elements: ["constructive", "intolerable", "resign", "conditions"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["constructive dismissal", "quit"]
+
+  - question: "Can I be fired for taking sick leave in California?"
+    category: "wrongful_termination"
+    expected_elements: ["sick leave", "retaliation", "protected", "illegal"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["fired", "sick leave"]
+
+  - question: "What damages can I recover in a wrongful termination lawsuit?"
+    category: "wrongful_termination"
+    expected_elements: ["damages", "lost wages", "emotional distress"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["damages", "wrongful termination"]
+
+  - question: "Does my employer have to give me a reason for firing me?"
+    category: "wrongful_termination"
+    expected_elements: ["at-will", "reason", "no requirement"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["reason", "fired"]
+
+  - question: "Can I be fired during my probationary period for any reason?"
+    category: "wrongful_termination"
+    expected_elements: ["probationary", "at-will", "discrimination", "protected"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["probationary", "fired"]
+
+  - question: "I was fired right after I told my boss I was pregnant. Is that legal?"
+    category: "wrongful_termination"
+    expected_elements: ["pregnancy", "discrimination", "illegal", "FEHA"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["pregnant", "fired"]
+
+  - question: "I got fired after complaining about unsafe conditions at work. What can I do?"
+    category: "wrongful_termination"
+    expected_elements: ["retaliation", "safety", "complaint", "Cal/OSHA"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["fired", "unsafe", "complaint"]
+
+  # ==========================================
+  # DISCRIMINATION & HARASSMENT (12 questions)
+  # ==========================================
+  - question: "What types of workplace discrimination are illegal in California?"
+    category: "discrimination_harassment"
+    expected_elements: ["FEHA", "discrimination", "protected", "race", "sex", "age", "disability"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["discrimination", "illegal", "California"]
+
+  - question: "What is the difference between harassment and discrimination under California law?"
+    category: "discrimination_harassment"
+    expected_elements: ["harassment", "discrimination", "adverse action", "hostile"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["harassment", "discrimination", "difference"]
+
+  - question: "What qualifies as sexual harassment in the California workplace?"
+    category: "discrimination_harassment"
+    expected_elements: ["sexual harassment", "quid pro quo", "hostile work environment"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["sexual harassment", "workplace"]
+
+  - question: "What should I do if I am being harassed at work?"
+    category: "discrimination_harassment"
+    expected_elements: ["document", "report", "complaint", "CRD"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["harassed", "work", "steps"]
+
+  - question: "Can I sue my employer for age discrimination in California?"
+    category: "discrimination_harassment"
+    expected_elements: ["age", "40", "FEHA", "discrimination"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["age discrimination", "sue"]
+
+  - question: "What is my employer required to do about disability accommodation?"
+    category: "discrimination_harassment"
+    expected_elements: ["reasonable accommodation", "interactive process", "disability"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["disability", "accommodation"]
+
+  - question: "What is a hostile work environment under California law?"
+    category: "discrimination_harassment"
+    expected_elements: ["hostile", "severe", "pervasive", "unwelcome"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["hostile work environment"]
+
+  - question: "Do California employers have to provide harassment prevention training?"
+    category: "discrimination_harassment"
+    expected_elements: ["training", "harassment", "two years", "employees"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["harassment training"]
+
+  - question: "Can I be discriminated against for being pregnant at work in California?"
+    category: "discrimination_harassment"
+    expected_elements: ["pregnancy", "discrimination", "PDL", "FEHA"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["pregnant", "discrimination"]
+
+  - question: "My boss makes comments about my race at work. Is that illegal?"
+    category: "discrimination_harassment"
+    expected_elements: ["race", "harassment", "discrimination", "hostile"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["race", "comments", "illegal"]
+
+  - question: "My employer won't accommodate my disability. What should I do?"
+    category: "discrimination_harassment"
+    expected_elements: ["disability", "accommodation", "interactive process", "complaint"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["disability", "accommodation", "employer"]
+
+  - question: "Can my employer ask about my religion during a job interview?"
+    category: "discrimination_harassment"
+    expected_elements: ["religion", "interview", "discrimination", "protected"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["religion", "interview", "ask"]
+
+  # ==========================================
+  # RETALIATION & WHISTLEBLOWER (8 questions)
+  # ==========================================
+  - question: "What protections do whistleblowers have in California?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["whistleblower", "protected", "retaliation", "report"]
+    expected_categories: ["agency_guidance", "fact_sheet", "statutory"]
+    topic_keywords: ["whistleblower", "protection"]
+
+  - question: "What counts as illegal retaliation by an employer in California?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["retaliation", "termination", "demotion", "adverse action"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["retaliation", "illegal"]
+
+  - question: "Can my employer retaliate against me for reporting safety violations?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["safety", "retaliation", "Cal/OSHA", "complaint"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["retaliation", "safety"]
+
+  - question: "What should I do if my employer retaliates against me for filing a complaint?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["retaliation", "document", "complaint", "Labor Commissioner"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["retaliation", "complaint"]
+
+  - question: "Am I protected if I report my employer to a government agency?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["protected", "government", "report", "retaliation"]
+    expected_categories: ["agency_guidance", "fact_sheet", "statutory"]
+    topic_keywords: ["report", "government", "protected"]
+
+  - question: "Can I be fired for refusing to do something illegal at work?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["illegal", "public policy", "wrongful termination"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["fired", "illegal", "refuse"]
+
+  - question: "I reported my boss for harassment and now I'm being treated differently. Is that retaliation?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["retaliation", "harassment", "complaint", "adverse"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["retaliation", "harassment", "reported"]
+
+  - question: "What is a PAGA claim and how does it work?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["PAGA", "penalties", "Labor Code", "employee"]
+    expected_categories: ["agency_guidance", "fact_sheet", "statutory"]
+    topic_keywords: ["PAGA", "claim"]
+
+  # ==========================================
+  # FAMILY & MEDICAL LEAVE (10 questions)
+  # ==========================================
+  - question: "What is the difference between CFRA, FMLA, and Paid Family Leave?"
+    category: "family_medical_leave"
+    expected_elements: ["CFRA", "FMLA", "Paid Family Leave", "job protection"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["CFRA", "FMLA", "PFL"]
+
+  - question: "Am I eligible for CFRA leave and how much leave can I take?"
+    category: "family_medical_leave"
+    expected_elements: ["CFRA", "12 weeks", "eligible", "employees"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["CFRA", "eligible", "leave"]
+
+  - question: "How much does Paid Family Leave pay in California?"
+    category: "family_medical_leave"
+    expected_elements: ["Paid Family Leave", "wages", "benefit", "weeks"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["Paid Family Leave", "pay", "benefit"]
+
+  - question: "What is Pregnancy Disability Leave and how long can I take?"
+    category: "family_medical_leave"
+    expected_elements: ["pregnancy", "disability", "four months", "leave"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["pregnancy disability leave"]
+
+  - question: "Can I take leave to bond with a new baby, adopted child, or foster child?"
+    category: "family_medical_leave"
+    expected_elements: ["bonding", "CFRA", "12 weeks", "baby"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["bonding", "baby", "leave"]
+
+  - question: "Can my employer fire me while I am on family or medical leave?"
+    category: "family_medical_leave"
+    expected_elements: ["job protection", "leave", "illegal", "reinstatement"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["fired", "leave"]
+
+  - question: "Can I use CFRA leave to care for a sick family member?"
+    category: "family_medical_leave"
+    expected_elements: ["CFRA", "family member", "serious health condition"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["CFRA", "family", "care"]
+
+  - question: "What leave am I entitled to for a pregnancy in California?"
+    category: "family_medical_leave"
+    expected_elements: ["PDL", "CFRA", "bonding", "pregnancy"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["pregnancy", "leave", "entitled"]
+
+  - question: "Does my employer have to hold my job while I am on Paid Family Leave?"
+    category: "family_medical_leave"
+    expected_elements: ["Paid Family Leave", "job protection", "CFRA"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["job", "Paid Family Leave"]
+
+  - question: "I just had a baby. What benefits and leave am I entitled to?"
+    category: "family_medical_leave"
+    expected_elements: ["baby", "leave", "PDL", "CFRA", "PFL"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["baby", "leave", "benefits"]
+
+  # ==========================================
+  # UNEMPLOYMENT & DISABILITY (9 questions)
+  # ==========================================
+  - question: "How do I qualify for unemployment insurance in California?"
+    category: "unemployment_disability"
+    expected_elements: ["unemployment", "wages", "unemployed", "fault"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["unemployment", "qualify"]
+
+  - question: "How much will I receive in unemployment benefits and for how long?"
+    category: "unemployment_disability"
+    expected_elements: ["weekly", "benefit", "weeks", "maximum"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["unemployment", "benefit", "amount"]
+
+  - question: "What should I do if my unemployment claim is denied?"
+    category: "unemployment_disability"
+    expected_elements: ["appeal", "denied", "hearing", "30 days"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["unemployment", "denied", "appeal"]
+
+  - question: "What is State Disability Insurance (SDI) and how do I qualify?"
+    category: "unemployment_disability"
+    expected_elements: ["SDI", "disability", "non-work", "physician"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["SDI", "disability"]
+
+  - question: "Can I receive both unemployment and disability benefits at the same time?"
+    category: "unemployment_disability"
+    expected_elements: ["unemployment", "disability", "simultaneously", "cannot"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["unemployment", "disability", "both"]
+
+  - question: "Do I have to pay taxes on my unemployment benefits?"
+    category: "unemployment_disability"
+    expected_elements: ["taxes", "federal", "unemployment"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["taxes", "unemployment"]
+
+  - question: "Can I work part-time and still receive unemployment benefits?"
+    category: "unemployment_disability"
+    expected_elements: ["part-time", "unemployment", "earnings", "report"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["part-time", "unemployment"]
+
+  - question: "I was fired for poor performance. Can I still get unemployment?"
+    category: "unemployment_disability"
+    expected_elements: ["unemployment", "performance", "misconduct"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["fired", "performance", "unemployment"]
+
+  - question: "What is the difference between SDI and workers' compensation?"
+    category: "unemployment_disability"
+    expected_elements: ["SDI", "workers' compensation", "work-related"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["SDI", "workers compensation", "difference"]
+
+  # ==========================================
+  # NON-COMPETE AGREEMENTS (6 questions)
+  # ==========================================
+  - question: "Are non-compete agreements enforceable in California?"
+    category: "non_compete"
+    expected_elements: ["non-compete", "void", "unenforceable", "California"]
+    expected_categories: ["agency_guidance", "fact_sheet", "statutory"]
+    topic_keywords: ["non-compete", "enforceable"]
+
+  - question: "My employer made me sign a non-compete agreement. Is it valid?"
+    category: "non_compete"
+    expected_elements: ["non-compete", "void", "unenforceable"]
+    expected_categories: ["agency_guidance", "fact_sheet", "statutory"]
+    topic_keywords: ["non-compete", "signed", "valid"]
+
+  - question: "Can my out-of-state employer enforce a non-compete against me while I work in California?"
+    category: "non_compete"
+    expected_elements: ["non-compete", "California", "out-of-state"]
+    expected_categories: ["agency_guidance", "statutory"]
+    topic_keywords: ["non-compete", "out-of-state"]
+
+  - question: "What is the difference between a non-compete and a non-solicitation agreement?"
+    category: "non_compete"
+    expected_elements: ["non-compete", "non-solicitation", "customers"]
+    expected_categories: ["agency_guidance", "statutory"]
+    topic_keywords: ["non-compete", "non-solicitation"]
+
+  - question: "What should I do if my employer threatens to sue me for violating a non-compete?"
+    category: "non_compete"
+    expected_elements: ["non-compete", "void", "threat", "attorney"]
+    expected_categories: ["agency_guidance", "statutory"]
+    topic_keywords: ["employer", "sue", "non-compete"]
+
+  - question: "Can my employer prevent me from working for a competitor after I leave?"
+    category: "non_compete"
+    expected_elements: ["non-compete", "competitor", "unenforceable", "California"]
+    expected_categories: ["agency_guidance", "statutory"]
+    topic_keywords: ["competitor", "prevent", "leave"]
+
+  # ==========================================
+  # WORKPLACE SAFETY (7 questions)
+  # ==========================================
+  - question: "What are my rights to a safe workplace under California law?"
+    category: "workplace_safety"
+    expected_elements: ["safe", "Cal/OSHA", "right", "report"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["safe", "workplace", "rights"]
+
+  - question: "Can I refuse to do work I believe is unsafe in California?"
+    category: "workplace_safety"
+    expected_elements: ["refuse", "unsafe", "hazard", "retaliation"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["refuse", "unsafe", "work"]
+
+  - question: "How do I file a workplace safety complaint with Cal/OSHA?"
+    category: "workplace_safety"
+    expected_elements: ["Cal/OSHA", "complaint", "file", "inspection"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["Cal/OSHA", "complaint", "file"]
+
+  - question: "What are California's heat illness prevention requirements for outdoor workers?"
+    category: "workplace_safety"
+    expected_elements: ["heat", "water", "shade", "rest"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["heat", "outdoor", "workers"]
+
+  - question: "What must my employer do if there is a serious workplace injury?"
+    category: "workplace_safety"
+    expected_elements: ["injury", "report", "Cal/OSHA", "record"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["injury", "workplace", "report"]
+
+  - question: "My employer doesn't provide safety equipment. What should I do?"
+    category: "workplace_safety"
+    expected_elements: ["safety", "equipment", "employer", "Cal/OSHA"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["safety equipment", "employer"]
+
+  - question: "Can my employer fire me for reporting an injury at work?"
+    category: "workplace_safety"
+    expected_elements: ["injury", "retaliation", "workers' compensation", "illegal"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["fired", "injury", "report"]
+
+  # ==========================================
+  # FILING COMPLAINTS / SOL (9 questions)
+  # ==========================================
+  - question: "How do I file a wage claim with the California Labor Commissioner?"
+    category: "filing_complaints"
+    expected_elements: ["Labor Commissioner", "wage claim", "file", "DLSE"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["wage claim", "Labor Commissioner"]
+
+  - question: "What is the statute of limitations for employment discrimination claims in California?"
+    category: "filing_complaints"
+    expected_elements: ["statute of limitations", "discrimination", "CRD", "years"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["statute of limitations", "discrimination"]
+
+  - question: "What is the statute of limitations for a wrongful termination claim?"
+    category: "filing_complaints"
+    expected_elements: ["statute of limitations", "wrongful termination", "years"]
+    expected_categories: ["agency_guidance", "fact_sheet", "statutory"]
+    topic_keywords: ["statute of limitations", "wrongful termination"]
+
+  - question: "What is the statute of limitations for wage and hour claims in California?"
+    category: "filing_complaints"
+    expected_elements: ["statute of limitations", "wage", "three years"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["statute of limitations", "wage"]
+
+  - question: "What is the CRD complaint process for discrimination or harassment?"
+    category: "filing_complaints"
+    expected_elements: ["CRD", "complaint", "right-to-sue", "investigation"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["CRD", "complaint", "process"]
+
+  - question: "Can I file a complaint with both the CRD and the EEOC?"
+    category: "filing_complaints"
+    expected_elements: ["CRD", "EEOC", "cross-file", "federal"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["CRD", "EEOC", "both"]
+
+  - question: "What happens at a wage claim hearing before the Labor Commissioner?"
+    category: "filing_complaints"
+    expected_elements: ["hearing", "evidence", "Labor Commissioner", "decision"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["hearing", "wage claim"]
+
+  - question: "How long do I have to file a retaliation complaint in California?"
+    category: "filing_complaints"
+    expected_elements: ["retaliation", "time limit", "file", "complaint"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["retaliation", "deadline", "file"]
+
+  - question: "Do I need a lawyer to file a complaint with the Labor Commissioner?"
+    category: "filing_complaints"
+    expected_elements: ["lawyer", "Labor Commissioner", "represent"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["lawyer", "Labor Commissioner", "file"]
+
+  # ==========================================
+  # INDEPENDENT CONTRACTOR (7 questions)
+  # ==========================================
+  - question: "How do I know if I am an employee or an independent contractor in California?"
+    category: "independent_contractor"
+    expected_elements: ["ABC test", "employee", "independent contractor", "control"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["employee", "independent contractor"]
+
+  - question: "What is the ABC test for independent contractor classification?"
+    category: "independent_contractor"
+    expected_elements: ["ABC test", "control", "business", "independent"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["ABC test", "independent contractor"]
+
+  - question: "What should I do if I think I have been misclassified as an independent contractor?"
+    category: "independent_contractor"
+    expected_elements: ["misclassified", "wage claim", "Labor Commissioner"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["misclassified", "independent contractor"]
+
+  - question: "Are there exceptions to the ABC test in California?"
+    category: "independent_contractor"
+    expected_elements: ["exceptions", "ABC test", "Borello", "professionals"]
+    expected_categories: ["agency_guidance", "fact_sheet", "statutory"]
+    topic_keywords: ["exceptions", "ABC test"]
+
+  - question: "What benefits am I missing out on if I am misclassified as an independent contractor?"
+    category: "independent_contractor"
+    expected_elements: ["overtime", "benefits", "workers' compensation", "sick leave"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["misclassified", "benefits"]
+
+  - question: "I drive for a rideshare company. Am I an employee or independent contractor?"
+    category: "independent_contractor"
+    expected_elements: ["rideshare", "Proposition 22", "independent contractor"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["rideshare", "employee", "contractor"]
+
+  - question: "My employer calls me an independent contractor but controls my schedule. Am I really an IC?"
+    category: "independent_contractor"
+    expected_elements: ["control", "schedule", "misclassification", "ABC test"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["control", "schedule", "independent contractor"]
+
+  # ==========================================
+  # EDGE CASES & FUNCTIONAL TESTS (9 questions)
+  # ==========================================
+
+  # Very short question
+  - question: "Can I be fired for no reason?"
+    category: "edge_cases"
+    expected_elements: ["at-will", "reason", "exceptions"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["fired", "reason"]
+
+  # Very long, detailed question
+  - question: "I work at a restaurant in Los Angeles as a server. I've been working there for three years. My boss regularly takes a cut of our tips, sometimes up to 20%. When I complained about it to the manager, they told me that's just how it works and if I don't like it I can leave. Then they started giving me the worst shifts and cutting my hours. I'm worried about speaking up more because I need this job. What are my rights and what can I do about this?"
+    category: "edge_cases"
+    expected_elements: ["tips", "retaliation", "complaint", "Labor Commissioner"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["tips", "retaliation", "restaurant"]
+
+  # Facts-only input (not a question)
+  - question: "I'm a warehouse worker in Fresno. 45 years old. Worked there 8 years. My manager just told me they're replacing me with a younger worker. I have a clean record and good performance reviews."
+    category: "edge_cases"
+    expected_elements: ["age", "discrimination", "FEHA", "40"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["age", "discrimination", "replaced"]
+
+  # Emotional/upset user
+  - question: "I am so frustrated. My employer hasn't paid me in two weeks and they keep making excuses. I have bills to pay and I don't know what to do. This can't be legal, can it?"
+    category: "edge_cases"
+    expected_elements: ["unpaid wages", "file", "claim", "Labor Commissioner"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["unpaid", "wages"]
+
+  # Out of scope (federal/other state)
+  - question: "What are my rights under New York employment law?"
+    category: "edge_cases"
+    expected_elements: ["California", "New York"]
+    expected_categories: []
+    topic_keywords: ["New York"]
+
+  # Multiple issues in one question
+  - question: "My employer isn't paying me overtime, won't give me breaks, and when I complained they threatened to fire me. What do I do?"
+    category: "edge_cases"
+    expected_elements: ["overtime", "breaks", "retaliation", "complaint"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["overtime", "breaks", "retaliation"]
+
+  # Vague question
+  - question: "What are my rights at work?"
+    category: "edge_cases"
+    expected_elements: ["rights", "California"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["rights", "work"]
+
+  # Question about immigration status
+  - question: "I'm undocumented. Do I still have employment rights in California?"
+    category: "edge_cases"
+    expected_elements: ["undocumented", "rights", "protections"]
+    expected_categories: ["agency_guidance", "fact_sheet"]
+    topic_keywords: ["undocumented", "rights"]
+
+  # Follow-up style question without context
+  - question: "50 employees"
+    category: "edge_cases"
+    expected_elements: []
+    expected_categories: []
+    topic_keywords: []

@@ -192,6 +192,84 @@ class AnswerService:
 
         return text_stream(), retrieval_results, stream_metadata
 
+    def generate_stream_multiturn(
+        self,
+        query: str,
+        mode: str = "consumer",
+        conversation_history: list[dict[str, str]] | None = None,
+        turn_number: int = 1,
+        max_turns: int = 3,
+        history_token_budget: int = 2000,
+        short_followup_threshold: int = 6,
+    ) -> tuple[Iterator[str], list[RetrievalResult], list[dict[str, Any]]]:
+        """Generate a streaming multi-turn RAG answer.
+
+        Expands short follow-ups with the original question for better retrieval,
+        builds multi-turn prompt with history, and streams from LLM.
+
+        Args:
+            query: Current user question.
+            mode: "consumer" or "attorney".
+            conversation_history: Previous turns as [{"role": ..., "content": ...}].
+            turn_number: Current turn number (1-based).
+            max_turns: Max turns for this mode.
+            history_token_budget: Token budget for history in prompt.
+            short_followup_threshold: Word count below which we expand the query.
+
+        Returns:
+            Same 3-tuple as generate_stream: (text_stream, retrieval_results, metadata).
+        """
+        history = conversation_history or []
+
+        # Expand short follow-ups with original question for better retrieval
+        retrieval_query = query
+        if turn_number > 1 and len(query.split()) < short_followup_threshold and history:
+            # Find the first user message (the original question)
+            for turn in history:
+                if turn["role"] == "user":
+                    retrieval_query = f"{turn['content']} {query}"
+                    break
+
+        # 1. Retrieve with (possibly expanded) query
+        retrieval_results = self.retrieval_service.retrieve(retrieval_query, mode=mode)
+
+        if not retrieval_results:
+            def empty_stream():
+                yield self._no_results_message(mode)
+            return empty_stream(), [], []
+
+        # 2. Build multi-turn prompt
+        prompt = self.prompt_builder.build_prompt_multiturn(
+            query=query,
+            mode=mode,
+            retrieval_results=retrieval_results,
+            conversation_history=history,
+            turn_number=turn_number,
+            max_turns=max_turns,
+            history_token_budget=history_token_budget,
+        )
+
+        # 3. Stream from LLM using pre-built messages
+        stream_metadata: list[dict[str, Any]] = []
+
+        def text_stream():
+            for chunk in self.llm_client.generate_stream_multiturn(
+                system_prompt=prompt.system_prompt,
+                messages=prompt.messages,
+                mode=mode,
+            ):
+                if chunk.text:
+                    yield chunk.text
+                if chunk.is_final:
+                    stream_metadata.append({
+                        "citations": chunk.citations,
+                        "input_tokens": chunk.input_tokens,
+                        "output_tokens": chunk.output_tokens,
+                        "model": chunk.model,
+                    })
+
+        return text_stream(), retrieval_results, stream_metadata
+
     def _extract_api_citations(
         self,
         api_citations: list[dict[str, Any]],

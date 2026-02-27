@@ -1,0 +1,37 @@
+# Frontend (deployed separately on Vercel)
+frontend/
+
+# Tests and evaluation data
+tests/
+learning/
+
+# Data files (served from persistent volume, not baked into image)
+data/
+
+# Git and IDE
+.git/
+.github/
+.vscode/
+.idea/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Docs and misc
+docs/
+*.md
+spike/
+.claude/

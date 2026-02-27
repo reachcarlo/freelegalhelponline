@@ -338,6 +338,24 @@ def main() -> int:
         help="Re-download even if file exists (for weekly refresh).",
     )
 
+    # Feedback dashboard command
+    feedback_parser = subparsers.add_parser(
+        "feedback",
+        help="Show query analytics and feedback dashboard.",
+    )
+    feedback_parser.add_argument(
+        "--days",
+        type=int,
+        default=30,
+        help="Number of days to look back (default: 30).",
+    )
+    feedback_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/feedback.db",
+        help="Feedback database path (default: data/feedback.db).",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -369,6 +387,8 @@ def main() -> int:
             return _handle_evaluate_retrieval(args)
         elif args.command == "evaluate-answers":
             return _handle_evaluate_answers(args)
+        elif args.command == "feedback":
+            return _handle_feedback(args)
         else:
             parser.print_help()
             return 1
@@ -1011,6 +1031,7 @@ def _handle_ask(args) -> int:
 
     prompt_builder = PromptBuilder(
         max_context_tokens=gen_cfg.get("max_context_tokens", 6000),
+        rag_config=rag_config,
     )
 
     answer_service = AnswerService(
@@ -1212,6 +1233,81 @@ def _handle_evaluate_answers(args) -> int:
     print(f"{'=' * 60}\n")
 
     return 0
+
+
+def _handle_feedback(args) -> int:
+    """Display query analytics and feedback dashboard."""
+    from employee_help.feedback.store import FeedbackStore
+
+    db_path = Path(args.db)
+    if not db_path.exists():
+        print(f"No feedback database found at {db_path}")
+        print("Feedback data is collected automatically when the API serves queries.")
+        return 0
+
+    days = args.days
+    store = FeedbackStore(db_path)
+
+    try:
+        mode_dist = store.get_mode_distribution(days=days)
+        total_queries = sum(mode_dist.values())
+
+        if total_queries == 0:
+            print(f"No queries recorded in the last {days} days.")
+            return 0
+
+        fb_summary = store.get_feedback_summary(days=days)
+        daily = store.get_daily_stats(days=days)
+        repeated = store.get_top_repeated_queries(days=days, limit=10)
+
+        print(f"\n{'=' * 60}")
+        print(f"FEEDBACK DASHBOARD  (last {days} days)")
+        print(f"{'=' * 60}")
+
+        # Query volume
+        consumer = mode_dist.get("consumer", 0)
+        attorney = mode_dist.get("attorney", 0)
+        print(f"Total queries:       {total_queries}")
+        print(f"  Consumer:          {consumer}  ({consumer / total_queries:.0%})")
+        print(f"  Attorney:          {attorney}  ({attorney / total_queries:.0%})")
+
+        # Cost & performance
+        if daily:
+            avg_cost = sum(d["avg_cost"] for d in daily) / len(daily)
+            avg_dur = sum(d["avg_duration_ms"] for d in daily) / len(daily)
+            print(f"Avg cost/query:      ${avg_cost:.4f}")
+            print(f"Avg duration:        {avg_dur:.0f}ms")
+
+        # Feedback
+        print(f"\nFeedback:")
+        print(f"  Thumbs up:         {fb_summary['thumbs_up']}")
+        print(f"  Thumbs down:       {fb_summary['thumbs_down']}")
+        if fb_summary["total_feedback"] > 0:
+            print(f"  Approval rate:     {fb_summary['approval_rate']:.0%}")
+        print(f"  Feedback rate:     {fb_summary['feedback_rate']:.0%} of queries")
+
+        # Daily volume (ASCII bar chart for last 7 days)
+        recent = daily[-7:] if len(daily) > 7 else daily
+        if recent:
+            max_total = max(d["total"] for d in recent)
+            bar_width = 30
+            print(f"\nDaily volume (last {len(recent)} days):")
+            for d in recent:
+                bar_len = int((d["total"] / max_total) * bar_width) if max_total else 0
+                bar = "#" * bar_len
+                print(f"  {d['day']}  {bar} {d['total']}")
+
+        # Top repeated queries
+        if repeated:
+            print(f"\nTop repeated query hashes:")
+            for r in repeated[:10]:
+                print(f"  {r['query_hash'][:12]}...  {r['mode']:>8}  x{r['count']}")
+
+        print(f"{'=' * 60}\n")
+        return 0
+
+    finally:
+        store.close()
 
 
 def _handle_status(args) -> int:

@@ -1,0 +1,101 @@
+# Attorney mode multi-turn conversation tests
+# Tests follow-up handling, statutory analysis depth, turn limits
+
+conversations:
+  # Standard multi-turn statutory analysis
+  - name: "FEHA retaliation analysis with facts"
+    turns:
+      - query: "Client was terminated two weeks after filing an internal harassment complaint. What are the viable claims?"
+        category: "retaliation"
+        expected_elements: ["FEHA", "retaliation", "12940", "temporal proximity"]
+      - query: "The employer has 50 employees. Client is a 45-year-old woman. The harasser was her direct supervisor."
+        category: "retaliation"
+        expected_elements: ["FEHA", "supervisor", "strict liability", "individual liability"]
+      - query: "The employer claims the termination was part of a pre-planned reduction in force. They have documentation showing the RIF was discussed before the complaint was filed."
+        category: "retaliation"
+        expected_elements: ["pretext", "mixed-motive", "temporal proximity"]
+      - query: "What damages should we seek and what is the likely exposure for the employer?"
+        category: "remedies"
+        expected_elements: ["back pay", "emotional distress", "punitive", "attorney fees"]
+      - query: "Any additional claims worth pursuing beyond FEHA retaliation?"
+        category: "cross_statutory"
+        expected_elements: ["1102.5", "wrongful termination", "public policy"]
+
+  # Short follow-up test
+  - name: "Whistleblower with short factual follow-ups"
+    turns:
+      - query: "Analyze the elements of a Labor Code 1102.5 whistleblower retaliation claim"
+        category: "statutory_analysis"
+        expected_elements: ["1102.5", "disclosure", "contributing factor"]
+      - query: "Government agency"
+        category: "statutory_analysis"
+        expected_elements: ["1102.5", "government", "law enforcement"]
+      - query: "Cal/OSHA"
+        category: "statutory_analysis"
+        expected_elements: ["Cal/OSHA", "safety", "6310"]
+      - query: "Fired within 30 days of the report"
+        category: "burden_shifting"
+        expected_elements: ["temporal proximity", "burden", "1102.6"]
+      - query: "What are our best arguments?"
+        category: "remedies"
+        expected_elements: ["contributing factor", "clear and convincing", "damages"]
+
+  # Turn limit test (attempt 6th turn on 5-turn limit)
+  - name: "Attorney turn limit enforcement"
+    turns:
+      - query: "What are the CFRA eligibility requirements?"
+        category: "cfra_fmla"
+        expected_elements: ["CFRA", "12 months", "1,250 hours"]
+      - query: "The employer has 8 employees"
+        category: "cfra_fmla"
+        expected_elements: ["five employees", "CFRA"]
+      - query: "Client was denied leave for bonding"
+        category: "cfra_fmla"
+        expected_elements: ["bonding", "denial", "violation"]
+      - query: "What remedies are available?"
+        category: "remedies"
+        expected_elements: ["damages", "reinstatement"]
+      - query: "Can we also pursue a PAGA claim?"
+        category: "class_action_paga"
+        expected_elements: ["PAGA", "penalties"]
+      - query: "This should be blocked by turn limit"
+        category: "turn_limit"
+        expected_elements: []
+
+  # Complex fact pattern with progressive detail
+  - name: "Disability accommodation with progressive facts"
+    turns:
+      - query: "Client has MS and requested work-from-home accommodation. Employer said they'd look into it but never followed up. Three months later she was terminated in a RIF. Analyze potential claims."
+        category: "feha_claims"
+        expected_elements: ["disability", "interactive process", "accommodation", "12940"]
+      - query: "She is 52 and was replaced by a 28-year-old. Company has 200 employees."
+        category: "feha_claims"
+        expected_elements: ["age", "pretext", "FEHA", "replacement"]
+      - query: "She has documentation of her accommodation request email and the RIF notice. Her last 5 performance reviews were all excellent."
+        category: "burden_shifting"
+        expected_elements: ["evidence", "pretext", "prima facie"]
+      - query: "What is our strongest claim and what should we lead with?"
+        category: "remedies"
+        expected_elements: ["failure to accommodate", "interactive process", "disability"]
+      - query: "Draft the initial theory of the case"
+        category: "cross_statutory"
+        expected_elements: ["disability", "age", "accommodation", "pretext"]
+
+  # Topic pivot mid-conversation
+  - name: "Wage claim pivoting to PAGA analysis"
+    turns:
+      - query: "Client's employer has been failing to provide compliant meal breaks. The employees are also missing rest breaks and their wage statements are missing hours worked."
+        category: "wage_hour_litigation"
+        expected_elements: ["512", "226", "meal break", "wage statement"]
+      - query: "There are approximately 150 employees affected. What are the options for collective enforcement?"
+        category: "class_action_paga"
+        expected_elements: ["PAGA", "class action", "representative"]
+      - query: "Client wants to pursue PAGA. Walk me through the procedural requirements."
+        category: "procedural"
+        expected_elements: ["LWDA", "notice", "65 days", "2699.3"]
+      - query: "Can the employer's arbitration agreement block the PAGA claim?"
+        category: "class_action_paga"
+        expected_elements: ["arbitration", "PAGA", "individual"]
+      - query: "Give me your overall assessment of the case strength and expected outcomes."
+        category: "remedies"
+        expected_elements: ["penalties", "settlement", "damages"]

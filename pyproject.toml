@@ -34,6 +34,10 @@ eval = [
     "deepeval>=1.0",
     "textstat>=0.7",
 ]
+web = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+]
 
 [project.scripts]
 employee-help = "employee_help.cli:main"
@@ -52,6 +56,7 @@ markers = [
     "slow: marks tests that require loading ML models (deselect with '-m \"not slow\"')",
     "llm: marks tests that require a live LLM API key (deselect with '-m \"not llm\"')",
     "evaluation: marks RAG evaluation tests (deselect with '-m \"not evaluation\"')",
+    "validation: marks live API validation tests (deselect with '-m \"not validation\"')",
 ]
 
 [tool.coverage.run]

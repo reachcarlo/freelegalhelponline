@@ -262,6 +262,67 @@ class LLMClient:
             self._handle_api_error(e)
             raise
 
+    def generate_stream_multiturn(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, Any]],
+        *,
+        model: str | None = None,
+        mode: str = "consumer",
+        max_tokens: int = 2000,
+        temperature: float = 0.0,
+    ) -> Iterator[StreamChunk]:
+        """Generate a streaming response from a pre-built messages array.
+
+        Used for multi-turn conversations where the messages array includes
+        conversation history and the current turn with document blocks.
+
+        Args:
+            system_prompt: System prompt text.
+            messages: Pre-built messages array with alternating user/assistant turns.
+            model: Specific model to use.
+            mode: "consumer" or "attorney".
+            max_tokens: Maximum output tokens.
+            temperature: Sampling temperature.
+
+        Yields:
+            StreamChunk objects with incremental text.
+        """
+        client = self._get_client()
+        selected_model = model or self.model_for_mode(mode)
+
+        try:
+            with client.messages.stream(
+                model=selected_model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                system=system_prompt,
+                messages=messages,
+            ) as stream:
+                for text in stream.text_stream:
+                    yield StreamChunk(text=text)
+
+                final_message = stream.get_final_message()
+
+                citations = []
+                for block in final_message.content:
+                    if block.type == "text":
+                        if hasattr(block, "citations") and block.citations:
+                            for cit in block.citations:
+                                citations.append(self._parse_citation(cit))
+
+                yield StreamChunk(
+                    text="",
+                    is_final=True,
+                    citations=citations,
+                    input_tokens=final_message.usage.input_tokens,
+                    output_tokens=final_message.usage.output_tokens,
+                    model=selected_model,
+                )
+        except Exception as e:
+            self._handle_api_error(e)
+            raise
+
     def _build_user_content(
         self,
         user_message: str,

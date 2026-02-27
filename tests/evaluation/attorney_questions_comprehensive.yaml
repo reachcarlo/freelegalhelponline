@@ -1,0 +1,1732 @@
+# Comprehensive attorney mode evaluation questions (110+)
+# Real-world legal research questions as a practicing California employment attorney would phrase them
+# Organized by 12 practice area categories
+#
+# Fields:
+#   question: The question phrased using proper legal terminology
+#   category: Practice area category
+#   expected_categories: Content types that should appear in retrieval results
+#   expected_citations: Specific statute sections expected in a correct answer
+#   expected_structure: Key legal elements/concepts the answer should address
+#   correct_answer_summary: Brief summary of the correct answer under current California law
+
+questions:
+
+  # ============================================================================
+  # CATEGORY 1: STATUTORY ANALYSIS (12 questions)
+  # Labor Code interpretation, Government Code FEHA provisions, specific statutory elements
+  # ============================================================================
+
+  - question: "What are the specific prohibitions enumerated in Government Code section 12940(a) regarding employment discrimination?"
+    category: "statutory_analysis"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+    expected_structure: ["protected categories", "prohibited actions", "employer coverage"]
+    correct_answer_summary: >
+      Gov. Code section 12940(a) makes it unlawful for an employer of 5 or more persons to refuse to hire,
+      discharge, or discriminate against any person in compensation or in terms, conditions, or privileges
+      of employment because of race, religious creed, color, national origin, ancestry, physical disability,
+      mental disability, medical condition, genetic information, marital status, sex, gender, gender identity,
+      gender expression, age, sexual orientation, reproductive health decisionmaking, or veteran/military status.
+
+  - question: "How does Labor Code section 232.5 protect employees who discuss working conditions, and what is its relationship to section 232?"
+    category: "statutory_analysis"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["232", "232.5"]
+    expected_structure: ["protected activity", "employer prohibitions", "wages vs. working conditions"]
+    correct_answer_summary: >
+      Lab. Code section 232 prohibits employers from requiring employees to refrain from disclosing their wages
+      or from taking adverse action for disclosing wages. Section 232.5 extends this protection to discussions
+      of working conditions generally. Together they protect employee rights to discuss both compensation and
+      working conditions without retaliation.
+
+  - question: "What are the statutory elements of a failure to accommodate claim under Government Code section 12940(m)?"
+    category: "statutory_analysis"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+    expected_structure: ["known disability", "reasonable accommodation", "failure to provide", "employer knowledge"]
+    correct_answer_summary: >
+      Under Gov. Code section 12940(m), it is unlawful for an employer to fail to make reasonable accommodation
+      for the known physical or mental disability of an applicant or employee unless the employer demonstrates
+      undue hardship. Elements include: (1) plaintiff has a disability covered by FEHA; (2) plaintiff is qualified
+      to perform essential functions; (3) employer knew of the disability; (4) plaintiff requested accommodation
+      or the need was obvious; (5) employer failed to provide reasonable accommodation; and (6) plaintiff was
+      harmed as a result.
+
+  - question: "What does Labor Code section 1198.5 require regarding employee access to personnel records, and how was it amended by SB 513?"
+    category: "statutory_analysis"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1198.5"]
+    expected_structure: ["inspection rights", "personnel files", "training records", "timing requirements"]
+    correct_answer_summary: >
+      Lab. Code section 1198.5 requires employers to make personnel records available for inspection by current
+      and former employees within 30 days of a written request. SB 513 (effective 2026) expanded the scope to
+      include training records in personnel files. Employers must maintain these records and make them available
+      at the location where the employee works or at a mutually agreed location.
+
+  - question: "What is the scope of Government Code section 12923's legislative findings regarding workplace harassment, and how do they affect the legal standard?"
+    category: "statutory_analysis"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12923"]
+    expected_structure: ["legislative findings", "single incident", "totality of circumstances", "standard of proof"]
+    correct_answer_summary: >
+      Gov. Code section 12923 declares that a single incident of harassing conduct may be sufficient to create
+      a triable issue of hostile work environment harassment. The Legislature affirmed that harassment need not
+      be severe AND pervasive; either may suffice. Courts must use a totality of circumstances test. The section
+      rejects stacking requirements and affirms that hostile work environment is to be assessed from the
+      perspective of a reasonable person in the plaintiff's position.
+
+  - question: "What protections does Labor Code section 230 provide for employees who are victims of domestic violence, sexual assault, or stalking?"
+    category: "statutory_analysis"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["230", "230.1"]
+    expected_structure: ["protected leave", "reasonable accommodation", "employer prohibitions", "certification"]
+    correct_answer_summary: >
+      Lab. Code sections 230 and 230.1 prohibit employers from discharging or discriminating against employees
+      who are victims of domestic violence, sexual assault, or stalking for taking time off for judicial proceedings,
+      seeking medical attention, safety planning, or obtaining services. Employers with 25+ employees must provide
+      reasonable accommodations including modified schedules, safety transfers, or other modifications. AB 406
+      (2026) expanded protections to include use of paid sick leave for crime-related absences.
+
+  - question: "What are the employer obligations under Government Code section 12950 regarding sexual harassment prevention training?"
+    category: "statutory_analysis"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12950", "12950.1"]
+    expected_structure: ["training requirements", "frequency", "covered employees", "supervisors vs. non-supervisors"]
+    correct_answer_summary: >
+      Gov. Code section 12950.1 (SB 1343) requires employers with 5 or more employees to provide sexual
+      harassment prevention training. Supervisors must receive 2 hours of training, non-supervisory employees
+      1 hour, within 6 months of hire/promotion and every 2 years thereafter. Training must include practical
+      examples, information about remedies, and be provided by qualified trainers. Employers must also display
+      a CRD poster regarding harassment.
+
+  - question: "How does Labor Code section 226.7 define and compensate meal and rest period violations, and what is the significance of Ferra v. Loews Hollywood Hotel?"
+    category: "statutory_analysis"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["226.7", "512"]
+    expected_structure: ["premium pay", "regular rate of compensation", "one hour", "nondiscretionary payments"]
+    correct_answer_summary: >
+      Lab. Code section 226.7 provides that an employer who fails to provide a required meal or rest period
+      must pay the employee one additional hour of pay at the employee's regular rate of compensation. In Ferra
+      v. Loews Hollywood Hotel (2021) 11 Cal.5th 858, the California Supreme Court held that "regular rate of
+      compensation" is synonymous with "regular rate of pay" under Lab. Code section 510, meaning premium pay
+      must include not just the base hourly rate but all nondiscretionary compensation (bonuses, commissions, etc.).
+
+  - question: "What is the statutory framework for the Pay Equity Enforcement Act under Labor Code section 1197.5 as amended by SB 642?"
+    category: "statutory_analysis"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1197.5"]
+    expected_structure: ["equal pay", "bona fide factors", "statute of limitations", "comparators"]
+    correct_answer_summary: >
+      Lab. Code section 1197.5 prohibits paying employees less than employees of the opposite sex (or another
+      race/ethnicity) for substantially similar work. SB 642 (effective 2026) broadens key definitions, extends
+      the statute of limitations to 3 years with recovery for the entire violation period (up to 6 years), and
+      strengthens pay transparency requirements. Employers can justify pay differentials only through bona fide
+      factors such as seniority, merit, or quantity/quality of production.
+
+  - question: "What are the employer notification requirements under the Workplace Know Your Rights Act (SB 294)?"
+    category: "statutory_analysis"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: []
+    expected_structure: ["written notice", "workers rights", "new hires", "current employees"]
+    correct_answer_summary: >
+      SB 294 (effective 2026) requires employers to provide a stand-alone written notice to all current
+      employees and new hires outlining specific workers' rights. The Labor Commissioner is tasked with
+      developing a template notice. The notice must cover key employment rights including wage protections,
+      anti-discrimination rights, and leave entitlements.
+
+  - question: "What does Government Code section 12926 define as 'physical disability' and 'mental disability' under FEHA, and how does this differ from the ADA?"
+    category: "statutory_analysis"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12926"]
+    expected_structure: ["definition", "limitation of major life activity", "ADA comparison", "broader coverage"]
+    correct_answer_summary: >
+      Gov. Code section 12926(j) defines physical disability as any physiological disease, disorder, condition,
+      cosmetic disfigurement, or anatomical loss that affects a body system and limits a major life activity.
+      Section 12926(m) defines mental disability similarly for mental/psychological disorders. FEHA's definition
+      is significantly broader than the ADA: FEHA requires only that the condition "limits" a major life activity
+      (not "substantially limits" as under the ADA), and FEHA expressly covers conditions like HIV/AIDS,
+      hepatitis, epilepsy, and cancer regardless of current limitation.
+
+  - question: "What is the scope of Labor Code section 1102.5(b) regarding internal disclosures, and when does it protect reports to persons with authority over the employee?"
+    category: "statutory_analysis"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+    expected_structure: ["internal disclosure", "person with authority", "reasonable cause to believe", "violation of law"]
+    correct_answer_summary: >
+      Lab. Code section 1102.5(b) prohibits retaliation against an employee for disclosing information to a
+      government or law enforcement agency, or to a person with authority over the employee or another employee
+      who has authority to investigate or correct the violation, where the employee has reasonable cause to
+      believe the information discloses a violation of state or federal statute, or local/state/federal rule or
+      regulation. The employee need not identify the specific statute violated; a reasonable belief suffices.
+
+  # ============================================================================
+  # CATEGORY 2: BURDEN SHIFTING & PROOF (10 questions)
+  # McDonnell Douglas framework, burden shifting under FEHA, mixed-motive, Lab Code 1102.6
+  # ============================================================================
+
+  - question: "How does the McDonnell Douglas burden-shifting framework apply to FEHA discrimination claims at the summary judgment stage?"
+    category: "burden_shifting_proof"
+    expected_categories: ["statutory_code", "agency_guidance", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["prima facie case", "legitimate reason", "pretext", "summary judgment"]
+    correct_answer_summary: >
+      Under McDonnell Douglas, the plaintiff must first establish a prima facie case of discrimination
+      (member of protected class, qualified for position, adverse action, circumstances suggesting discrimination).
+      The burden shifts to the employer to articulate a legitimate, nondiscriminatory reason. The plaintiff then
+      must show pretext. At summary judgment, the plaintiff's burden to establish a prima facie case is minimal,
+      and the court must evaluate whether a rational trier of fact could find discrimination was a substantial
+      motivating factor. Direct evidence of discrimination bypasses this framework entirely.
+
+  - question: "What is the burden-shifting framework under Labor Code section 1102.6 as clarified by Lawson v. PPG Architectural Finishes?"
+    category: "burden_shifting_proof"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5", "1102.6"]
+    expected_structure: ["contributing factor", "clear and convincing evidence", "two-step framework", "no pretext required"]
+    correct_answer_summary: >
+      Under Lawson v. PPG Architectural Finishes (2022) 12 Cal.5th 703, section 1102.6 provides the exclusive
+      framework for whistleblower retaliation claims under section 1102.5. Step 1: The employee must demonstrate
+      by a preponderance of the evidence that protected activity was a contributing factor in the adverse action.
+      Step 2: The burden shifts to the employer to prove by clear and convincing evidence that it would have
+      taken the same action for legitimate, independent reasons. Unlike McDonnell Douglas, the burden never
+      shifts back to the employee and no showing of pretext is required.
+
+  - question: "What is the 'substantial motivating factor' standard established in Harris v. City of Santa Monica, and how does it affect remedies in mixed-motive FEHA cases?"
+    category: "burden_shifting_proof"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940", "12965"]
+    expected_structure: ["substantial motivating factor", "mixed motive defense", "limited remedies", "declaratory relief"]
+    correct_answer_summary: >
+      In Harris v. City of Santa Monica (2013) 56 Cal.4th 203, the California Supreme Court held that FEHA
+      plaintiffs must show discrimination was a "substantial motivating factor" (not just "a motivating factor")
+      in the adverse action. If the employer proves it would have made the same decision absent discrimination
+      (mixed-motive defense), remedies are limited to declaratory/injunctive relief and attorney fees; no
+      damages, back pay, or reinstatement are available. The employer bears the burden of proving the
+      mixed-motive defense, which must be affirmatively pleaded in the answer or it is waived.
+
+  - question: "What evidentiary standard applies to establishing pretext in a FEHA discrimination case after Guz v. Bechtel National?"
+    category: "burden_shifting_proof"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+    expected_structure: ["pretext", "specific substantial evidence", "legitimate reason", "inference of discrimination"]
+    correct_answer_summary: >
+      Under Guz v. Bechtel National, Inc. (2000) 24 Cal.4th 317, once the employer proffers a legitimate
+      nondiscriminatory reason, the plaintiff must produce specific, substantial evidence that the employer's
+      stated reason is pretextual or that discriminatory animus more likely motivated the employer. Circumstantial
+      evidence of pretext may include the timing of adverse action, inconsistent application of policies,
+      shifting explanations, statistical evidence, or comparative evidence of treatment of employees outside
+      the protected class.
+
+  - question: "Does the McDonnell Douglas framework apply to disability discrimination claims, or is there a different analytical framework?"
+    category: "burden_shifting_proof"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["disability-specific framework", "direct evidence", "knowledge of disability", "motivating reason"]
+    correct_answer_summary: >
+      Courts should not automatically apply McDonnell Douglas to disability discrimination claims. Where the
+      employer's knowledge of the employee's disability is undisputed, the prima facie case framework adds
+      little analytical value. Instead, courts should examine whether there is direct or circumstantial evidence
+      that the employer's motive was related to the employee's disability. Under CACI 2540, the plaintiff must
+      show the disability was a substantial motivating reason for the adverse action, regardless of whether
+      McDonnell Douglas is formally applied.
+
+  - question: "What is the burden of proof for establishing 'cat's paw' or 'subordinate bias' liability in FEHA cases?"
+    category: "burden_shifting_proof"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+    expected_structure: ["subordinate bias", "proximate cause", "independent investigation", "decisionmaker reliance"]
+    correct_answer_summary: >
+      Under the cat's paw doctrine, an employer may be liable when a biased subordinate who is not the
+      decisionmaker influences the decisionmaker to take adverse action. The plaintiff must show: (1) the
+      subordinate harbored discriminatory animus; (2) the subordinate influenced the decisionmaker; and (3) the
+      biased influence was a proximate cause of the adverse action. The employer can potentially defeat this
+      theory by showing the final decisionmaker conducted a truly independent investigation that severed the
+      causal chain from the subordinate's bias.
+
+  - question: "What constitutes 'direct evidence' of discrimination sufficient to bypass the McDonnell Douglas framework in FEHA cases?"
+    category: "burden_shifting_proof"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["direct evidence definition", "bypass framework", "stray remarks", "decisionmaker statements"]
+    correct_answer_summary: >
+      Direct evidence is evidence which, if believed, proves the fact of discriminatory animus without inference
+      or presumption. Examples include statements by a decisionmaker explicitly linking the protected
+      characteristic to the adverse action. When direct evidence exists, the McDonnell Douglas burden-shifting
+      framework is unnecessary and the case proceeds directly to the issue of whether discrimination was a
+      substantial motivating factor. Stray remarks by non-decisionmakers, or ambiguous comments remote in time,
+      generally do not constitute direct evidence.
+
+  - question: "How does the 'same decision' defense operate in FEHA cases, and who bears the burden of proof?"
+    category: "burden_shifting_proof"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940", "12965"]
+    expected_structure: ["same decision defense", "employer burden", "preponderance", "limited remedies"]
+    correct_answer_summary: >
+      The "same decision" or mixed-motive defense allows an employer who admits that a discriminatory reason
+      was a substantial motivating factor to nonetheless limit liability by proving it would have made the same
+      decision absent the discriminatory motive. Per Harris v. City of Santa Monica, the employer bears the
+      burden of proof on this defense by a preponderance of evidence. If successful, the plaintiff's remedies
+      are limited to declaratory/injunctive relief and attorney fees; compensatory and punitive damages are barred.
+
+  - question: "What is the 'continuing violation' doctrine and how does it affect the burden of proof for time-barred discriminatory acts under FEHA?"
+    category: "burden_shifting_proof"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12960"]
+    expected_structure: ["continuing violation", "time-barred acts", "sufficiently similar", "reasonably frequent"]
+    correct_answer_summary: >
+      The continuing violation doctrine allows a plaintiff to seek relief for otherwise time-barred conduct
+      if it is sufficiently similar in kind to conduct occurring within the limitations period, occurred with
+      reasonable frequency, and had not become permanent (i.e., the employee did not know or should not have
+      known the conduct was discriminatory). Under Gov. Code section 12960, the plaintiff must file a CRD
+      complaint within 3 years of the most recent act, and can recover for earlier acts if they form part
+      of a continuing pattern.
+
+  - question: "What burden of proof applies to an employer's 'undue hardship' defense to a failure to accommodate claim under FEHA?"
+    category: "burden_shifting_proof"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+    expected_structure: ["employer burden", "significant difficulty or expense", "individualized assessment", "financial resources"]
+    correct_answer_summary: >
+      The employer bears the burden of proving undue hardship as an affirmative defense under Gov. Code section
+      12940(m). "Undue hardship" means an action requiring significant difficulty or expense evaluated in light
+      of: the nature and cost of the accommodation, the overall financial resources of the employer, the number
+      of employees, the type of operations, and the impact on business operations. Generalized concerns about
+      cost or inconvenience are insufficient; the employer must conduct an individualized, fact-specific assessment.
+
+  # ============================================================================
+  # CATEGORY 3: REMEDIES & DAMAGES (10 questions)
+  # Emotional distress, punitive damages, attorney fees, back pay, front pay
+  # ============================================================================
+
+  - question: "What compensatory and punitive damages are available under FEHA, and does California impose statutory caps unlike Title VII?"
+    category: "remedies_damages"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12965"]
+    expected_structure: ["no statutory cap", "compensatory damages", "punitive damages", "Title VII comparison"]
+    correct_answer_summary: >
+      Under Gov. Code section 12965, FEHA provides for compensatory damages (including emotional distress),
+      punitive damages, back pay, front pay, reinstatement, injunctive relief, and attorney fees. Unlike
+      federal Title VII, which caps combined compensatory and punitive damages at $50,000-$300,000 depending
+      on employer size, California FEHA imposes no statutory caps on compensatory or punitive damages. Punitive
+      damages require proof of malice, oppression, or fraud under Civil Code section 3294.
+
+  - question: "How are emotional distress damages proven in a FEHA employment discrimination case, and is expert testimony required?"
+    category: "remedies_damages"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12965"]
+    expected_structure: ["garden variety", "significant", "egregious", "expert testimony", "plaintiff testimony"]
+    correct_answer_summary: >
+      Emotional distress damages in FEHA cases can be established through plaintiff testimony alone; expert
+      testimony is not required. Courts categorize emotional distress as: "garden variety" (typical anxiety,
+      insomnia, humiliation with no medical treatment), "significant" (demonstrated by more substantial
+      evidence, therapy/counseling), or "egregious" (severe, debilitating distress with psychiatric treatment).
+      Evidence includes testimony about depression, anxiety, loss of self-esteem, physical manifestations
+      (headaches, gastrointestinal issues), impact on relationships, and duration of suffering.
+
+  - question: "What is the standard for awarding punitive damages in FEHA cases, and what role does Civil Code section 3294 play?"
+    category: "remedies_damages"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12965", "3294"]
+    expected_structure: ["malice oppression fraud", "clear and convincing evidence", "managing agent ratification", "financial condition"]
+    correct_answer_summary: >
+      Punitive damages in FEHA cases require proof by clear and convincing evidence of malice, oppression,
+      or fraud under Civ. Code section 3294. For a corporate employer, the plaintiff must show the conduct was
+      authorized, ratified, or committed by an officer, director, or managing agent. The amount must bear a
+      reasonable relationship to compensatory damages and the defendant's financial condition (evidence of which
+      is discoverable). There is no statutory cap under FEHA, unlike Title VII.
+
+  - question: "How is the lodestar calculated for attorney fee awards in FEHA cases, and when are multipliers appropriate?"
+    category: "remedies_damages"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12965"]
+    expected_structure: ["lodestar method", "reasonable hours", "reasonable rate", "multiplier factors"]
+    correct_answer_summary: >
+      Under Gov. Code section 12965(c)(6), the court calculates the lodestar by multiplying reasonable hours
+      by a reasonable hourly rate in the relevant community. The court may then apply a positive or negative
+      multiplier based on factors including: the contingent nature of the fee, the novelty and difficulty of
+      the case, the skill required, the extent of preclusion of other employment, and the results obtained.
+      Multipliers of 1.5-2.0 are common in FEHA cases. The award should be "fully compensatory" absent special
+      circumstances.
+
+  - question: "What is the asymmetric attorney fee standard under FEHA, and under what circumstances can a prevailing employer recover fees?"
+    category: "remedies_damages"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12965"]
+    expected_structure: ["asymmetric standard", "prevailing plaintiff", "prevailing defendant", "frivolous unreasonable groundless"]
+    correct_answer_summary: >
+      Under Gov. Code section 12965(c)(6), a prevailing plaintiff is entitled to attorney fees as a matter of
+      right unless special circumstances would make the award unjust. A prevailing defendant can recover fees
+      only if the court finds the action was "frivolous, unreasonable, or groundless when brought, or the
+      plaintiff continued to litigate after it clearly became so." This asymmetric standard reflects the public
+      policy of encouraging FEHA enforcement. Even a CCP section 998 offer does not shift fees to a prevailing
+      employer in FEHA actions.
+
+  - question: "How are back pay damages calculated in a wrongful termination case, and what is the plaintiff's duty to mitigate?"
+    category: "remedies_damages"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12965"]
+    expected_structure: ["lost wages", "benefits", "mitigation duty", "comparable employment", "employer burden"]
+    correct_answer_summary: >
+      Back pay is calculated as the total wages, overtime, bonuses, commissions, and benefits (health insurance,
+      retirement contributions) the employee would have earned from termination to judgment, minus interim
+      earnings and amounts that could have been earned with reasonable diligence. The employer bears the burden
+      of proving the employee failed to mitigate by showing that substantially comparable employment was
+      available and the employee failed to use reasonable efforts to obtain it. The employer must show comparable
+      work — not just any available job.
+
+  - question: "When is front pay appropriate as a remedy in FEHA cases, and how is the duration determined?"
+    category: "remedies_damages"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12965"]
+    expected_structure: ["reinstatement not feasible", "duration", "present value discount", "court vs. jury"]
+    correct_answer_summary: >
+      Front pay is an equitable remedy awarded when reinstatement is not feasible due to hostility, elimination
+      of the position, or a breakdown in the employment relationship. The duration depends on factors including
+      the employee's age, work-life expectancy, time to find comparable employment, and the nature of the
+      position. Front pay must be reduced to present value. It is determined by the court (not the jury) in its
+      equitable discretion. Expert economic testimony on projected earnings and discount rates is common.
+
+  - question: "What are the remedies available for Labor Code section 1102.5 whistleblower retaliation claims?"
+    category: "remedies_damages"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5", "1105"]
+    expected_structure: ["reinstatement", "back pay", "lost benefits", "attorney fees", "civil penalty"]
+    correct_answer_summary: >
+      Under Lab. Code section 1102.5(f)-(h), remedies include reinstatement, back pay with interest, restoration
+      of lost benefits, and reasonable attorney fees. Courts may also award compensatory damages including
+      emotional distress. A civil penalty up to $10,000 per violation is available under section 1102.5(f).
+      Unlike FEHA, whistleblower claims do not have an administrative exhaustion requirement, and can be
+      filed directly in court.
+
+  - question: "How does the after-acquired evidence doctrine limit remedies in FEHA and wrongful termination cases?"
+    category: "remedies_damages"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["remedy limitation", "not a complete defense", "cutoff date", "employer burden"]
+    correct_answer_summary: >
+      Under the after-acquired evidence doctrine (see CACI 2506), if an employer discovers post-termination
+      evidence of employee misconduct that would have independently justified discharge, remedies are limited
+      to the period between the wrongful termination and the date the employer discovered (or would have
+      discovered) the misconduct. It does not bar liability — only limits damages. The employer bears the
+      burden of proving the misconduct was sufficiently serious to justify termination and that termination
+      would have occurred under settled company policy. Resume fraud and theft are common examples.
+
+  - question: "What is the statutory framework for waiting time penalties under Labor Code section 203, and how is 'willful' failure defined?"
+    category: "remedies_damages"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["201", "202", "203"]
+    expected_structure: ["daily rate", "30-day maximum", "willful defined", "timing requirements"]
+    correct_answer_summary: >
+      Under Lab. Code sections 201-203, terminated employees must be paid immediately; employees who resign with
+      72+ hours notice are due final pay on the last day. Section 203 imposes penalties equal to the employee's
+      daily rate of pay for each day wages remain unpaid, up to 30 days maximum. "Willful" means a knowing and
+      intentional failure — it does not require bad faith or evil intent, only a deliberate failure to perform
+      the required act. The 3-year statute of limitations applies. Under PAGA reform (2024), section 203 penalties
+      can no longer be "stacked" as derivative violations.
+
+  # ============================================================================
+  # CATEGORY 4: PROCEDURAL REQUIREMENTS (10 questions)
+  # CRD exhaustion, right-to-sue letters, statutes of limitations, administrative prerequisites
+  # ============================================================================
+
+  - question: "What is the administrative exhaustion requirement for FEHA claims, and what effect did AB 9 have on the filing deadline?"
+    category: "procedural_requirements"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12960", "12965"]
+    expected_structure: ["CRD filing", "3-year deadline", "AB 9 extension", "right-to-sue letter"]
+    correct_answer_summary: >
+      Before filing a FEHA lawsuit, a plaintiff must exhaust administrative remedies by filing a verified
+      complaint with the CRD. AB 9 (effective January 2020) extended the filing deadline from 1 year to 3 years
+      from the date of the alleged unlawful practice. After filing, the plaintiff may request an immediate
+      right-to-sue letter under Gov. Code section 12965, after which the plaintiff has 1 year to file a civil
+      action. Court claims must be "like and reasonably related" to the administrative complaint.
+
+  - question: "What is the procedure for obtaining an immediate right-to-sue letter from the CRD, and what are the consequences of failing to exhaust?"
+    category: "procedural_requirements"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12965"]
+    expected_structure: ["immediate right-to-sue", "1-year filing deadline", "failure to exhaust", "jurisdictional bar"]
+    correct_answer_summary: >
+      Under Gov. Code section 12965(b), a complainant may request an immediate right-to-sue letter at any time
+      after filing a CRD complaint. The CRD typically issues the letter within days. The plaintiff then has
+      1 year from the date of the right-to-sue letter to file a civil action. Failure to exhaust administrative
+      remedies is a jurisdictional defect that subjects the lawsuit to demurrer or summary judgment. However,
+      courts construe the exhaustion requirement liberally.
+
+  - question: "What are the applicable statutes of limitations for different California employment claims: FEHA, wrongful termination, wage and hour, and whistleblower?"
+    category: "procedural_requirements"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12960", "12965", "1102.5", "340"]
+    expected_structure: ["FEHA 3 years CRD plus 1 year", "Tameny 2 years", "wage claims 3-4 years", "whistleblower"]
+    correct_answer_summary: >
+      Key limitations periods: FEHA — 3 years to file CRD complaint, then 1 year from right-to-sue letter.
+      Wrongful termination in violation of public policy (Tameny) — 2 years (CCP section 335.1). Wage and hour
+      claims — 3 years for statutory violations (CCP 338), 4 years under UCL (Bus. & Prof. Code 17208).
+      Lab. Code section 1102.5 whistleblower — 3 years (no administrative exhaustion required). PAGA claims —
+      1 year from the alleged violation. Lab. Code 203 waiting time penalties — 3 years.
+
+  - question: "What is the 'like and reasonably related' standard for determining whether a court claim is within the scope of the CRD complaint?"
+    category: "procedural_requirements"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12960", "12965"]
+    expected_structure: ["scope of complaint", "reasonably related", "investigation scope", "liberal construction"]
+    correct_answer_summary: >
+      A plaintiff's civil claims must be "like and reasonably related" to the allegations in the CRD complaint,
+      or within the scope of the CRD investigation that could reasonably be expected to grow out of the charge.
+      Courts construe this requirement liberally in favor of the employee. Claims arising from the same factual
+      basis need not be specifically enumerated in the CRD complaint if they could reasonably have been discovered
+      during investigation. However, claims based on entirely different facts or different protected categories
+      may be barred.
+
+  - question: "What are the notice requirements and prerequisites for filing a PAGA claim, including the LWDA notice period?"
+    category: "procedural_requirements"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699.3"]
+    expected_structure: ["LWDA notice", "65-day waiting period", "online portal", "cure provision"]
+    correct_answer_summary: >
+      Under Lab. Code section 2699.3, before filing a PAGA action, an aggrieved employee must provide written
+      notice to both the LWDA (via the online PAGA Filing Portal) and the employer identifying the specific
+      Labor Code provisions alleged to have been violated and the facts supporting each violation. The LWDA then
+      has 65 calendar days to investigate. If the LWDA does not investigate or cite the employer, the employee
+      may commence a civil action. Under PAGA reform (2024), expanded cure provisions allow employers to correct
+      many violations before litigation.
+
+  - question: "What is the relation-back doctrine for FEHA claims, and how does equitable tolling apply to the CRD filing deadline?"
+    category: "procedural_requirements"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12960"]
+    expected_structure: ["equitable tolling", "relation back", "dual filing", "federal EEOC complaint"]
+    correct_answer_summary: >
+      Equitable tolling may suspend the FEHA filing deadline when the plaintiff pursues a related remedy in
+      another forum (e.g., filing with the federal EEOC). The plaintiff must show timely notice to the defendant,
+      lack of prejudice, and reasonable good faith conduct. A CRD complaint filed before the statute runs may
+      be amended to add related claims that "relate back" to the original filing date if they arise from the
+      same general set of facts. Dual filing with both CRD and EEOC may provide equitable tolling benefits.
+
+  - question: "What are the procedural differences between filing an individual FEHA lawsuit, a PAGA action, and a wage and hour class action?"
+    category: "procedural_requirements"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12960", "2699", "2699.3"]
+    expected_structure: ["exhaustion differences", "standing requirements", "certification vs. no certification", "overlapping claims"]
+    correct_answer_summary: >
+      FEHA: Requires CRD administrative exhaustion and right-to-sue letter; individual action. PAGA: Requires
+      LWDA notice and 65-day waiting period; no class certification required but plaintiff must have personally
+      suffered each alleged violation (post-2024 reform); penalties split 65% state/35% employees. Wage and hour
+      class action: Filed directly in court under CCP 382; requires numerosity, commonality, typicality,
+      adequacy, and ascertainability for certification. Claims may overlap — an employee can simultaneously
+      pursue individual FEHA, PAGA representative, and class action claims.
+
+  - question: "What is the effect of a mandatory arbitration agreement on FEHA claims, PAGA claims, and class action waivers?"
+    category: "procedural_requirements"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940", "2699"]
+    expected_structure: ["FAA preemption", "PAGA non-waivability", "Viking River", "unconscionability"]
+    correct_answer_summary: >
+      Mandatory arbitration agreements can compel individual FEHA claims to arbitration under the FAA. After
+      Viking River Cruises v. Moriana (2022), employers can compel arbitration of an employee's individual
+      PAGA claim, and the non-individual representative claims may be dismissed for lack of standing (though
+      California courts initially resisted this, Adolph v. Uber held plaintiffs retain standing for
+      non-individual claims). Class action waivers in arbitration agreements are generally enforceable under
+      the FAA. Unconscionability remains a defense to enforcement.
+
+  - question: "What discovery obligations apply specifically to employment discrimination cases in California, including the right to personnel file access?"
+    category: "procedural_requirements"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12963", "1198.5"]
+    expected_structure: ["personnel records", "comparator discovery", "statistical evidence", "privacy protections"]
+    correct_answer_summary: >
+      In FEHA cases, plaintiffs are entitled to broad discovery including their own personnel file (Lab. Code
+      section 1198.5), comparator employee information (with appropriate protective orders), information about
+      the employer's policies and complaint history, and statistical data on workforce composition. Gov. Code
+      section 12963 authorizes CRD-initiated investigation and discovery. Courts balance the right to relevant
+      evidence against third-party privacy interests, often requiring redaction of identifying information for
+      non-party employees.
+
+  - question: "What are the requirements for filing a complaint with the Labor Commissioner under Labor Code section 98, and what claims does it cover?"
+    category: "procedural_requirements"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["98", "98.6"]
+    expected_structure: ["wage claim procedure", "Berman hearing", "covered claims", "appeal to superior court"]
+    correct_answer_summary: >
+      Under Lab. Code section 98, employees may file a wage claim with the Labor Commissioner for unpaid wages,
+      overtime, meal/rest break premiums, reimbursements, and penalties. The claim is heard at a Berman hearing
+      (informal administrative proceeding). Either party may appeal the decision to superior court for a trial
+      de novo. Section 98.6 prohibits retaliation against employees who file complaints. Claims must generally
+      be filed within 3 years (CCP 338) or 4 years for UCL claims. The Labor Commissioner may also investigate
+      claims on its own initiative.
+
+  # ============================================================================
+  # CATEGORY 5: WAGE & HOUR LITIGATION (10 questions)
+  # Class certification for wage claims, PAGA penalties, meal/rest breaks, regular rate
+  # ============================================================================
+
+  - question: "What are the requirements for class certification in California wage and hour cases under the Brinker Restaurant standard?"
+    category: "wage_hour_litigation"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["512", "226.7"]
+    expected_structure: ["numerosity", "commonality", "typicality", "adequacy", "predominance", "Brinker standard"]
+    correct_answer_summary: >
+      Under Brinker Restaurant Corp. v. Superior Court (2012) 53 Cal.4th 1004, class certification in wage
+      and hour cases requires: (1) an ascertainable class, (2) a well-defined community of interest (numerosity,
+      commonality, typicality, adequacy), and (3) that common questions predominate. For meal break claims,
+      Brinker held that employers must provide meal periods but need not ensure they are taken. The key
+      certification question is whether common proof can establish the employer had a policy or practice of
+      denying breaks, rather than requiring individualized inquiry into each employee's experience.
+
+  - question: "How is the 'regular rate of pay' calculated for purposes of overtime under Labor Code section 510, and what compensation must be included?"
+    category: "wage_hour_litigation"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["510", "515"]
+    expected_structure: ["base hourly rate", "nondiscretionary bonuses", "commissions", "shift differentials", "exclusions"]
+    correct_answer_summary: >
+      Under Lab. Code section 510, the regular rate of pay for overtime must include all nondiscretionary
+      remuneration: base hourly wages, nondiscretionary bonuses, production incentives, commissions, shift
+      differentials, and piece-rate compensation. Excluded from the regular rate are discretionary bonuses,
+      gifts, expense reimbursements, and employer contributions to retirement/insurance plans. For flat-sum
+      bonuses, the regular rate is calculated by dividing the bonus by the total hours worked in the bonus
+      period, then adding 1.5x (or 2x) that rate for overtime hours. Alvarado v. Dart Container established
+      the calculation method.
+
+  - question: "What are the employer's obligations regarding meal periods under Labor Code section 512, and when is a waiver valid?"
+    category: "wage_hour_litigation"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["512", "226.7"]
+    expected_structure: ["duty to provide", "timing requirements", "waiver conditions", "on-duty meal period"]
+    correct_answer_summary: >
+      Under Lab. Code section 512, employers must provide a 30-minute meal period no later than the end of the
+      5th hour of work, and a second meal period no later than the end of the 10th hour. The first meal period
+      may be waived by mutual consent if the shift is 6 hours or less. The second may be waived if the shift
+      is 12 hours or less and the first was not waived. On-duty meal periods are permitted only when the nature
+      of work prevents relief from all duties, by written agreement, and the employee may revoke at any time.
+      The employer must relieve the employee of all duties and relinquish control during the meal period.
+
+  - question: "How do PAGA penalties interact with individual wage claims, and can an employee pursue both simultaneously?"
+    category: "wage_hour_litigation"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699", "2699.3"]
+    expected_structure: ["individual claims preserved", "PAGA penalties additional", "no stacking post-reform", "concurrent pursuit"]
+    correct_answer_summary: >
+      An employee can simultaneously pursue individual wage claims and PAGA representative claims. PAGA penalties
+      are civil penalties payable to the state (65%) and aggrieved employees (35%), separate from individual
+      damages. Under the 2024 PAGA reform, "derivative" penalty stacking is eliminated — a plaintiff cannot
+      claim that a single underlying violation (e.g., missed break) also creates separate penalty liability
+      under sections 201-204 (final pay), 226 (wage statements), and 203 (waiting time). However, independent
+      violations remain separately penalized.
+
+  - question: "What constitutes a valid rest period under California law, and how are rest break premiums calculated after Ferra v. Loews?"
+    category: "wage_hour_litigation"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["226.7"]
+    expected_structure: ["10-minute break", "per 4 hours", "employer control", "regular rate of compensation"]
+    correct_answer_summary: >
+      Employers must authorize and permit a 10-minute paid rest break for every 4 hours worked (or major fraction
+      thereof). Rest breaks must be in the middle of the work period to the extent practicable. During rest
+      breaks, employees must be relieved of all duties and free from employer control. After Ferra v. Loews
+      Hollywood Hotel (2021), rest break premiums must be paid at the "regular rate of compensation," which
+      includes all nondiscretionary compensation (bonuses, commissions, shift differentials), not just the base
+      hourly rate. The Ferra holding applies retroactively.
+
+  - question: "What are the requirements for itemized wage statements under Labor Code section 226, and what constitutes a 'knowing and intentional' violation?"
+    category: "wage_hour_litigation"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["226"]
+    expected_structure: ["nine required items", "knowing and intentional", "injury requirement", "penalties"]
+    correct_answer_summary: >
+      Lab. Code section 226(a) requires itemized wage statements showing: (1) gross wages, (2) total hours,
+      (3) piece-rate units/rates if applicable, (4) all deductions, (5) net wages, (6) inclusive dates of pay
+      period, (7) employee name and last 4 SSN digits or ID number, (8) employer name and address, and (9)
+      all applicable hourly rates and hours at each rate. "Knowing and intentional" requires a deliberate or
+      purposeful violation, not merely negligent. Penalties are $50 per initial violation and $100 per subsequent
+      violation, up to $4,000 aggregate per employee, plus attorney fees.
+
+  - question: "How does the Naranjo v. Spectrum Security Services decision affect the treatment of meal/rest period premiums as wages?"
+    category: "wage_hour_litigation"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["226", "226.7", "203"]
+    expected_structure: ["premiums are wages", "wage statement requirements", "final pay requirements", "derivative penalties"]
+    correct_answer_summary: >
+      In Naranjo v. Spectrum Security Services (2022) 13 Cal.5th 93, the California Supreme Court held that
+      meal and rest period premiums under Lab. Code section 226.7 are "wages" for purposes of both wage
+      statement requirements (section 226) and final pay requirements (sections 201-203). This means unpaid
+      premiums must appear on wage statements and must be included in final pay upon separation, with potential
+      waiting time penalties for failure to pay. However, the court also held that derivative penalties for
+      wage statements and waiting time require independent proof of "knowing and intentional" or "willful" violation.
+
+  - question: "What is the exempt employee salary basis test under Labor Code section 515, and when does an employer lose the exemption?"
+    category: "wage_hour_litigation"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["515"]
+    expected_structure: ["salary basis", "minimum salary threshold", "duties test", "docking violations"]
+    correct_answer_summary: >
+      Under Lab. Code section 515, exempt employees must earn a monthly salary of at least 2x the state minimum
+      wage for full-time employment (as of 2026: $70,304/year or $5,858.67/month). The employee must also
+      satisfy duties tests for executive, administrative, or professional exemptions. Unlike federal law,
+      California does not recognize the salary basis test as a separate requirement — instead, improper salary
+      deductions are evidence that the employee is treated as non-exempt. An employer may lose the exemption
+      if the employee's actual duties do not meet the applicable duties test.
+
+  - question: "What are the penalty provisions under Labor Code section 558.1 for individual liability of employers and agents for wage theft?"
+    category: "wage_hour_litigation"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["558", "558.1"]
+    expected_structure: ["individual liability", "person acting on behalf of employer", "overtime violations", "minimum wage violations"]
+    correct_answer_summary: >
+      Lab. Code section 558.1 imposes personal liability on any employer or other person acting on behalf of
+      an employer who violates or causes a violation of provisions regulating minimum wages and overtime. This
+      creates individual liability for owners, directors, officers, and managing agents. The penalty structure
+      includes $50 per underpaid employee per pay period for initial violations and $100 for subsequent
+      violations, plus the underpaid wages. This provision allows plaintiffs to pierce the corporate veil
+      and hold individuals personally responsible for wage theft.
+
+  - question: "What constitutes 'hours worked' for which California employees must be compensated, including on-call time and employer-mandated activities?"
+    category: "wage_hour_litigation"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["510", "1194"]
+    expected_structure: ["suffered or permitted to work", "employer control", "on-call time", "travel time", "donning and doffing"]
+    correct_answer_summary: >
+      Under California law, "hours worked" means time during which an employee is subject to the control of an
+      employer, including all time the employee is suffered or permitted to work whether or not required to do so.
+      This includes: pre-shift and post-shift activities under employer control (donning/doffing), mandatory
+      security screenings (Frlekin v. Apple), on-call time if the employee's freedom is substantially restricted,
+      employer-mandated training, and travel time between worksites (but not ordinary commute time). California's
+      definition is broader than federal FLSA standards.
+
+  # ============================================================================
+  # CATEGORY 6: WRONGFUL TERMINATION CLAIMS (10 questions)
+  # Public policy exceptions, implied contract, covenant of good faith
+  # ============================================================================
+
+  - question: "What are the four elements of a Tameny wrongful termination in violation of public policy claim?"
+    category: "wrongful_termination"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: []
+    expected_structure: ["employer-employee relationship", "termination", "substantial motivation", "public policy violation", "harm"]
+    correct_answer_summary: >
+      Under Tameny v. Atlantic Richfield Co. (1980) 27 Cal.3d 167, the elements are: (1) an employer-employee
+      relationship existed; (2) the employer terminated the plaintiff's employment; (3) the termination was
+      substantially motivated by a violation of public policy; and (4) the termination caused the plaintiff harm.
+      The public policy must be: (a) delineated in a constitutional or statutory provision; (b) "public" in that
+      it inures to the benefit of the public; (c) well-established at the time of discharge; and (d) substantial
+      and fundamental (per Stevenson v. Superior Court). The 2-year statute of limitations applies (CCP 335.1).
+
+  - question: "What sources of public policy support a Tameny claim, and does the underlying statute need to specifically prohibit termination?"
+    category: "wrongful_termination"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: []
+    expected_structure: ["constitutional provisions", "statutory provisions", "regulatory provisions", "no specific prohibition required"]
+    correct_answer_summary: >
+      Public policy sources include constitutional provisions, statutes, and administrative regulations that
+      are tethered to fundamental public policy concerns. The underlying statute need not specifically prohibit
+      termination — it is sufficient that the statute reflects a public policy that would be undermined by
+      permitting termination for the specified conduct. Common sources include: FEHA anti-discrimination
+      provisions, Labor Code whistleblower protections, workers' compensation anti-retaliation provisions,
+      and public employee reporting obligations. Per Green v. Ralee International, the policy must be
+      sufficiently clear to provide a basis for the tort.
+
+  - question: "What is the implied-in-fact contract exception to at-will employment, and what evidence supports its existence?"
+    category: "wrongful_termination"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: []
+    expected_structure: ["totality of circumstances", "personnel policies", "longevity", "promotions", "oral assurances"]
+    correct_answer_summary: >
+      Under Foley v. Interactive Data Corp. (1988) 47 Cal.3d 654 and CACI 2404, an implied-in-fact contract
+      not to terminate except for good cause may arise from the totality of circumstances including: employer
+      personnel policies/handbooks (especially without a valid at-will disclaimer), the employee's longevity
+      of service, the employer's practices regarding termination, oral assurances of continued employment,
+      industry practice, and promotions/commendations. A clear at-will disclaimer in a signed agreement may
+      negate an implied contract claim, though courts examine whether the disclaimer was effectively communicated.
+
+  - question: "What are the elements of a breach of the implied covenant of good faith and fair dealing in the employment context?"
+    category: "wrongful_termination"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: []
+    expected_structure: ["employment contract existed", "bad faith", "frustrate contract rights", "harm"]
+    correct_answer_summary: >
+      Under CACI 2423, the elements are: (1) plaintiff and defendant had an employment contract (express or
+      implied); (2) plaintiff performed substantially all significant things required; (3) all conditions for
+      defendant's performance occurred; (4) defendant unfairly interfered with plaintiff's right to receive
+      benefits of the contract; and (5) plaintiff was harmed. Per Foley v. Interactive Data, this claim sounds
+      in contract (not tort), so damages are limited to contract damages — no punitive damages. Typical examples
+      include terminating an employee to avoid paying earned commissions or vested benefits.
+
+  - question: "What is the standard for constructive discharge in California, and what evidence supports a finding of intolerable working conditions?"
+    category: "wrongful_termination"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["objective standard", "intolerable conditions", "employer knowledge", "reasonable person"]
+    correct_answer_summary: >
+      Under CACI 2510, constructive discharge occurs when: (1) the employer intentionally created or knowingly
+      permitted working conditions so intolerable that (2) a reasonable person in the employee's position would
+      have had no reasonable alternative except to resign. The standard is objective — the court examines whether
+      a reasonable employee would find conditions intolerable, not just the subjective employee. Relevant factors
+      include severity and duration of harassment/discrimination, whether the employer knew and failed to act,
+      demotion, reduction in pay/responsibilities, and involuntary transfer. Minor workplace disputes or
+      personality conflicts are insufficient.
+
+  - question: "Can a Tameny wrongful termination claim be brought concurrently with FEHA discrimination and retaliation claims based on the same facts?"
+    category: "wrongful_termination"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940", "12965"]
+    expected_structure: ["concurrent claims", "overlapping remedies", "punitive damages", "different elements"]
+    correct_answer_summary: >
+      Yes, Tameny and FEHA claims may proceed concurrently. They have different elements and procedural
+      requirements: FEHA requires administrative exhaustion (CRD complaint); Tameny does not. FEHA provides
+      statutory remedies (attorney fees, no damage caps); Tameny provides tort remedies (potentially larger
+      punitive damages but no statutory fee-shifting). However, the plaintiff cannot obtain a double recovery
+      for the same damages. Strategic considerations include that Tameny claims provide a tort remedy with
+      potentially broader punitive damages, while FEHA claims provide attorney fee recovery and statutory
+      protections.
+
+  - question: "What defenses are available to an employer in a wrongful termination in violation of public policy case?"
+    category: "wrongful_termination"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: []
+    expected_structure: ["legitimate business reason", "at-will employment", "after-acquired evidence", "statute of limitations"]
+    correct_answer_summary: >
+      Key defenses include: (1) the termination was motivated by a legitimate, nondiscriminatory business reason
+      (e.g., poor performance, restructuring); (2) the plaintiff was an at-will employee and the termination
+      did not violate a fundamental public policy; (3) after-acquired evidence of misconduct limiting remedies;
+      (4) statute of limitations (2 years under CCP 335.1); (5) failure to establish that the alleged policy
+      meets the Stevenson v. Superior Court requirements; and (6) mixed-motive — even if wrongful motive existed,
+      the employer would have made the same decision for lawful reasons.
+
+  - question: "What is the relationship between constructive discharge and a failure to prevent harassment claim under FEHA?"
+    category: "wrongful_termination"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["failure to prevent", "constructive discharge", "employer liability", "concurrent theories"]
+    correct_answer_summary: >
+      Constructive discharge and failure to prevent harassment (Gov. Code section 12940(k)) are related but
+      distinct theories. Failure to prevent requires showing the employer failed to take all reasonable steps
+      to prevent harassment/discrimination. Constructive discharge requires that conditions became so intolerable
+      that a reasonable person would resign. A failure to prevent finding supports constructive discharge by
+      showing the employer knew of and failed to remedy the hostile environment. However, failure to prevent
+      is a standalone claim that does not require resignation — the employee may remain employed and still recover.
+
+  - question: "How do courts analyze a wrongful termination claim where the employee was terminated during a probationary period?"
+    category: "wrongful_termination"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+    expected_structure: ["probationary period", "at-will presumption", "public policy exception still applies", "FEHA protection"]
+    correct_answer_summary: >
+      Probationary status does not eliminate wrongful termination protections. While probationary employees may
+      be more easily terminated for performance-related reasons, they retain all statutory protections: FEHA
+      anti-discrimination provisions apply regardless of probationary status, public policy protections remain
+      (Tameny claims), and whistleblower protections under Lab. Code section 1102.5 apply. The probationary
+      period may, however, weaken an implied contract claim because the employee had less time to develop
+      expectations of continued employment.
+
+  - question: "What constitutes 'fraud' as a basis for a wrongful termination claim in California?"
+    category: "wrongful_termination"
+    expected_categories: ["statutory_code"]
+    expected_citations: []
+    expected_structure: ["fraudulent inducement", "misrepresentation", "reliance", "damages"]
+    correct_answer_summary: >
+      Fraud-based wrongful termination (also called wrongful hiring) arises when an employer makes material
+      misrepresentations to induce employment (e.g., promising job security, misrepresenting job duties or
+      company stability) that the employee reasonably relies upon. Elements include: (1) misrepresentation of
+      material fact; (2) knowledge of falsity; (3) intent to induce reliance; (4) justifiable reliance; and
+      (5) resulting damage. This is one of the four exceptions to at-will employment. Being a tort, it permits
+      recovery of punitive damages. The statute of limitations is 3 years (CCP 338(d)).
+
+  # ============================================================================
+  # CATEGORY 7: FEHA CLAIMS (10 questions)
+  # Interactive process, undue hardship, failure to prevent, individual liability
+  # ============================================================================
+
+  - question: "What are the employer's obligations in the interactive process under Government Code section 12940(n), and when is the duty triggered?"
+    category: "feha_claims"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+    expected_structure: ["triggering events", "good faith participation", "employer-initiated", "documentation"]
+    correct_answer_summary: >
+      Under Gov. Code section 12940(n), the employer must engage in a timely, good faith interactive process
+      to determine effective reasonable accommodation when: (1) the employee requests accommodation; (2) the
+      employer becomes aware of the possible need through observation or third-party notice; or (3) the employer
+      learns of a workplace injury. Per 2 CCR section 11069, the process must include: (a) analyzing the job's
+      essential functions; (b) consulting with the employee about limitations and possible accommodations; (c)
+      considering the employee's preferences; and (d) implementing the most effective accommodation. Failure to
+      initiate or participate in good faith is an independent FEHA violation.
+
+  - question: "What constitutes 'undue hardship' as a defense to a reasonable accommodation claim, and what factors do courts consider?"
+    category: "feha_claims"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940", "12926"]
+    expected_structure: ["significant difficulty or expense", "financial resources", "business impact", "employer size"]
+    correct_answer_summary: >
+      Under Gov. Code section 12926(u), "undue hardship" means an action requiring significant difficulty or
+      expense considering: (1) nature and cost of the accommodation; (2) overall financial resources of the
+      facility and the covered entity; (3) number of employees; (4) type of operations, including composition
+      and structure of the workforce; and (5) impact of accommodation on operations. The employer bears the
+      burden of proving undue hardship with specific evidence — generalized assertions of cost or inconvenience
+      are insufficient. Each accommodation request requires an individualized, fact-specific analysis.
+
+  - question: "What are the elements of a failure to prevent discrimination or harassment claim under Government Code section 12940(k)?"
+    category: "feha_claims"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["underlying violation", "failure to take reasonable steps", "all reasonable steps", "standalone claim"]
+    correct_answer_summary: >
+      Under CACI 2527 and Gov. Code section 12940(k), the elements are: (1) plaintiff was subjected to
+      harassment, discrimination, or retaliation; (2) defendant failed to take all reasonable steps to prevent
+      the harassment, discrimination, or retaliation; and (3) this failure was a substantial factor in causing
+      plaintiff's harm. Note: There must be an underlying finding of harassment, discrimination, or retaliation
+      — failure to prevent cannot stand alone without such a finding. Reasonable steps include implementing
+      anti-harassment policies, providing training, promptly investigating complaints, and taking corrective action.
+
+  - question: "Under what circumstances can individual supervisors be held personally liable for harassment under FEHA?"
+    category: "feha_claims"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["harassment vs. discrimination", "personal liability", "supervisor definition", "employer ratification"]
+    correct_answer_summary: >
+      Under FEHA, individual supervisors may be held personally liable for harassment (Gov. Code section
+      12940(j)(3)) but generally not for discrimination or retaliation, which are considered corporate decisions.
+      A "supervisor" is defined under Gov. Code section 12926(t) as a person with authority to hire, fire,
+      assign, transfer, discipline, or reward other employees, or who has effective authority to recommend such
+      actions if the employer exercises independent judgment. The employer is strictly liable for supervisor
+      harassment (no knowledge requirement), while for co-worker harassment, the employer is liable only if it
+      knew or should have known and failed to take immediate corrective action.
+
+  - question: "What is the 'perceived disability' theory of liability under FEHA, and how does it differ from actual disability discrimination?"
+    category: "feha_claims"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12926", "12940"]
+    expected_structure: ["perceived vs. actual disability", "employer belief", "no actual limitation required", "regarded as"]
+    correct_answer_summary: >
+      Under Gov. Code section 12926(j)(4)-(5) and (m)(4)-(5), FEHA protects employees who are "perceived or
+      treated" as having a disability, regardless of whether they actually have one. The plaintiff need not
+      prove any actual limitation of a major life activity — only that the employer believed the employee had a
+      disability and took adverse action because of that belief. This theory is broader than the ADA's "regarded
+      as" prong. Evidence may include employer comments about the employee's health, requests for unnecessary
+      medical examinations, or treating the employee differently after learning of a medical condition.
+
+  - question: "What constitutes a 'serious health condition' for purposes of FEHA disability protections versus CFRA leave eligibility?"
+    category: "feha_claims"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940", "12945.2"]
+    expected_structure: ["FEHA disability definition", "CFRA serious health condition", "different standards", "overlap"]
+    correct_answer_summary: >
+      FEHA and CFRA have different standards. FEHA disability (Gov. Code section 12926) covers any condition
+      that "limits" a major life activity — a lower threshold than the ADA. CFRA "serious health condition"
+      (Gov. Code section 12945.2) means an illness, injury, or condition involving inpatient care or continuing
+      treatment. A condition may qualify under CFRA for leave but not FEHA for accommodation (and vice versa).
+      Key distinction: FEHA focuses on limitation of major life activity; CFRA focuses on the need for inpatient
+      care or continuing treatment. Many conditions qualify under both, but the overlap is not complete.
+
+  - question: "What are the elements of a hostile work environment harassment claim under FEHA, and how is the 'severe or pervasive' standard applied?"
+    category: "feha_claims"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940", "12923"]
+    expected_structure: ["severe or pervasive", "totality of circumstances", "reasonable person standard", "unwelcome conduct"]
+    correct_answer_summary: >
+      Under CACI 2524 and Gov. Code section 12940(j), the elements are: (1) plaintiff was subjected to
+      unwelcome conduct based on a protected characteristic; (2) the conduct was severe or pervasive enough
+      (under Gov. Code section 12923, these are disjunctive — either suffices) to create a hostile work
+      environment; (3) a reasonable person in plaintiff's position would find the environment hostile; and
+      (4) plaintiff actually found it hostile. The totality of circumstances test considers frequency, severity,
+      whether physically threatening or humiliating, and whether it unreasonably interferes with work. A single
+      severe incident may suffice per section 12923.
+
+  - question: "What obligations does FEHA impose regarding medical examinations and disability-related inquiries by employers?"
+    category: "feha_claims"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+    expected_structure: ["pre-employment inquiries prohibited", "post-offer examinations", "fitness for duty", "confidentiality"]
+    correct_answer_summary: >
+      Under Gov. Code section 12940(e), employers cannot make pre-employment inquiries about disabilities or
+      require medical examinations before extending a conditional offer. After a conditional offer, medical
+      examinations are permitted if required of all entering employees in the same job category. During
+      employment, disability-related inquiries and medical exams must be job-related and consistent with
+      business necessity (e.g., fitness-for-duty exams when there is objective evidence of inability to perform
+      essential functions or a direct threat). All medical information must be kept confidential in separate files.
+
+  - question: "How does FEHA define and prohibit 'associational discrimination,' and what are the elements of such a claim?"
+    category: "feha_claims"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12926", "12940"]
+    expected_structure: ["association with protected person", "discrimination based on association", "employer knowledge"]
+    correct_answer_summary: >
+      FEHA prohibits discrimination against an employee because of their association with a person who has a
+      protected characteristic. Under Gov. Code section 12926(o), discrimination includes treating an employee
+      differently because of their relationship to a disabled person (e.g., caring for a disabled spouse/child).
+      Elements: (1) the employee is associated with a person in a protected category; (2) the employer knew of
+      the association; (3) the employer took adverse action; and (4) the association was a substantial motivating
+      factor. This extends to race, disability, religion, and other FEHA-protected categories.
+
+  - question: "What retaliation protections does FEHA provide under Government Code section 12940(h), and what is the scope of protected opposition activity?"
+    category: "feha_claims"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["opposition clause", "participation clause", "reasonable good faith belief", "adverse action"]
+    correct_answer_summary: >
+      Gov. Code section 12940(h) prohibits retaliation against employees who oppose practices forbidden by FEHA
+      or file complaints, testify, or assist in FEHA proceedings. Protected activity includes: filing CRD/EEOC
+      complaints, internal complaints about discrimination/harassment, participating in investigations, refusing
+      to participate in discriminatory conduct, and requesting disability accommodation. The employee need only
+      have a reasonable, good faith belief that the opposed practice violates FEHA, even if ultimately incorrect.
+      The adverse action need not be termination — any materially adverse action affecting employment terms
+      suffices (CACI 2505).
+
+  # ============================================================================
+  # CATEGORY 8: RETALIATION & WHISTLEBLOWER (10 questions)
+  # Lab Code 1102.5 elements, protected activity scope, adverse action standards
+  # ============================================================================
+
+  - question: "What are the essential elements of a whistleblower retaliation claim under Labor Code section 1102.5, and how broadly is 'protected activity' defined?"
+    category: "retaliation_whistleblower"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5", "1102.6"]
+    expected_structure: ["disclosure of violation", "government agency or internal", "reasonable cause to believe", "contributing factor"]
+    correct_answer_summary: >
+      Under Lab. Code section 1102.5, the elements are: (1) the employee disclosed information to a government
+      agency, law enforcement, or person with authority over the employee; (2) the employee had reasonable cause
+      to believe the information disclosed a violation of law; (3) the employer took adverse action; and (4) the
+      protected activity was a contributing factor in the adverse action. "Protected activity" is broadly defined
+      to include reporting to any government or law enforcement agency, internal reports to supervisors, refusal
+      to participate in illegal activity, and providing information to government investigations. The employee
+      need not identify the specific statute violated.
+
+  - question: "How does the 'contributing factor' standard under section 1102.6 differ from the 'substantial motivating factor' standard under FEHA?"
+    category: "retaliation_whistleblower"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5", "1102.6", "12940"]
+    expected_structure: ["lower threshold", "contributing vs. substantial motivating", "different employer burdens", "clear and convincing"]
+    correct_answer_summary: >
+      The section 1102.6 "contributing factor" standard is more plaintiff-friendly than FEHA's "substantial
+      motivating factor" standard. Under 1102.6, the plaintiff need only show protected activity was any
+      contributing factor (even a small one). Under FEHA, discrimination must be a "substantial motivating
+      factor." The employer's burden also differs: under 1102.6, the employer must prove by "clear and convincing
+      evidence" it would have taken the same action; under FEHA, the employer proves the mixed-motive defense
+      by preponderance. Additionally, under 1102.6, no pretext showing is required and the burden never shifts
+      back to the employee.
+
+  - question: "What constitutes an 'adverse action' in the context of retaliation claims, and does it differ between FEHA and whistleblower claims?"
+    category: "retaliation_whistleblower"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940", "1102.5"]
+    expected_structure: ["materially adverse", "FEHA standard", "whistleblower broader standard", "examples"]
+    correct_answer_summary: >
+      Under FEHA (per CACI 2509), adverse employment action includes any action that materially affects the
+      terms, conditions, or privileges of employment or is reasonably likely to impair job performance or
+      advancement prospects. This includes termination, demotion, suspension, pay reduction, undesirable transfer,
+      and threats. For Lab. Code section 1102.5, the definition is arguably broader — section 1102.5(a)-(b)
+      prohibits any "rule, regulation, or policy" preventing or retaliating against disclosure. Courts have
+      found that constructive changes in working conditions, negative performance reviews, and exclusion from
+      meetings can constitute adverse actions in the retaliation context.
+
+  - question: "What protections does Labor Code section 98.6 provide against retaliation for filing a wage claim or exercising employment rights?"
+    category: "retaliation_whistleblower"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["98.6"]
+    expected_structure: ["protected activities", "rebuttable presumption", "civil penalty", "reinstatement"]
+    correct_answer_summary: >
+      Lab. Code section 98.6 prohibits employers from discharging or discriminating against any employee who
+      files a complaint or claim with the Labor Commissioner, institutes proceedings under the Labor Code, or
+      exercises any rights under the Labor Code. A rebuttable presumption of retaliation exists if adverse action
+      occurs within 90 days of the protected activity. Remedies include reinstatement, reimbursement of lost
+      wages and benefits, and a civil penalty up to $10,000 per employee per violation. The employer may be
+      liable for attorney fees under certain circumstances.
+
+  - question: "What is the scope of 'protected disclosure' under Labor Code section 1102.5 when an employee reports suspected violations to internal management?"
+    category: "retaliation_whistleblower"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+    expected_structure: ["internal reports", "person with authority", "reasonable cause to believe", "no specific statute required"]
+    correct_answer_summary: >
+      Section 1102.5(b) expressly protects disclosures to "a person with authority over the employee or another
+      employee who has the authority to investigate, discover, or correct the violation or noncompliance." The
+      employee need only have "reasonable cause to believe" the information discloses a violation of any state
+      or federal statute or any local, state, or federal rule or regulation. The employee need not identify the
+      specific statute believed to be violated, and the belief need not ultimately be correct — only objectively
+      reasonable. Internal HR complaints, reports to supervisors, and escalation through management channels
+      all qualify.
+
+  - question: "How does Labor Code section 6310 protect employees who report workplace safety hazards, and how does it interact with section 1102.5?"
+    category: "retaliation_whistleblower"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["6310", "1102.5"]
+    expected_structure: ["safety complaints", "Cal/OSHA", "no retaliation", "concurrent protections"]
+    correct_answer_summary: >
+      Lab. Code section 6310 prohibits retaliation against employees who make safety complaints to Cal/OSHA,
+      the employer, or any government agency, or who participate in occupational safety proceedings. This
+      includes complaints about unsafe working conditions, refusal to perform work that would violate safety
+      standards, and testimony in safety proceedings. Section 6310 operates concurrently with section 1102.5 —
+      a safety-related disclosure may be protected under both statutes. Section 6310 provides for reinstatement,
+      back pay, and civil penalties. Section 1102.5 provides the more favorable burden-shifting framework from
+      Lawson v. PPG.
+
+  - question: "What is the temporal proximity standard for establishing a causal connection in retaliation claims?"
+    category: "retaliation_whistleblower"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940", "1102.5"]
+    expected_structure: ["close temporal proximity", "inference of causation", "additional evidence needed", "shifting explanations"]
+    correct_answer_summary: >
+      Close temporal proximity between protected activity and adverse action can establish an inference of
+      causation sufficient for a prima facie case. Generally, adverse action within days or weeks of protected
+      activity creates a strong inference. However, temporal proximity alone may not be sufficient to defeat
+      summary judgment in all cases — courts typically require additional circumstantial evidence such as
+      shifting or inconsistent explanations, departure from normal procedures, disparate treatment, the
+      decisionmaker's knowledge of the protected activity, or statements suggesting retaliatory animus. The
+      90-day rebuttable presumption under Lab. Code section 98.6 provides a statutory framework for this analysis.
+
+  - question: "Can an employee assert a common law wrongful termination claim based on the public policy embodied in Labor Code section 1102.5?"
+    category: "retaliation_whistleblower"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+    expected_structure: ["Tameny claim", "concurrent statutory and tort", "different remedies", "punitive damages"]
+    correct_answer_summary: >
+      Yes, an employee may bring both a statutory Lab. Code section 1102.5 claim and a common law Tameny
+      wrongful termination claim based on the same facts. The public policy underlying section 1102.5 (protecting
+      whistleblowers) is sufficiently fundamental to support a Tameny tort. The practical advantage is that a
+      Tameny claim provides access to tort remedies including broader punitive damages, while section 1102.5
+      provides the more favorable burden-shifting framework under section 1102.6 (contributing factor, clear
+      and convincing evidence). Courts have consistently recognized this as a valid pairing of claims.
+
+  - question: "What protections exist for employees who refuse to participate in activities they reasonably believe are unlawful under Labor Code section 1102.5(c)?"
+    category: "retaliation_whistleblower"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+    expected_structure: ["refusal to participate", "reasonable belief", "violation of law", "independent protection"]
+    correct_answer_summary: >
+      Lab. Code section 1102.5(c) independently protects employees who refuse to participate in an activity that
+      would result in a violation of state or federal statute, rule, or regulation. Unlike subsections (a) and
+      (b), which protect disclosures, subsection (c) protects refusal to act. The employee need only have a
+      reasonable belief that the activity would violate the law — not actual proof of illegality. This provision
+      protects employees directed to falsify records, participate in fraudulent billing, ignore safety
+      requirements, or engage in discriminatory practices.
+
+  - question: "What is the distinction between retaliation under FEHA section 12940(h) and retaliation under Labor Code section 1102.5, and when should both be alleged?"
+    category: "retaliation_whistleblower"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940", "1102.5", "1102.6"]
+    expected_structure: ["different protected activities", "different burdens", "different exhaustion requirements", "strategic considerations"]
+    correct_answer_summary: >
+      FEHA section 12940(h) protects opposition to FEHA-prohibited practices and participation in FEHA
+      proceedings; section 1102.5 protects disclosure of any law violation to government agencies or persons
+      with authority. Key differences: 1102.5 has a more favorable burden-shifting standard (contributing factor/
+      clear and convincing evidence vs. substantial motivating factor/preponderance). 1102.5 has no
+      administrative exhaustion requirement; FEHA requires CRD complaint. FEHA provides statutory attorney fees;
+      1102.5 provides fees plus civil penalty up to $10,000. Both should be alleged when the employee opposed
+      practices that violate both FEHA and other laws, maximizing available frameworks and remedies.
+
+  # ============================================================================
+  # CATEGORY 9: NON-COMPETE & TRADE SECRETS (10 questions)
+  # Bus & Prof Code 16600 analysis, CUTSA claims, inevitable disclosure
+  # ============================================================================
+
+  - question: "What is the scope of California's prohibition on non-compete agreements under Business and Professions Code section 16600?"
+    category: "noncompete_trade_secrets"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["16600"]
+    expected_structure: ["void provision", "lawful profession", "narrow exceptions", "no reasonableness analysis"]
+    correct_answer_summary: >
+      Bus. & Prof. Code section 16600 provides that "every contract by which anyone is restrained from engaging
+      in a lawful profession, trade, or business of any kind is to that extent void." Unlike other states,
+      California does not apply a reasonableness analysis — non-competes are categorically void regardless of
+      duration, geographic scope, or consideration. The only statutory exceptions are in connection with the
+      sale of a business (section 16601), dissolution of a partnership (section 16602), or dissolution/sale
+      of an LLC (section 16602.5). Edwards v. Arthur Andersen confirmed the broad scope.
+
+  - question: "What are the requirements for notice to employees under Business and Professions Code section 16600.1, and what are the consequences of non-compliance?"
+    category: "noncompete_trade_secrets"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["16600", "16600.1"]
+    expected_structure: ["written notice", "current and former employees", "void agreements", "private right of action"]
+    correct_answer_summary: >
+      Bus. & Prof. Code section 16600.1 (SB 699, effective January 2024) requires employers to notify current
+      employees and former employees (employed after January 1, 2022) in writing that any non-compete clause
+      in their agreements is void. The notice must be individualized and sent by the February 14, 2024 deadline.
+      Section 16600.5 (AB 1076) codifies that non-competes are void regardless of where signed or when the
+      employment terminated. Employees have a private right of action to seek injunctive relief and actual
+      damages, with prevailing employees entitled to reasonable attorney fees and costs.
+
+  - question: "Does California recognize the 'inevitable disclosure' doctrine for trade secret protection, and what is the current legal standard?"
+    category: "noncompete_trade_secrets"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["16600"]
+    expected_structure: ["doctrine rejected", "actual misappropriation required", "employee mobility policy", "Bayer v. Roche"]
+    correct_answer_summary: >
+      California has consistently rejected the inevitable disclosure doctrine. In Whyte v. Schlage Lock Co.
+      (2002) 101 Cal.App.4th 1443 and subsequent cases, courts held that inevitable disclosure would create
+      a de facto non-compete in violation of section 16600. To obtain injunctive relief, the plaintiff must
+      show actual or threatened misappropriation — not merely that the former employee has knowledge of trade
+      secrets and works for a competitor. California's strong public policy favoring employee mobility prevents
+      using trade secret claims as a backdoor non-compete. Knowledge alone does not equal misappropriation.
+
+  - question: "What are the elements of a trade secret misappropriation claim under the California Uniform Trade Secrets Act (CUTSA)?"
+    category: "noncompete_trade_secrets"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["3426.1"]
+    expected_structure: ["trade secret definition", "improper means", "misappropriation", "reasonable secrecy measures"]
+    correct_answer_summary: >
+      Under Civ. Code section 3426.1, the elements are: (1) the plaintiff possessed a "trade secret" — information
+      that derives independent economic value from not being generally known and is subject to reasonable efforts
+      to maintain its secrecy; (2) the defendant misappropriated the trade secret through acquisition by improper
+      means, disclosure, or use without consent; and (3) the plaintiff suffered damages. "Improper means"
+      includes theft, bribery, breach of duty, and espionage. The plaintiff bears the burden of identifying
+      the trade secrets with reasonable particularity (CCP section 2019.210 requires this before trade secret
+      discovery).
+
+  - question: "What is the scope of CUTSA preemption, and what common law claims does it supersede?"
+    category: "noncompete_trade_secrets"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["3426.7"]
+    expected_structure: ["supersedes common law", "same nucleus of facts", "contract claims not preempted", "independent theories preserved"]
+    correct_answer_summary: >
+      Under Civ. Code section 3426.7, CUTSA supersedes conflicting tort, restitutionary, and other common law
+      claims based on the misappropriation of a trade secret. This preempts claims like unfair competition,
+      conversion, unjust enrichment, and breach of confidence when they are based on the same nucleus of facts
+      as the trade secret claim. However, CUTSA does not preempt: (1) contractual remedies (e.g., breach of
+      confidentiality agreement); (2) criminal remedies (Penal Code section 499c); or (3) claims based on
+      theories independent of trade secret misappropriation. The key test is whether the claim relies on the
+      same factual basis as the alleged misappropriation.
+
+  - question: "How does SB 699 (Bus. & Prof. Code section 16600.5) affect out-of-state non-compete agreements applied to California employees?"
+    category: "noncompete_trade_secrets"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["16600", "16600.5"]
+    expected_structure: ["void regardless of location", "choice of law", "enforcement prohibition", "extraterritorial reach"]
+    correct_answer_summary: >
+      SB 699 (codified as Bus. & Prof. Code section 16600.5, effective January 2024) provides that any contract
+      void under section 16600 is unenforceable regardless of where and when the contract was signed. This
+      effectively nullifies choice-of-law provisions that would apply another state's more permissive non-compete
+      law to California-based employees. It is unlawful to require an employee who primarily resides or works
+      in California to agree to a non-compete provision that is void under California law. Employers face
+      liability for injunctive relief, damages, and attorney fees for attempts to enforce such provisions.
+
+  - question: "What remedies are available under CUTSA for trade secret misappropriation, including injunctive relief and exemplary damages?"
+    category: "noncompete_trade_secrets"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["3426.2", "3426.3", "3426.4"]
+    expected_structure: ["injunctive relief", "actual loss or unjust enrichment", "reasonable royalty", "exemplary damages for willful"]
+    correct_answer_summary: >
+      CUTSA provides: (1) injunctive relief to prevent actual or threatened misappropriation (Civ. Code section
+      3426.2), which may be conditioned on a reasonable royalty; (2) damages for actual loss caused by
+      misappropriation and unjust enrichment not captured by actual loss (section 3426.3); (3) if neither actual
+      loss nor unjust enrichment can be proven, a reasonable royalty; and (4) exemplary damages up to 2x the
+      compensatory award for willful and malicious misappropriation (section 3426.3(c)). Attorney fees are
+      available to the prevailing party if a claim was made or resisted in bad faith, or if willful and malicious
+      misappropriation is proven (section 3426.4).
+
+  - question: "What constitutes 'reasonable efforts to maintain secrecy' for purposes of establishing trade secret status under CUTSA?"
+    category: "noncompete_trade_secrets"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["3426.1"]
+    expected_structure: ["confidentiality agreements", "access restrictions", "physical security", "marking", "employee training"]
+    correct_answer_summary: >
+      Under Civ. Code section 3426.1, the owner must demonstrate "efforts that are reasonable under the
+      circumstances to maintain its secrecy." Courts evaluate a totality of factors including: confidentiality
+      and non-disclosure agreements with employees and third parties, physical and electronic access controls,
+      password protection, encryption, marking documents as confidential, limiting access on a need-to-know
+      basis, exit interview procedures, employee training on confidentiality obligations, and monitoring for
+      unauthorized access. No single measure is dispositive; the standard requires reasonable, not perfect,
+      efforts given the nature and value of the information.
+
+  - question: "Can a California employer enforce a non-solicitation agreement that restricts a former employee from soliciting clients or co-workers?"
+    category: "noncompete_trade_secrets"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["16600"]
+    expected_structure: ["customer non-solicitation generally void", "employee non-solicitation", "trade secret nexus", "narrowly tailored"]
+    correct_answer_summary: >
+      Customer non-solicitation agreements are generally void under Bus. & Prof. Code section 16600 because
+      they effectively restrain the employee from engaging in their trade. Per AMN Healthcare v. Aya Healthcare
+      Services (2018), non-solicitation of customers is an invalid restraint. Employee non-solicitation
+      agreements face similar scrutiny — if they effectively prevent the employee from competing, they are void.
+      However, an employer may use CUTSA to protect genuinely confidential customer lists that constitute
+      trade secrets, and narrowly tailored confidentiality agreements restricting use of proprietary information
+      may be enforceable as long as they do not function as de facto non-competes.
+
+  - question: "What is the interplay between California's Defend Trade Secrets Act (federal DTSA) claims and state CUTSA claims in employment litigation?"
+    category: "noncompete_trade_secrets"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["3426.1"]
+    expected_structure: ["federal vs. state definitions", "ex parte seizure", "immunity notice", "concurrent jurisdiction"]
+    correct_answer_summary: >
+      Employers may bring concurrent federal DTSA (18 U.S.C. section 1836) and California CUTSA claims. Key
+      differences: DTSA requires the trade secret to be related to a product or service in interstate commerce;
+      DTSA provides for ex parte seizure orders in extraordinary circumstances (CUTSA does not); DTSA requires
+      employers to include a whistleblower immunity notice in any agreement governing trade secrets or
+      confidential information (failure to include bars exemplary damages and attorney fees). Both statutes
+      have similar definitions of trade secret and misappropriation. Federal courts have concurrent jurisdiction.
+      California's rejection of inevitable disclosure applies even to DTSA claims in California courts.
+
+  # ============================================================================
+  # CATEGORY 10: CFRA/FMLA ISSUES (10 questions)
+  # Serious health condition, intermittent leave, employer coverage
+  # ============================================================================
+
+  - question: "What are the employer coverage thresholds for CFRA versus FMLA, and how did SB 1383 change CFRA eligibility?"
+    category: "cfra_fmla"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12945.2"]
+    expected_structure: ["5 employees CFRA", "50 employees FMLA", "no 75-mile radius CFRA", "SB 1383 changes"]
+    correct_answer_summary: >
+      CFRA (Gov. Code section 12945.2) now covers employers with 5 or more employees anywhere in California,
+      with no geographic radius requirement. SB 1383 (effective January 2021) dramatically lowered the threshold
+      from 50 employees within 75 miles. FMLA covers employers with 50 or more employees within a 75-mile
+      radius. Employee eligibility for both requires 12 months of employment and 1,250 hours worked. This means
+      many smaller California employers are subject to CFRA but not FMLA. CFRA also expanded covered family
+      members beyond FMLA to include grandparents, grandchildren, siblings, and domestic partners.
+
+  - question: "What constitutes a 'serious health condition' under CFRA, and how does the definition differ from FMLA?"
+    category: "cfra_fmla"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12945.2"]
+    expected_structure: ["inpatient care", "continuing treatment", "incapacity plus treatment", "chronic condition"]
+    correct_answer_summary: >
+      Under Gov. Code section 12945.2 and 2 CCR section 11087, a "serious health condition" means an illness,
+      injury, impairment, or condition that involves inpatient care or continuing treatment. Continuing treatment
+      includes: (1) incapacity of more than 3 consecutive days plus treatment by a health care provider; (2)
+      incapacity due to pregnancy; (3) a chronic serious health condition requiring periodic treatment; (4) a
+      permanent/long-term condition for which treatment may not be effective; or (5) any period of absence for
+      multiple treatments. The CFRA definition largely mirrors FMLA but CFRA regulations may apply differently
+      in certain cases given California's broader disability framework.
+
+  - question: "What are the employer's obligations when an employee requests intermittent CFRA leave, and can the employer require transfer to an alternative position?"
+    category: "cfra_fmla"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12945.2"]
+    expected_structure: ["medically necessary", "foreseeable leave", "alternative position transfer", "equivalent pay and benefits"]
+    correct_answer_summary: >
+      Under CFRA, employers must grant intermittent leave when medically necessary for the employee's or family
+      member's serious health condition. For foreseeable intermittent leave, the employee must make a reasonable
+      effort to schedule treatment to minimize workplace disruption. The employer may temporarily transfer the
+      employee to an available alternative position with equivalent pay and benefits that better accommodates
+      recurring periods of leave. However, the transfer cannot be used punitively. For bonding leave (new child),
+      CFRA allows intermittent leave in minimum increments of 2 weeks (with two exceptions for shorter periods).
+
+  - question: "What reinstatement rights does an employee have upon return from CFRA leave?"
+    category: "cfra_fmla"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12945.2"]
+    expected_structure: ["same or comparable position", "key employee exception", "benefits restoration", "fitness for duty"]
+    correct_answer_summary: >
+      Under Gov. Code section 12945.2 and 2 CCR section 11089, an employee returning from CFRA leave must be
+      restored to the same position or a comparable position with equivalent pay, benefits, and working
+      conditions. "Comparable" means virtually identical in duties, pay, benefits, schedule, and geographic
+      location. Unlike FMLA, CFRA does not have a "key employee" exception allowing denial of reinstatement to
+      highly compensated employees. Benefits must continue during leave on the same terms as active employees.
+      An employer may require a fitness-for-duty certification only for the employee's own serious health
+      condition, if consistently applied to similarly-situated employees.
+
+  - question: "How does CFRA leave interact with pregnancy disability leave (PDL) under Government Code section 12945?"
+    category: "cfra_fmla"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12945", "12945.2"]
+    expected_structure: ["PDL separate from CFRA", "up to 4 months PDL", "12 weeks CFRA bonding", "consecutive leave"]
+    correct_answer_summary: >
+      PDL (Gov. Code section 12945) and CFRA leave are separate entitlements that do not run concurrently.
+      A pregnant employee is entitled to up to 4 months of PDL for disability related to pregnancy, childbirth,
+      or related medical conditions, followed by up to 12 weeks of CFRA leave for bonding with the newborn.
+      This means a pregnant employee can potentially take up to approximately 7 months of leave. Employers
+      with 5+ employees must provide both. Under FMLA, pregnancy disability and bonding leave run concurrently
+      (both count against the 12-week FMLA entitlement), giving California employees significantly more
+      protected leave.
+
+  - question: "What notice requirements must an employee satisfy before taking CFRA leave, and what are the consequences of failure to provide adequate notice?"
+    category: "cfra_fmla"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12945.2"]
+    expected_structure: ["30-day advance notice", "foreseeable leave", "unforeseeable leave", "employer response obligations"]
+    correct_answer_summary: >
+      Under 2 CCR section 11091, for foreseeable CFRA leave, the employee must provide at least 30 days' advance
+      notice. If 30 days is not practicable, notice must be given as soon as practicable. For unforeseeable
+      leave, the employee must provide notice as soon as practicable (within 1-2 business days). The employer
+      must respond within 5 business days, designating the leave as CFRA-qualifying. Failure to provide
+      adequate notice does not forfeit the leave entitlement — the employer may delay commencement. The employer
+      may request medical certification within 5 business days and the employee has 15 days to provide it.
+
+  - question: "Can an employer deny CFRA leave based on the employee's failure to provide adequate medical certification?"
+    category: "cfra_fmla"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12945.2"]
+    expected_structure: ["certification requirements", "insufficient certification", "cure period", "second opinion"]
+    correct_answer_summary: >
+      Under 2 CCR section 11091, the employer may require medical certification from a health care provider
+      supporting the need for leave. If the certification is incomplete or insufficient, the employer must
+      give the employee a reasonable opportunity (at least 15 calendar days) to cure the deficiency. If the
+      employer doubts the validity of the certification, it may require a second opinion at the employer's
+      expense (not from a regularly retained health care provider). If the first and second opinions differ,
+      a third opinion from a mutually agreed provider is binding. The employer cannot deny leave while awaiting
+      certification if sufficient information supports the request.
+
+  - question: "What constitutes CFRA retaliation or interference, and what remedies are available?"
+    category: "cfra_fmla"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12945.2", "12940"]
+    expected_structure: ["interference vs. retaliation", "negative factor", "remedies same as FEHA", "no exhaustion for interference"]
+    correct_answer_summary: >
+      CFRA claims fall into two categories: interference (denying, discouraging, or interfering with leave
+      rights) and retaliation (adverse action because of leave exercise). Interference does not require
+      discriminatory intent — the mere denial of a right is sufficient. Retaliation requires showing that
+      leave-taking was a negative factor in the employment decision. Using leave as a "negative factor" in
+      any employment decision (even if other factors contributed) constitutes retaliation. Remedies mirror
+      FEHA: compensatory damages, emotional distress, punitive damages (for retaliation), attorney fees, and
+      injunctive relief. CFRA claims require CRD exhaustion as they fall under FEHA.
+
+  - question: "How do California paid sick leave requirements under Labor Code section 246 interact with CFRA and FMLA leave?"
+    category: "cfra_fmla"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["245", "246", "12945.2"]
+    expected_structure: ["concurrent use", "employer may not require", "employee may elect", "separate entitlements"]
+    correct_answer_summary: >
+      Under Lab. Code sections 245-246, California employers must provide paid sick leave (minimum 5 days/40
+      hours per year under current law). Paid sick leave, CFRA, and FMLA are separate entitlements with different
+      qualifying criteria. An employee may elect to use paid sick leave concurrently with CFRA/FMLA leave but
+      the employer cannot require it unless the employee is otherwise unable to use other paid leave. CFRA
+      leave may run concurrently with FMLA leave for qualifying reasons. An employer may require the use of
+      accrued vacation or PTO during CFRA/FMLA leave per its uniformly applied policy. The interaction
+      requires careful tracking to ensure no entitlement is improperly diminished.
+
+  - question: "What are the employer's obligations regarding benefits continuation during CFRA leave?"
+    category: "cfra_fmla"
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12945.2"]
+    expected_structure: ["group health plan", "same terms as active employees", "employee premium share", "recovery of premiums"]
+    correct_answer_summary: >
+      Under Gov. Code section 12945.2 and 2 CCR section 11092, employers must maintain group health plan coverage
+      during CFRA leave on the same conditions as if the employee had continued working. The employer must
+      continue its share of premium payments; the employee remains responsible for their share. If the employee
+      fails to return from leave for a reason other than a serious health condition or other circumstances beyond
+      the employee's control, the employer may recover the premiums paid during the leave period. Other benefits
+      (retirement, seniority) need not accrue during unpaid leave unless the employer provides them to employees
+      on other types of leave.
+
+  # ============================================================================
+  # CATEGORY 11: CLASS ACTION & PAGA (10 questions)
+  # PAGA standing, representative action scope, settlement considerations
+  # ============================================================================
+
+  - question: "What are the post-reform standing requirements for PAGA claims filed after June 19, 2024?"
+    category: "class_action_paga"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+    expected_structure: ["personally suffered each violation", "heightened standing", "no representative standing for unshared violations"]
+    correct_answer_summary: >
+      Under the 2024 PAGA reform (AB 2288/SB 92), an aggrieved employee must have "personally suffered" each
+      Labor Code violation alleged in the PAGA notice for claims filed on or after June 19, 2024. This is a
+      significant change from prior law, which allowed an employee who suffered any single violation to
+      represent all aggrieved employees for all violations. The reformed standing requirement means the
+      named plaintiff cannot bring PAGA claims for violations they did not personally experience, eliminating
+      the practice of broad representative standing for dissimilar infractions.
+
+  - question: "How does PAGA claim manageability work under the reformed statute, and what limits can courts impose on trial scope?"
+    category: "class_action_paga"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+    expected_structure: ["court authority to limit", "evidence limitations", "trial scope", "practical manageability"]
+    correct_answer_summary: >
+      Under the 2024 PAGA reform, courts may "limit the evidence to be presented at trial or otherwise limit
+      the scope of any claim filed pursuant to this part to ensure that the claim can be effectively tried."
+      This gives courts explicit authority to manage PAGA cases for trial feasibility, including limiting the
+      number of aggrieved employees, requiring representative testimony, limiting the penalty period, or
+      otherwise structuring the trial. Courts may also consider whether penalty claims can be proven through
+      common evidence or whether individualized inquiries predominate, similar to class certification analysis.
+
+  - question: "What penalty reduction factors apply under the reformed PAGA for employers who took reasonable compliance steps?"
+    category: "class_action_paga"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+    expected_structure: ["15% cap for pre-notice compliance", "30% cap for 60-day cure", "reasonable steps factors", "compliance measures"]
+    correct_answer_summary: >
+      Under the reformed PAGA, penalties are capped at 15% of the maximum if the employer took "all reasonable
+      steps" to comply before receiving the PAGA notice. If the employer took such steps within 60 days after
+      receiving the notice, penalties are capped at 30%. Reasonable steps include: conducting periodic payroll
+      audits, taking action in response to audits, disseminating lawful written policies, training supervisors
+      on applicable Labor Code provisions, and taking appropriate corrective action with respect to supervisors.
+      These caps create significant incentives for proactive compliance programs.
+
+  - question: "How does the reformed PAGA eliminate derivative penalty stacking, and what specific violations are affected?"
+    category: "class_action_paga"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699", "201", "202", "203", "204", "226"]
+    expected_structure: ["no stacking", "underlying violation only", "waiting time not derivative", "wage statement not derivative"]
+    correct_answer_summary: >
+      The reformed PAGA prohibits collecting penalties for violations that are "derivative" of an underlying
+      wage violation. Specifically, if an employer fails to pay a required premium (e.g., missed meal break),
+      the plaintiff cannot also claim separate penalty liability under: section 204 (timing of wages), section
+      226 (wage statement), sections 201/202 (final pay), or section 203 (waiting time penalties) based solely
+      on the failure to pay that same premium. Each of these is considered a derivative consequence of the
+      underlying violation, not an independent penalty-generating event. Independent violations (e.g., a
+      separate knowing wage statement deficiency) remain separately penalized.
+
+  - question: "What is the current employee/state split for PAGA penalty recovery, and how does it compare to pre-reform allocation?"
+    category: "class_action_paga"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+    expected_structure: ["35% employees", "65% state", "pre-reform 25/75 split", "distribution mechanism"]
+    correct_answer_summary: >
+      Under the 2024 PAGA reform, aggrieved employees now receive 35% of penalty recoveries (up from 25%),
+      with the state receiving 65% (down from 75%). This increased employee share was designed to better
+      incentivize legitimate claims while maintaining the state's substantial interest. The penalties are
+      distributed among all aggrieved employees, not just the named plaintiff. The LWDA portion is directed
+      to the Labor and Workforce Development Fund.
+
+  - question: "What are the requirements for court approval of a PAGA settlement, and what role does the LWDA play?"
+    category: "class_action_paga"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+    expected_structure: ["court approval required", "LWDA notice", "fair reasonable adequate", "penalty assessment factors"]
+    correct_answer_summary: >
+      All PAGA settlements require court approval under Lab. Code section 2699. The proposed settlement must
+      be submitted to the LWDA via the PAGA Filing Portal at the same time it is submitted to the court.
+      The court evaluates whether the settlement is "fair, reasonable, and adequate" considering: the total
+      penalties, comparison to maximum potential penalties, strength of the plaintiff's case, risks of
+      continued litigation, and the experience of counsel. The LWDA may object or intervene if the settlement
+      does not serve PAGA's purposes. Courts scrutinize settlements that offer minimal penalties relative to
+      the alleged violations.
+
+  - question: "After Viking River Cruises v. Moriana and Adolph v. Uber, what is the current status of arbitrating individual PAGA claims and the standing for non-individual claims?"
+    category: "class_action_paga"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+    expected_structure: ["individual PAGA arbitrable", "non-individual standing retained", "Adolph v. Uber", "FAA preemption"]
+    correct_answer_summary: >
+      After Viking River Cruises v. Moriana (2022), employers can compel arbitration of a plaintiff's individual
+      PAGA claim. Viking River initially suggested non-individual claims should be dismissed for lack of
+      standing. However, in Adolph v. Uber Technologies (2023) 14 Cal.5th 1104, the California Supreme Court
+      held that a plaintiff who has been compelled to arbitrate individual claims retains statutory standing
+      to pursue non-individual PAGA claims in court. This means bifurcation occurs: individual claims go to
+      arbitration; representative claims for other aggrieved employees remain in court. The practical effect
+      is that arbitration agreements cannot fully eliminate PAGA exposure.
+
+  - question: "What are the ascertainability and commonality requirements for class certification in California employment cases?"
+    category: "class_action_paga"
+    expected_categories: ["statutory_code"]
+    expected_citations: []
+    expected_structure: ["ascertainable class", "common questions", "substantial benefit", "individual vs. common issues"]
+    correct_answer_summary: >
+      Under CCP section 382 and Brinker Restaurant Corp., California class certification requires: (1) an
+      ascertainable class — members can be identified by objective criteria without individual inquiry; (2)
+      a community of interest consisting of predominant common questions, class representatives with typical
+      claims, and adequate representation; and (3) substantial benefit — the class device is superior to
+      individual actions. The key question is whether common or individual issues predominate. In wage and hour
+      cases, courts focus on whether the employer had uniform policies or practices that can be proven through
+      common evidence. Individual variations in damages do not defeat certification if liability is common.
+
+  - question: "How do overlapping class action and PAGA claims interact procedurally, and can they be brought in the same action?"
+    category: "class_action_paga"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+    expected_structure: ["concurrent pursuit", "different standards", "no certification for PAGA", "overlapping membership"]
+    correct_answer_summary: >
+      Class actions and PAGA claims can be brought in the same lawsuit but operate under different procedural
+      frameworks. Class actions require certification (commonality, typicality, adequacy, predominance); PAGA
+      claims do not. PAGA standing requires the plaintiff to have personally suffered each violation; class
+      actions require typicality. PAGA penalties are distributed 35/65 (employees/state); class damages go
+      entirely to class members. In practice, wage and hour cases often combine class claims (for individual
+      damages) with PAGA claims (for penalties). Courts may stay PAGA proceedings pending class certification
+      or coordinate them to avoid duplicative discovery.
+
+  - question: "What cure opportunities exist under the reformed PAGA, and which violations are subject to the expanded cure provisions?"
+    category: "class_action_paga"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699.3"]
+    expected_structure: ["expanded cure", "minimum wage", "overtime", "meal rest breaks", "wage statements", "employer response period"]
+    correct_answer_summary: >
+      The 2024 PAGA reform expanded the cure provisions (Lab. Code section 2699.3) beyond the limited violations
+      previously subject to cure. Curable violations now include: minimum wage violations, overtime violations,
+      meal and rest break violations, business expense reimbursement failures, and all wage statement deficiencies.
+      Employers must cure within the specified timeframe and provide a detailed cure plan. If the LWDA or court
+      determines the cure is adequate, PAGA penalties may be significantly reduced or eliminated. This creates
+      a strong incentive for employers to remediate promptly upon receiving a PAGA notice.
+
+  # ============================================================================
+  # CATEGORY 12: JURY INSTRUCTIONS & TRIAL (12 questions)
+  # CACI employment instructions, burden of proof standards, jury instruction conferences
+  # ============================================================================
+
+  - question: "What are the essential factual elements under CACI 2500 for a disparate treatment discrimination claim under FEHA?"
+    category: "jury_instructions_trial"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["protected category", "satisfactory performance", "adverse action", "substantial motivating reason"]
+    correct_answer_summary: >
+      Under CACI 2500, the plaintiff must prove: (1) plaintiff was a member of a protected class (or perceived
+      as such); (2) plaintiff was performing competently in the job; (3) the employer took adverse employment
+      action against plaintiff; (4) plaintiff's protected characteristic was a substantial motivating reason for
+      the adverse action; and (5) plaintiff was harmed. The instruction allows for either direct or circumstantial
+      evidence. The "substantial motivating reason" language derives from Harris v. City of Santa Monica.
+
+  - question: "How does CACI 2505 instruct the jury on the elements of FEHA retaliation, and what constitutes protected activity?"
+    category: "jury_instructions_trial"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["protected activity", "adverse action", "substantial motivating reason", "reasonable belief"]
+    correct_answer_summary: >
+      Under CACI 2505, the plaintiff must prove: (1) plaintiff engaged in protected activity (opposing FEHA
+      violations, filing complaints, assisting in proceedings); (2) the employer took adverse action against
+      plaintiff; (3) the protected activity was a substantial motivating reason for the adverse action; and
+      (4) plaintiff was harmed. "Protected activity" includes opposition to any practice the employee reasonably
+      believes violates FEHA, regardless of whether it actually does. The jury must also be instructed on what
+      constitutes an "adverse employment action" per CACI 2509.
+
+  - question: "What does CACI 2430 require for proving a wrongful discharge in violation of public policy, including the public policy identification requirement?"
+    category: "jury_instructions_trial"
+    expected_categories: ["jury_instruction"]
+    expected_citations: []
+    expected_structure: ["employment relationship", "termination", "public policy violation", "substantial motivating reason", "harm"]
+    correct_answer_summary: >
+      Under CACI 2430, the plaintiff must prove: (1) defendant employed plaintiff; (2) defendant discharged
+      plaintiff; (3) the violation of public policy was a substantial motivating reason for the discharge; and
+      (4) the discharge caused plaintiff harm. The court must identify the specific public policy at issue
+      (constitutional, statutory, or regulatory provision) in the instruction. Under CACI 2431, constructive
+      discharge can satisfy the termination element if conditions were so intolerable that a reasonable person
+      would have had no reasonable alternative except to resign.
+
+  - question: "How does CACI 2540 differ from CACI 2500 in instructing the jury on disability discrimination versus general disparate treatment?"
+    category: "jury_instructions_trial"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["disability-specific elements", "knowledge of disability", "essential functions", "accommodation context"]
+    correct_answer_summary: >
+      CACI 2540 (disability discrimination) differs from CACI 2500 (general disparate treatment) in several
+      key respects: CACI 2540 requires proof that (1) the employer knew of the disability; (2) the plaintiff
+      could perform essential functions with or without accommodation; and (3) the disability was a substantial
+      motivating reason for the adverse action. CACI 2500 focuses on protected category membership and adverse
+      action without the "essential functions" or "employer knowledge" requirements. CACI 2540 also does not
+      use the McDonnell Douglas framework; direct or circumstantial evidence of disability-based motivation
+      is analyzed without the formal burden-shifting structure.
+
+  - question: "What is the proper jury instruction for the after-acquired evidence defense under CACI 2506, and how does it affect damages?"
+    category: "jury_instructions_trial"
+    expected_categories: ["jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["remedy limitation only", "employer burden", "misconduct severity", "cutoff date for damages"]
+    correct_answer_summary: >
+      CACI 2506 instructs that if the employer proves by a preponderance of evidence that (1) after the
+      termination it discovered information about the employee's conduct that occurred before termination; (2)
+      the employee engaged in that misconduct; and (3) the misconduct was of such severity that the employer
+      would have discharged the employee for that reason alone, then damages are limited to the period from
+      wrongful termination to the date the employer discovered (or reasonably would have discovered) the
+      misconduct. This instruction addresses only the remedy phase; it does not bar liability for the
+      underlying wrongful termination.
+
+  - question: "How does CACI 2541 instruct on failure to provide reasonable accommodation, and what must the plaintiff prove regarding the interactive process?"
+    category: "jury_instructions_trial"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["known disability", "request or obvious need", "reasonable accommodation available", "failure to provide"]
+    correct_answer_summary: >
+      Under CACI 2541, the plaintiff must prove: (1) the employer knew plaintiff had a disability; (2) plaintiff
+      was able to perform essential job functions with reasonable accommodation; (3) the employer failed to
+      provide a reasonable accommodation; and (4) this failure was a substantial factor in causing harm. CACI
+      2546 separately instructs on the interactive process obligation: the employer must engage in a timely,
+      good faith interactive process, and failure to do so is an independent violation. The plaintiff need not
+      prove that the accommodation requested was the only reasonable one — just that one existed.
+
+  - question: "What is the proper instruction for damages in FEHA cases, including the CACI 2500 series damages instructions?"
+    category: "jury_instructions_trial"
+    expected_categories: ["jury_instruction"]
+    expected_citations: ["12965"]
+    expected_structure: ["past and future economic loss", "emotional distress", "punitive damages", "no caps"]
+    correct_answer_summary: >
+      CACI damages instructions for FEHA cases include: past and future economic damages (lost earnings,
+      benefits, job search costs); non-economic damages (emotional distress, anxiety, humiliation, loss of
+      enjoyment of life); and punitive damages under CACI 3940-3949 (requiring malice, oppression, or fraud
+      by clear and convincing evidence). There are no statutory caps on any category of damages under FEHA.
+      The jury must be instructed that compensatory damages need not be proven with mathematical certainty,
+      and that emotional distress is compensable based on the plaintiff's testimony alone without expert evidence.
+
+  - question: "How should the jury be instructed on the 'same decision' mixed-motive defense in a FEHA discrimination case?"
+    category: "jury_instructions_trial"
+    expected_categories: ["jury_instruction"]
+    expected_citations: ["12940", "12965"]
+    expected_structure: ["employer affirmative defense", "same decision without discrimination", "limited remedies if proven"]
+    correct_answer_summary: >
+      The mixed-motive defense instruction requires a two-stage process. First, the jury determines whether
+      discrimination was a substantial motivating reason for the adverse action. If yes, the jury then considers
+      the employer's affirmative defense: whether the employer proved by a preponderance that it would have
+      made the same decision absent the discriminatory motive. If the employer succeeds on this defense, the
+      court (not the jury) determines limited remedies: declaratory/injunctive relief and attorney fees, but
+      no compensatory or punitive damages. The defense must be affirmatively pleaded in the answer.
+
+  - question: "What CACI instructions apply to a harassment claim based on hostile work environment, and how does the court instruct on the 'severe or pervasive' standard?"
+    category: "jury_instructions_trial"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940", "12923"]
+    expected_structure: ["CACI 2521-2524", "severe or pervasive disjunctive", "totality of circumstances", "reasonable person standard"]
+    correct_answer_summary: >
+      CACI 2521A (non-sexual harassment) and 2521B/C (sexual harassment) set forth the essential elements.
+      CACI 2524 instructs on hostile work environment factors: frequency, severity, physical threatening or
+      humiliation, unreasonable interference with work. Per Gov. Code section 12923, the instruction should
+      reflect that "severe OR pervasive" is disjunctive — a single severe incident may suffice. The totality
+      of circumstances test applies, assessed from the perspective of a reasonable person in the plaintiff's
+      position with the same protected characteristics. CACI 2525 defines "supervisor" for purposes of
+      employer liability.
+
+  - question: "What special verdict forms are typically used in FEHA employment discrimination trials, and how is the jury instruction conference conducted?"
+    category: "jury_instructions_trial"
+    expected_categories: ["jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["special verdict", "liability then damages", "mixed-motive finding", "instruction conference procedure"]
+    correct_answer_summary: >
+      FEHA trials typically use special verdict forms that separately address: (1) whether discrimination/
+      harassment/retaliation occurred and was a substantial motivating reason; (2) if an affirmative defense
+      (mixed-motive) was proved; (3) compensatory damages (economic and non-economic separately); and (4)
+      punitive damages (if applicable, in a bifurcated phase). The jury instruction conference is conducted
+      before closing arguments per CCP section 607a. Attorneys submit proposed instructions (drawing from CACI),
+      the court rules on disputed instructions, and a settled set is read to the jury. Objections must be
+      clearly stated to preserve appellate issues.
+
+  - question: "How does CACI 2432 instruct on constructive discharge in violation of public policy, and what additional element beyond CACI 2430 must be proven?"
+    category: "jury_instructions_trial"
+    expected_categories: ["jury_instruction"]
+    expected_citations: []
+    expected_structure: ["intolerable conditions", "reasonable person standard", "no reasonable alternative", "employer knowledge or intent"]
+    correct_answer_summary: >
+      CACI 2432 requires the plaintiff to prove all elements of CACI 2430 (wrongful discharge in violation of
+      public policy) plus the additional element that the employer either intentionally created or knowingly
+      permitted working conditions that were so intolerable or aggravated at the time of the resignation that
+      a reasonable person in the employee's position would have had no reasonable alternative except to resign.
+      The standard is objective — the jury evaluates whether a reasonable person would find the conditions
+      intolerable. The instruction notes that the plaintiff must have actually resigned due to the conditions
+      (subjective element) and a reasonable person would have done the same (objective element).
+
+  - question: "What CACI instructions govern the employer's failure to engage in the interactive process, and can it be a standalone claim?"
+    category: "jury_instructions_trial"
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+    expected_structure: ["CACI 2546", "independent violation", "good faith participation", "effective accommodation existed"]
+    correct_answer_summary: >
+      CACI 2546 instructs that failing to engage in a timely, good faith interactive process is an independent
+      FEHA violation under Gov. Code section 12940(n). The plaintiff must prove: (1) the employer knew of the
+      disability; (2) the employee or employer initiated the interactive process; (3) the employer failed to
+      participate in good faith; and (4) an effective accommodation existed that would have been identified
+      through the process. The claim is standalone — even if the employer ultimately provided accommodation,
+      the failure to engage in the process itself is actionable. However, damages require showing that a
+      reasonable accommodation was available but not provided due to the process failure.
+
+  # ============================================================================
+  # ADDITIONAL CITATION LOOKUPS (4 questions)
+  # Pure citation queries where exact section must be retrieved
+  # ============================================================================
+
+  - question: "Lab. Code section 226.7"
+    category: "citation_lookup"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["226.7"]
+    citation_lookup: true
+    correct_answer_summary: "Meal and rest period premium pay provision."
+
+  - question: "Gov. Code section 12945.2"
+    category: "citation_lookup"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12945.2"]
+    citation_lookup: true
+    correct_answer_summary: "California Family Rights Act (CFRA) provisions."
+
+  - question: "Bus. & Prof. Code section 16600"
+    category: "citation_lookup"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["16600"]
+    citation_lookup: true
+    correct_answer_summary: "Non-compete agreements void provision."
+
+  - question: "Lab. Code section 2699"
+    category: "citation_lookup"
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+    citation_lookup: true
+    correct_answer_summary: "Private Attorneys General Act (PAGA) provisions."

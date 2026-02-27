@@ -1,0 +1,777 @@
+# Attorney mode validation questions (110+)
+# Research-backed questions from CELA, CEB, employment law journals, practice guides
+# expected_elements: key legal terms/concepts the answer should mention
+# expected_categories: content_category values expected in retrieval sources
+# expected_citations: statute sections that should appear (partial match OK)
+
+questions:
+  # ==========================================
+  # STATUTORY ANALYSIS (12 questions)
+  # ==========================================
+  - question: "What are the elements of a FEHA employment discrimination claim under Government Code section 12940?"
+    category: "statutory_analysis"
+    expected_elements: ["12940", "protected characteristic", "adverse employment action", "causal connection"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+
+  - question: "What constitutes a 'serious health condition' under CFRA for purposes of leave eligibility?"
+    category: "statutory_analysis"
+    expected_elements: ["serious health condition", "inpatient care", "continuing treatment", "CFRA"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12945.2"]
+
+  - question: "Analyze the scope of protected activity under Labor Code section 1102.5"
+    category: "statutory_analysis"
+    expected_elements: ["1102.5", "whistleblower", "protected activity", "disclosure", "law enforcement"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+
+  - question: "What are the employer obligations under the interactive process requirement of Government Code section 12940(n)?"
+    category: "statutory_analysis"
+    expected_elements: ["interactive process", "good faith", "reasonable accommodation", "12940"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+
+  - question: "What are the requirements for a valid WARN Act notice under California Labor Code sections 1400-1401?"
+    category: "statutory_analysis"
+    expected_elements: ["WARN", "60 days", "notice", "mass layoff", "plant closing"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1400", "1401"]
+
+  - question: "Analyze the scope of employer liability for harassment by supervisors versus non-supervisory employees under FEHA"
+    category: "statutory_analysis"
+    expected_elements: ["supervisor", "strict liability", "negligence", "harassment", "12940"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+
+  - question: "What constitutes 'adverse employment action' in a FEHA retaliation claim?"
+    category: "statutory_analysis"
+    expected_elements: ["adverse", "employment action", "retaliation", "material"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+
+  - question: "What are the elements of a failure-to-prevent harassment claim under Government Code section 12940(k)?"
+    category: "statutory_analysis"
+    expected_elements: ["failure to prevent", "reasonable steps", "12940", "harassment"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "What is the definition of 'disability' under FEHA and how does it differ from the ADA definition?"
+    category: "statutory_analysis"
+    expected_elements: ["disability", "FEHA", "limits", "major life activity"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12926"]
+
+  - question: "Analyze the employer coverage thresholds under FEHA versus federal anti-discrimination statutes"
+    category: "statutory_analysis"
+    expected_elements: ["five employees", "FEHA", "fifteen", "Title VII"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12926"]
+
+  - question: "What are the specific itemized wage statement requirements under Labor Code section 226?"
+    category: "statutory_analysis"
+    expected_elements: ["226", "wage statement", "itemized", "gross wages", "deductions"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["226"]
+
+  - question: "What constitutes a 'protected activity' under the whistleblower statutes?"
+    category: "statutory_analysis"
+    expected_elements: ["protected activity", "1102.5", "disclosure", "report"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+
+  # ==========================================
+  # BURDEN SHIFTING & PROOF (10 questions)
+  # ==========================================
+  - question: "Explain the burden-shifting framework under Labor Code section 1102.6 for whistleblower retaliation claims"
+    category: "burden_shifting"
+    expected_elements: ["1102.6", "burden", "contributing factor", "clear and convincing"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.6"]
+
+  - question: "How does the McDonnell Douglas burden-shifting framework apply to FEHA discrimination claims in California?"
+    category: "burden_shifting"
+    expected_elements: ["McDonnell Douglas", "prima facie", "legitimate", "pretext"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+
+  - question: "What is the distinction between the 'motivating factor' and 'but-for' causation standards in California employment discrimination law?"
+    category: "burden_shifting"
+    expected_elements: ["motivating factor", "but-for", "causation", "mixed-motive"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "What is the evidentiary standard for establishing 'pretext' in a FEHA wrongful termination case?"
+    category: "burden_shifting"
+    expected_elements: ["pretext", "legitimate", "nondiscriminatory", "inference"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "How does the burden of proof differ between FEHA retaliation and Labor Code 1102.5 retaliation claims?"
+    category: "burden_shifting"
+    expected_elements: ["1102.5", "1102.6", "contributing factor", "motivating reason"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5", "1102.6", "12940"]
+
+  - question: "What evidence is sufficient to establish a prima facie case of pregnancy discrimination under FEHA?"
+    category: "burden_shifting"
+    expected_elements: ["prima facie", "pregnancy", "adverse", "similarly situated"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940", "12945"]
+
+  - question: "What is the 'cat's paw' theory of liability in California employment discrimination cases?"
+    category: "burden_shifting"
+    expected_elements: ["subordinate bias", "decision maker", "influence", "discriminatory"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "What constitutes 'direct evidence' versus 'circumstantial evidence' of discriminatory intent under FEHA?"
+    category: "burden_shifting"
+    expected_elements: ["direct evidence", "circumstantial", "discriminatory intent", "inference"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "How does the 'honest belief' defense operate in California FEHA termination cases?"
+    category: "burden_shifting"
+    expected_elements: ["honest belief", "good faith", "nondiscriminatory", "investigation"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "Analyze the 'same actor' inference in FEHA discrimination cases"
+    category: "burden_shifting"
+    expected_elements: ["same actor", "inference", "discrimination", "hire", "fire"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  # ==========================================
+  # REMEDIES & DAMAGES (10 questions)
+  # ==========================================
+  - question: "What damages are available in a FEHA employment discrimination case?"
+    category: "remedies_damages"
+    expected_elements: ["compensatory", "punitive", "attorney fees", "emotional distress"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12965"]
+
+  - question: "Can an employee recover attorney fees under Labor Code section 1102.5?"
+    category: "remedies_damages"
+    expected_elements: ["attorney fees", "1102.5", "prevailing"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+
+  - question: "What injunctive relief is available for unfair business practices claims under the UCL?"
+    category: "remedies_damages"
+    expected_elements: ["injunctive relief", "restitution", "UCL", "17200"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["17200"]
+
+  - question: "How are emotional distress damages calculated in California employment discrimination cases?"
+    category: "remedies_damages"
+    expected_elements: ["emotional distress", "noneconomic", "damages"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12965"]
+
+  - question: "What are the waiting time penalty provisions under Labor Code section 203?"
+    category: "remedies_damages"
+    expected_elements: ["203", "waiting time", "penalty", "daily rate", "30 days"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["203"]
+
+  - question: "Analyze the penalty provisions for meal and rest break violations under Labor Code section 226.7"
+    category: "remedies_damages"
+    expected_elements: ["226.7", "premium pay", "one hour", "meal break", "rest break"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["226.7"]
+
+  - question: "What is the measure of front pay damages in a FEHA wrongful termination case?"
+    category: "remedies_damages"
+    expected_elements: ["front pay", "future", "lost wages", "mitigation"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12965"]
+
+  - question: "What penalties are available under Labor Code section 226 for wage statement violations?"
+    category: "remedies_damages"
+    expected_elements: ["226", "wage statement", "penalty", "$50", "$100"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["226"]
+
+  - question: "What are the civil penalty amounts available under PAGA for Labor Code violations?"
+    category: "remedies_damages"
+    expected_elements: ["PAGA", "penalty", "$100", "$200"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+
+  - question: "Is reinstatement available as a remedy in California whistleblower retaliation cases?"
+    category: "remedies_damages"
+    expected_elements: ["reinstatement", "1102.5", "remedy"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+
+  # ==========================================
+  # PROCEDURAL REQUIREMENTS (9 questions)
+  # ==========================================
+  - question: "What is the administrative exhaustion requirement for FEHA claims?"
+    category: "procedural"
+    expected_elements: ["exhaustion", "CRD", "right-to-sue", "complaint"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12960", "12965"]
+
+  - question: "What is the statute of limitations for filing a FEHA complaint with the CRD?"
+    category: "procedural"
+    expected_elements: ["three years", "statute of limitations", "CRD", "FEHA"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12960"]
+
+  - question: "What are the procedural requirements for filing a PAGA claim?"
+    category: "procedural"
+    expected_elements: ["PAGA", "LWDA", "notice", "65 days", "aggrieved"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699", "2699.3"]
+
+  - question: "What is the process for obtaining a right-to-sue letter from the CRD?"
+    category: "procedural"
+    expected_elements: ["right-to-sue", "CRD", "complaint", "immediate"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12965"]
+
+  - question: "What are the procedural requirements for filing a Labor Commissioner complaint?"
+    category: "procedural"
+    expected_elements: ["Labor Commissioner", "complaint", "hearing", "appeal"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["98"]
+
+  - question: "What is the statute of limitations for wage and hour claims under the Labor Code?"
+    category: "procedural"
+    expected_elements: ["statute of limitations", "three years", "four years", "wages"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["338"]
+
+  - question: "What is the statute of limitations for a PAGA claim?"
+    category: "procedural"
+    expected_elements: ["PAGA", "one year", "statute of limitations"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+
+  - question: "What are the tolling provisions that may extend the filing deadline for FEHA claims?"
+    category: "procedural"
+    expected_elements: ["tolling", "equitable", "discovery", "continuing violation"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12960"]
+
+  - question: "Can FEHA claims be subject to mandatory arbitration agreements in California?"
+    category: "procedural"
+    expected_elements: ["arbitration", "FEHA", "waiver", "unconscionability"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  # ==========================================
+  # WAGE & HOUR LITIGATION (10 questions)
+  # ==========================================
+  - question: "What are the elements for class certification in a California wage and hour class action?"
+    category: "wage_hour_litigation"
+    expected_elements: ["class certification", "numerosity", "commonality", "typicality"]
+    expected_categories: ["statutory_code"]
+    expected_citations: []
+
+  - question: "How is the 'regular rate of pay' calculated for overtime purposes under California law?"
+    category: "wage_hour_litigation"
+    expected_elements: ["regular rate", "overtime", "all remuneration", "non-discretionary"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["510", "515"]
+
+  - question: "What are the requirements for the executive exemption from overtime under California law?"
+    category: "wage_hour_litigation"
+    expected_elements: ["executive", "exemption", "salary", "management", "two employees"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["515"]
+
+  - question: "Analyze the ABC test for independent contractor classification under Labor Code sections 2775-2787"
+    category: "wage_hour_litigation"
+    expected_elements: ["ABC test", "control", "usual course", "independently established"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2775"]
+
+  - question: "What constitutes 'hours worked' for purposes of California overtime calculation?"
+    category: "wage_hour_litigation"
+    expected_elements: ["hours worked", "suffered or permitted", "control", "employer"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["510"]
+
+  - question: "What are the meal period requirements under Labor Code section 512?"
+    category: "wage_hour_litigation"
+    expected_elements: ["512", "meal period", "30 minutes", "five hours", "duty-free"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["512"]
+
+  - question: "What is the employer's burden to prove an employee is exempt from overtime under California law?"
+    category: "wage_hour_litigation"
+    expected_elements: ["exempt", "burden", "employer", "salary basis", "duties"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["515"]
+
+  - question: "Analyze the derivative penalty doctrine and stacking limitations under reformed PAGA"
+    category: "wage_hour_litigation"
+    expected_elements: ["PAGA", "derivative", "stacking", "penalty"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+
+  - question: "What are the requirements for a valid on-duty meal period agreement under California law?"
+    category: "wage_hour_litigation"
+    expected_elements: ["on-duty", "meal period", "nature of work", "written agreement"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["512"]
+
+  - question: "How do piece-rate compensation requirements work under Labor Code section 226.2?"
+    category: "wage_hour_litigation"
+    expected_elements: ["piece-rate", "226.2", "rest period", "nonproductive time"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["226.2"]
+
+  # ==========================================
+  # WRONGFUL TERMINATION CLAIMS (8 questions)
+  # ==========================================
+  - question: "What are the elements of a wrongful termination in violation of public policy claim?"
+    category: "wrongful_termination"
+    expected_elements: ["public policy", "fundamental", "constitutional", "statutory"]
+    expected_categories: ["statutory_code"]
+    expected_citations: []
+
+  - question: "What constitutes constructive discharge under California law and what elements must be proven?"
+    category: "wrongful_termination"
+    expected_elements: ["constructive discharge", "intolerable", "reasonable person", "resign"]
+    expected_categories: ["statutory_code"]
+    expected_citations: []
+
+  - question: "How does the after-acquired evidence doctrine limit remedies in California wrongful termination cases?"
+    category: "wrongful_termination"
+    expected_elements: ["after-acquired evidence", "remedies", "limitation", "back pay"]
+    expected_categories: ["statutory_code"]
+    expected_citations: []
+
+  - question: "What is the implied covenant of good faith and fair dealing as applied to employment termination in California?"
+    category: "wrongful_termination"
+    expected_elements: ["good faith", "fair dealing", "implied covenant", "contract"]
+    expected_categories: ["statutory_code"]
+    expected_citations: []
+
+  - question: "What are the elements of an implied-in-fact employment contract claim?"
+    category: "wrongful_termination"
+    expected_elements: ["implied contract", "handbook", "promises", "duration"]
+    expected_categories: ["statutory_code"]
+    expected_citations: []
+
+  - question: "Analyze the Tameny cause of action for wrongful discharge in violation of public policy"
+    category: "wrongful_termination"
+    expected_elements: ["Tameny", "public policy", "fundamental", "discharge"]
+    expected_categories: ["statutory_code"]
+    expected_citations: []
+
+  - question: "What is the standard for proving retaliatory termination under FEHA?"
+    category: "wrongful_termination"
+    expected_elements: ["retaliatory", "FEHA", "protected activity", "causal connection"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "Under what circumstances can an at-will employee bring a wrongful termination claim?"
+    category: "wrongful_termination"
+    expected_elements: ["at-will", "exceptions", "public policy", "discrimination"]
+    expected_categories: ["statutory_code"]
+    expected_citations: []
+
+  # ==========================================
+  # FEHA CLAIMS (10 questions)
+  # ==========================================
+  - question: "What are the employer obligations during the interactive process for disability accommodation?"
+    category: "feha_claims"
+    expected_elements: ["interactive process", "good faith", "accommodation", "alternatives"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12940"]
+
+  - question: "What constitutes 'undue hardship' as a defense to reasonable accommodation under FEHA?"
+    category: "feha_claims"
+    expected_elements: ["undue hardship", "expense", "difficulty", "employer size"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940", "12926"]
+
+  - question: "Can individual supervisors be held personally liable for harassment under FEHA?"
+    category: "feha_claims"
+    expected_elements: ["individual liability", "harassment", "supervisor", "personal"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "What is the standard for 'severe or pervasive' harassment under FEHA?"
+    category: "feha_claims"
+    expected_elements: ["severe or pervasive", "hostile", "totality", "reasonable person"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "What are the employer's affirmative duties to prevent discrimination and harassment under FEHA?"
+    category: "feha_claims"
+    expected_elements: ["prevent", "training", "policy", "investigation", "12940"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "Analyze the FEHA protections for employees perceived as having a disability"
+    category: "feha_claims"
+    expected_elements: ["perceived", "disability", "regarded as", "FEHA"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12926", "12940"]
+
+  - question: "What are the FEHA requirements for religious accommodation in the workplace?"
+    category: "feha_claims"
+    expected_elements: ["religious", "accommodation", "undue hardship", "sincerely held"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "What harassment training requirements are mandated under FEHA?"
+    category: "feha_claims"
+    expected_elements: ["training", "two years", "supervisors", "employees"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12950.1"]
+
+  - question: "What are the FEHA protections against national origin discrimination, including language restrictions?"
+    category: "feha_claims"
+    expected_elements: ["national origin", "language", "English-only", "business necessity"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940", "12951"]
+
+  - question: "What are the elements of a FEHA failure to accommodate disability claim?"
+    category: "feha_claims"
+    expected_elements: ["failure to accommodate", "disability", "reasonable", "interactive"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  # ==========================================
+  # RETALIATION & WHISTLEBLOWER (8 questions)
+  # ==========================================
+  - question: "What are the elements of a Labor Code section 1102.5 whistleblower retaliation claim?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["1102.5", "disclosure", "contributing factor", "retaliation"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+
+  - question: "How does the 'contributing factor' standard under Labor Code 1102.6 differ from traditional causation standards?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["contributing factor", "1102.6", "clear and convincing", "burden"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5", "1102.6"]
+
+  - question: "What protections does Labor Code section 6310 provide for employees who report safety violations?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["6310", "safety", "Cal/OSHA", "retaliation", "complaint"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["6310"]
+
+  - question: "What constitutes protected 'disclosure' under the California whistleblower statute?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["disclosure", "government", "law enforcement", "1102.5"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+
+  - question: "How do FEHA and Labor Code whistleblower protections overlap for retaliation claims?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["FEHA", "1102.5", "overlap", "retaliation"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940", "1102.5"]
+
+  - question: "Compare the remedies available under FEHA versus Labor Code section 1102.5"
+    category: "retaliation_whistleblower"
+    expected_elements: ["remedies", "FEHA", "1102.5", "damages"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12965", "1102.5"]
+
+  - question: "What is the temporal proximity standard for establishing a causal link in California retaliation cases?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["temporal proximity", "causal link", "timing", "retaliation"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "Can an employer lawfully terminate an employee who reports suspected legal violations that turn out to be unfounded?"
+    category: "retaliation_whistleblower"
+    expected_elements: ["reasonable belief", "good faith", "1102.5", "unfounded"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+
+  # ==========================================
+  # NON-COMPETE & TRADE SECRETS (7 questions)
+  # ==========================================
+  - question: "Analyze the scope and application of Business and Professions Code section 16600 on non-compete agreements"
+    category: "non_compete_trade_secrets"
+    expected_elements: ["16600", "void", "restraint", "trade", "business"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["16600"]
+
+  - question: "What are the elements of a trade secret misappropriation claim under CUTSA?"
+    category: "non_compete_trade_secrets"
+    expected_elements: ["trade secret", "misappropriation", "CUTSA", "reasonable measures"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["3426"]
+
+  - question: "How do non-compete restrictions under Business and Professions Code section 16600 interact with trade secret protections?"
+    category: "non_compete_trade_secrets"
+    expected_elements: ["16600", "trade secret", "non-compete", "confidential"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["16600"]
+
+  - question: "What are the narrow exceptions to the non-compete prohibition under California law?"
+    category: "non_compete_trade_secrets"
+    expected_elements: ["exceptions", "sale of business", "dissolution", "16601"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["16600", "16601"]
+
+  - question: "How do SB 699 and AB 1076 expand California's non-compete prohibitions?"
+    category: "non_compete_trade_secrets"
+    expected_elements: ["SB 699", "AB 1076", "out-of-state", "void"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["16600"]
+
+  - question: "What remedies are available to an employee against an employer who attempts to enforce a void non-compete?"
+    category: "non_compete_trade_secrets"
+    expected_elements: ["damages", "attorney fees", "injunction", "16600.5"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["16600", "16600.5"]
+
+  - question: "What constitutes a protectable trade secret under California law?"
+    category: "non_compete_trade_secrets"
+    expected_elements: ["trade secret", "independent economic value", "reasonable efforts", "secrecy"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["3426.1"]
+
+  # ==========================================
+  # CFRA/FMLA ISSUES (8 questions)
+  # ==========================================
+  - question: "What are the employer coverage and employee eligibility requirements for CFRA leave?"
+    category: "cfra_fmla"
+    expected_elements: ["five employees", "12 months", "1,250 hours", "CFRA"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12945.2"]
+
+  - question: "How does Pregnancy Disability Leave interact with CFRA bonding leave?"
+    category: "cfra_fmla"
+    expected_elements: ["PDL", "CFRA", "bonding", "four months", "12 weeks"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12945", "12945.2"]
+
+  - question: "What are the requirements for intermittent CFRA leave?"
+    category: "cfra_fmla"
+    expected_elements: ["intermittent", "CFRA", "medical necessity", "minimum increment"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12945.2"]
+
+  - question: "What is the relationship between SDI benefits and CFRA leave?"
+    category: "cfra_fmla"
+    expected_elements: ["SDI", "CFRA", "concurrent", "wage replacement"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: []
+
+  - question: "What are the employer's reinstatement obligations under CFRA?"
+    category: "cfra_fmla"
+    expected_elements: ["reinstatement", "same position", "comparable", "CFRA"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12945.2"]
+
+  - question: "Under what circumstances can an employer deny CFRA leave?"
+    category: "cfra_fmla"
+    expected_elements: ["deny", "CFRA", "eligibility", "key employee"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12945.2"]
+
+  - question: "What notice requirements apply to employees requesting CFRA leave?"
+    category: "cfra_fmla"
+    expected_elements: ["notice", "30 days", "foreseeable", "CFRA"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12945.2"]
+
+  - question: "How does CFRA coverage differ from federal FMLA for California employers?"
+    category: "cfra_fmla"
+    expected_elements: ["CFRA", "FMLA", "five employees", "50 employees"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12945.2"]
+
+  # ==========================================
+  # CLASS ACTION & PAGA (8 questions)
+  # ==========================================
+  - question: "What are the standing requirements for bringing a PAGA representative action?"
+    category: "class_action_paga"
+    expected_elements: ["PAGA", "aggrieved employee", "standing", "representative"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+
+  - question: "What are the notice requirements for filing a PAGA action with the LWDA?"
+    category: "class_action_paga"
+    expected_elements: ["LWDA", "notice", "65 days", "PAGA"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699.3"]
+
+  - question: "How do the 2024 PAGA reforms affect penalty calculations and employer safe harbors?"
+    category: "class_action_paga"
+    expected_elements: ["PAGA", "reform", "penalty", "cure", "reasonable steps"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+
+  - question: "What is the relationship between PAGA claims and individual Labor Code claims?"
+    category: "class_action_paga"
+    expected_elements: ["PAGA", "individual", "representative", "standing"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+
+  - question: "What considerations apply to PAGA settlement approval by the court?"
+    category: "class_action_paga"
+    expected_elements: ["settlement", "fair", "reasonable", "adequate", "LWDA"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+
+  - question: "Can an arbitration agreement compel individual arbitration of PAGA claims?"
+    category: "class_action_paga"
+    expected_elements: ["arbitration", "PAGA", "Viking River", "individual"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+
+  - question: "How are PAGA penalties allocated between the state and aggrieved employees?"
+    category: "class_action_paga"
+    expected_elements: ["PAGA", "penalties", "35%", "65%", "LWDA"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+
+  - question: "What is the scope of discovery available in PAGA representative actions?"
+    category: "class_action_paga"
+    expected_elements: ["PAGA", "discovery", "representative", "aggrieved"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+
+  # ==========================================
+  # CROSS-STATUTORY ISSUES (6 questions)
+  # ==========================================
+  - question: "How do California's multiple leave laws (PDL, CFRA, SDI, PFL) interact for an employee who becomes pregnant?"
+    category: "cross_statutory"
+    expected_elements: ["PDL", "CFRA", "SDI", "PFL", "stacking"]
+    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_citations: ["12945", "12945.2"]
+
+  - question: "How do the overlapping protections of FEHA, Title VII, and Section 1981 apply to a racial discrimination claim?"
+    category: "cross_statutory"
+    expected_elements: ["FEHA", "Title VII", "1981", "racial discrimination"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "Analyze the interplay between workers' compensation exclusivity and FEHA disability discrimination claims"
+    category: "cross_statutory"
+    expected_elements: ["workers' compensation", "exclusivity", "FEHA", "disability"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "How do Labor Code wage protections interact with Business and Professions Code section 17200 claims?"
+    category: "cross_statutory"
+    expected_elements: ["17200", "UCL", "Labor Code", "unfair business practice"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["17200"]
+
+  - question: "What is the relationship between a common law wrongful discharge claim and statutory FEHA retaliation?"
+    category: "cross_statutory"
+    expected_elements: ["common law", "FEHA", "wrongful discharge", "retaliation"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "When can an employee bring both individual and PAGA claims for the same underlying violation?"
+    category: "cross_statutory"
+    expected_elements: ["individual", "PAGA", "same violation", "concurrent"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+
+  # ==========================================
+  # JURY INSTRUCTIONS & TRIAL (5 questions)
+  # ==========================================
+  - question: "What CACI jury instruction governs the elements of a FEHA disparate treatment claim?"
+    category: "jury_instructions"
+    expected_elements: ["CACI", "disparate treatment", "2500"]
+    expected_categories: ["statutory_code", "jury_instruction"]
+    expected_citations: ["12940"]
+
+  - question: "What is the CACI instruction for disability discrimination essential factual elements?"
+    category: "jury_instructions"
+    expected_elements: ["CACI", "2540", "disability", "elements"]
+    expected_categories: ["jury_instruction"]
+    expected_citations: ["12940"]
+
+  - question: "What CACI instruction addresses constructive discharge?"
+    category: "jury_instructions"
+    expected_elements: ["CACI", "2510", "constructive discharge", "intolerable"]
+    expected_categories: ["jury_instruction"]
+    expected_citations: []
+
+  - question: "What CACI instructions are applicable to whistleblower retaliation claims?"
+    category: "jury_instructions"
+    expected_elements: ["CACI", "whistleblower", "retaliation", "4603"]
+    expected_categories: ["jury_instruction", "statutory_code"]
+    expected_citations: ["1102.5"]
+
+  - question: "What is the CACI instruction for after-acquired evidence limitation on remedies?"
+    category: "jury_instructions"
+    expected_elements: ["CACI", "2506", "after-acquired", "remedies"]
+    expected_categories: ["jury_instruction"]
+    expected_citations: []
+
+  # ==========================================
+  # CITATION LOOKUPS (4 questions)
+  # ==========================================
+  - question: "Lab. Code section 1102.5"
+    category: "citation_lookup"
+    expected_elements: ["1102.5", "whistleblower"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["1102.5"]
+
+  - question: "Gov. Code section 12940"
+    category: "citation_lookup"
+    expected_elements: ["12940", "discrimination", "harassment"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  - question: "Bus. & Prof. Code section 16600"
+    category: "citation_lookup"
+    expected_elements: ["16600", "non-compete", "void"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["16600"]
+
+  - question: "Lab. Code section 512"
+    category: "citation_lookup"
+    expected_elements: ["512", "meal period"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["512"]
+
+  # ==========================================
+  # EDGE CASES & FUNCTIONAL TESTS (5 questions)
+  # ==========================================
+
+  # Very long detailed fact pattern
+  - question: "Client is a 52-year-old software engineer at a company with 200 employees in Santa Clara. She has worked there for 7 years with consistently excellent performance reviews. She was diagnosed with multiple sclerosis last year and requested to work from home three days per week as a reasonable accommodation. HR said they'd 'look into it' but never followed up. Three months later she was terminated in a 'reduction in force' but her position was immediately filled by a 28-year-old. She has documentation of her accommodation request and the RIF notice. Analyze the potential claims."
+    category: "edge_cases"
+    expected_elements: ["disability", "age", "accommodation", "interactive process", "FEHA", "pretext"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  # Question seeking case law (out of our scope)
+  - question: "What is the leading case law on mixed-motive analysis in California FEHA discrimination claims?"
+    category: "edge_cases"
+    expected_elements: ["mixed-motive", "FEHA"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12940"]
+
+  # Federal law question
+  - question: "What are the elements of a Title VII disparate impact claim in the Ninth Circuit?"
+    category: "edge_cases"
+    expected_elements: ["Title VII", "disparate impact", "federal"]
+    expected_categories: []
+    expected_citations: []
+
+  # Very short question
+  - question: "PAGA standing requirements"
+    category: "edge_cases"
+    expected_elements: ["PAGA", "aggrieved", "standing"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["2699"]
+
+  # Pure statutory citation
+  - question: "What does Government Code 12945.2 say?"
+    category: "edge_cases"
+    expected_elements: ["12945.2", "CFRA", "leave"]
+    expected_categories: ["statutory_code"]
+    expected_citations: ["12945.2"]

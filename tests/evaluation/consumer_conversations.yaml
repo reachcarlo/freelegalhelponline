@@ -1,0 +1,97 @@
+# Consumer mode multi-turn conversation tests
+# Tests follow-up handling, short follow-ups, topic switches, turn limits
+
+conversations:
+  # Standard 3-turn conversation with progressive detail
+  - name: "Overtime question with employer size follow-up"
+    turns:
+      - query: "My employer isn't paying me overtime. What are my rights?"
+        category: "wages_overtime"
+        expected_elements: ["overtime", "time and a half", "eight hours"]
+      - query: "I work at a restaurant with about 30 employees. I usually work 10-hour shifts."
+        category: "wages_overtime"
+        expected_elements: ["overtime", "meal break", "rest break"]
+      - query: "How do I file a complaint?"
+        category: "wages_overtime"
+        expected_elements: ["Labor Commissioner", "file", "claim"]
+
+  # Short follow-up test (< 6 words should expand with original query)
+  - name: "Discrimination with short fact follow-up"
+    turns:
+      - query: "I think I'm being discriminated against at work because of my age."
+        category: "discrimination_harassment"
+        expected_elements: ["age", "discrimination", "FEHA"]
+      - query: "I'm 55 years old"
+        category: "discrimination_harassment"
+        expected_elements: ["age", "40", "FEHA"]
+      - query: "About 200 employees"
+        category: "discrimination_harassment"
+        expected_elements: ["FEHA", "complaint", "CRD"]
+
+  # Topic switch within conversation
+  - name: "Topic switch from harassment to leave"
+    turns:
+      - query: "I'm being sexually harassed by a coworker. What should I do?"
+        category: "discrimination_harassment"
+        expected_elements: ["sexual harassment", "report", "complaint"]
+      - query: "This has been causing me so much stress I need to take time off work. What are my options for leave?"
+        category: "family_medical_leave"
+        expected_elements: ["leave", "CFRA"]
+      - query: "Can I file for disability while I'm on leave?"
+        category: "unemployment_disability"
+        expected_elements: ["disability", "SDI"]
+
+  # Final turn should give definitive answer (no questions)
+  - name: "Final turn gives definitive guidance"
+    turns:
+      - query: "Can my employer fire me while I'm on maternity leave?"
+        category: "family_medical_leave"
+        expected_elements: ["maternity", "leave", "job protection"]
+      - query: "I work for a company with 20 employees and I've been there for 2 years"
+        category: "family_medical_leave"
+        expected_elements: ["CFRA", "PDL", "job protection"]
+      - query: "My boss already told me they're not going to hold my position"
+        category: "family_medical_leave"
+        expected_elements: ["illegal", "rights", "complaint"]
+
+  # Conversation with facts-only follow-ups
+  - name: "Wage theft with facts-only responses"
+    turns:
+      - query: "I think my employer is stealing my wages"
+        category: "wages_overtime"
+        expected_elements: ["wage theft", "Labor Commissioner"]
+      - query: "Restaurant worker. 3 years. No overtime pay. No rest breaks. Tips taken by manager."
+        category: "wages_overtime"
+        expected_elements: ["overtime", "tips", "breaks"]
+      - query: "I have pay stubs showing 50-hour weeks with no overtime premium"
+        category: "wages_overtime"
+        expected_elements: ["file", "claim", "evidence"]
+
+  # Turn limit test (attempt to exceed 3 turns)
+  - name: "Consumer turn limit enforcement"
+    turns:
+      - query: "What is the minimum wage in California?"
+        category: "wages_overtime"
+        expected_elements: ["minimum wage"]
+      - query: "What about fast food workers?"
+        category: "wages_overtime"
+        expected_elements: ["fast food"]
+      - query: "And healthcare workers?"
+        category: "wages_overtime"
+        expected_elements: ["healthcare"]
+      - query: "This should be blocked by the turn limit"
+        category: "turn_limit"
+        expected_elements: []
+
+  # Very long detailed initial question
+  - name: "Long detailed question with refinement"
+    turns:
+      - query: "I've been working as a software developer for a tech startup in San Francisco for the past 18 months. When I was hired, they classified me as an exempt employee and told me I wouldn't get overtime. However, I don't manage anyone, I don't make any important business decisions on my own, and I spend all day writing code based on specifications my manager gives me. I regularly work 50-60 hours per week. My annual salary is $85,000. I'm starting to wonder if I've been misclassified. What should I know?"
+        category: "wages_overtime"
+        expected_elements: ["exempt", "overtime", "duties", "classification"]
+      - query: "So if I'm misclassified, how far back can I claim overtime?"
+        category: "wages_overtime"
+        expected_elements: ["statute of limitations", "three years", "overtime"]
+      - query: "What's the best way to proceed?"
+        category: "wages_overtime"
+        expected_elements: ["Labor Commissioner", "attorney", "claim"]

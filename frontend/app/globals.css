@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+/* ── Consumer mode (dark) ── */
+[data-mode="consumer"] {
+  --background: #0f172a;
+  --surface: #1e293b;
+  --surface-raised: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #64748b;
+  --accent: #38bdf8;
+  --accent-hover: #7dd3fc;
+  --accent-surface: rgba(56, 189, 248, 0.1);
+  --border: #334155;
+  --border-hover: #475569;
+  --error-bg: rgba(239, 68, 68, 0.1);
+  --error-border: rgba(239, 68, 68, 0.3);
+  --error-text: #fca5a5;
+  --warning-bg: rgba(245, 158, 11, 0.1);
+  --warning-border: rgba(245, 158, 11, 0.3);
+  --warning-text: #fcd34d;
+  --badge-bg: #334155;
+  --badge-text: #cbd5e1;
+  --toggle-bg: #1e293b;
+  --toggle-active-bg: #334155;
+  --input-bg: #1e293b;
+  --feedback-hover-up: rgba(34, 197, 94, 0.1);
+  --feedback-hover-down: rgba(239, 68, 68, 0.1);
+  --feedback-text-up: #4ade80;
+  --feedback-text-down: #f87171;
+}
+
+/* ── Attorney mode (light) ── */
+[data-mode="attorney"] {
+  --background: #ffffff;
+  --surface: #f8f9fa;
+  --surface-raised: #ffffff;
+  --text-primary: #1a1a2e;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-surface: rgba(37, 99, 235, 0.05);
+  --border: #e2e8f0;
+  --border-hover: #93c5fd;
+  --error-bg: #fef2f2;
+  --error-border: #fecaca;
+  --error-text: #b91c1c;
+  --warning-bg: #fffbeb;
+  --warning-border: #fde68a;
+  --warning-text: #92400e;
+  --badge-bg: #e2e8f0;
+  --badge-text: #475569;
+  --toggle-bg: #f1f5f9;
+  --toggle-active-bg: #ffffff;
+  --input-bg: #ffffff;
+  --feedback-hover-up: #f0fdf4;
+  --feedback-hover-down: #fef2f2;
+  --feedback-text-up: #15803d;
+  --feedback-text-down: #b91c1c;
+}
+
+/* ── Register tokens for Tailwind ── */
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-surface: var(--accent-surface);
+  --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
+  --color-error-bg: var(--error-bg);
+  --color-error-border: var(--error-border);
+  --color-error-text: var(--error-text);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+  --color-warning-text: var(--warning-text);
+  --color-badge-bg: var(--badge-bg);
+  --color-badge-text: var(--badge-text);
+  --color-toggle-bg: var(--toggle-bg);
+  --color-toggle-active-bg: var(--toggle-active-bg);
+  --color-input-bg: var(--input-bg);
+  --color-feedback-hover-up: var(--feedback-hover-up);
+  --color-feedback-hover-down: var(--feedback-hover-down);
+  --color-feedback-text-up: var(--feedback-text-up);
+  --color-feedback-text-down: var(--feedback-text-down);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --animate-loading-bar: loading-bar 1.5s ease-in-out infinite;
+}
+
+/* ── Loading bar animation ── */
+@keyframes loading-bar {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(200%); }
+  100% { transform: translateX(-100%); }
+}
+
+/* ── Base styles ── */
+body {
+  background: var(--background);
+  color: var(--text-primary);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ── Prose overrides for themed markdown ── */
+[data-mode="consumer"] .prose {
+  --tw-prose-body: #cbd5e1;
+  --tw-prose-headings: #f1f5f9;
+  --tw-prose-bold: #f1f5f9;
+  --tw-prose-links: #38bdf8;
+  --tw-prose-counters: #64748b;
+  --tw-prose-bullets: #64748b;
+  --tw-prose-quotes: #cbd5e1;
+  --tw-prose-quote-borders: #334155;
+  --tw-prose-code: #f1f5f9;
+  --tw-prose-hr: #334155;
+  --tw-prose-th-borders: #334155;
+  --tw-prose-td-borders: #1e293b;
+}
+
+[data-mode="attorney"] .prose {
+  --tw-prose-body: #475569;
+  --tw-prose-headings: #1a1a2e;
+  --tw-prose-bold: #1a1a2e;
+  --tw-prose-links: #2563eb;
+  --tw-prose-counters: #94a3b8;
+  --tw-prose-bullets: #94a3b8;
+  --tw-prose-quotes: #475569;
+  --tw-prose-quote-borders: #e2e8f0;
+  --tw-prose-code: #1a1a2e;
+  --tw-prose-hr: #e2e8f0;
+  --tw-prose-th-borders: #e2e8f0;
+  --tw-prose-td-borders: #f1f5f9;
+}

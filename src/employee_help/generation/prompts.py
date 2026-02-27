@@ -31,6 +31,7 @@ class PromptBundle:
     - user_message: The user's question (without context)
     - document_blocks: Citation API document blocks for each retrieved chunk
     - context_chunks: The retrieval results used (for post-processing)
+    - messages: Pre-built messages array for multi-turn (None for single-turn)
     """
 
     system_prompt: str
@@ -38,6 +39,7 @@ class PromptBundle:
     document_blocks: list[dict[str, Any]] = field(default_factory=list)
     context_chunks: list[RetrievalResult] = field(default_factory=list)
     total_tokens_estimate: int = 0
+    messages: list[dict[str, Any]] | None = None
 
 
 class PromptBuilder:
@@ -51,11 +53,13 @@ class PromptBuilder:
         self,
         prompts_dir: str = "config/prompts",
         max_context_tokens: int = 6000,
+        rag_config: dict | None = None,
     ) -> None:
         self.prompts_dir = Path(prompts_dir)
         self.max_context_tokens = max_context_tokens
         self._templates: dict[str, str] = {}
         self._jinja_env = None
+        self._rag_config = rag_config or {}
         self.logger = structlog.get_logger(__name__)
 
     def _get_jinja_env(self):
@@ -96,6 +100,11 @@ class PromptBuilder:
         template = env.from_string(template_text)
         return template.render(**kwargs)
 
+    def _get_tone_config(self, mode: str) -> dict:
+        """Get tone/response format config for a mode."""
+        tone = self._rag_config.get("tone", {})
+        return tone.get(mode, {})
+
     def _estimate_tokens(self, text: str) -> int:
         """Estimate token count for a text."""
         return max(1, len(text) // CHARS_PER_TOKEN)
@@ -123,7 +132,8 @@ class PromptBuilder:
         # Load and render system prompt template
         template_name = f"{mode}_system.j2"
         system_template = self._load_template(template_name)
-        system_prompt = self._render_template(system_template)
+        tone_config = self._get_tone_config(mode)
+        system_prompt = self._render_template(system_template, tone=tone_config)
 
         # Select chunks that fit within the token budget
         context_chunks = self._fit_to_budget(retrieval_results)
@@ -200,6 +210,134 @@ class PromptBuilder:
             blocks.append(block)
 
         return blocks
+
+    def build_prompt_multiturn(
+        self,
+        query: str,
+        mode: str,
+        retrieval_results: list[RetrievalResult],
+        conversation_history: list[dict[str, str]],
+        turn_number: int,
+        max_turns: int,
+        history_token_budget: int = 2000,
+    ) -> PromptBundle:
+        """Build a multi-turn prompt with conversation history and fresh retrieval.
+
+        Historical turns are sent as plain text (no document blocks).
+        Only the current turn gets fresh document blocks from retrieval.
+        History is trimmed to fit within history_token_budget.
+
+        Args:
+            query: Current user question.
+            mode: "consumer" or "attorney".
+            retrieval_results: Fresh retrieval results for the current turn.
+            conversation_history: List of {"role": "user"|"assistant", "content": str}.
+            turn_number: Current turn (1-based).
+            max_turns: Maximum allowed turns for this mode.
+            history_token_budget: Token budget for conversation history.
+
+        Returns:
+            PromptBundle with messages array populated for multi-turn.
+        """
+        turns_remaining = max(0, max_turns - turn_number)
+
+        # Render system prompt with turn context and tone config
+        template_name = f"{mode}_system.j2"
+        system_template = self._load_template(template_name)
+        tone_config = self._get_tone_config(mode)
+        system_prompt = self._render_template(
+            system_template,
+            turn_number=turn_number,
+            max_turns=max_turns,
+            turns_remaining=turns_remaining,
+            tone=tone_config,
+        )
+
+        # Fit retrieval results to budget
+        context_chunks = self._fit_to_budget(retrieval_results)
+        document_blocks = self._build_document_blocks(context_chunks)
+
+        # Trim history to fit token budget (keep first turn + most recent)
+        trimmed_history = self._trim_history(conversation_history, history_token_budget)
+
+        # Build messages array: historical turns as plain text, current with doc blocks
+        messages: list[dict[str, Any]] = []
+        for turn in trimmed_history:
+            messages.append({
+                "role": turn["role"],
+                "content": turn["content"],
+            })
+
+        # Current turn: document blocks + user query
+        current_content: list[dict[str, Any]] = []
+        current_content.extend(document_blocks)
+        current_content.append({"type": "text", "text": query})
+        messages.append({"role": "user", "content": current_content})
+
+        total_estimate = (
+            self._estimate_tokens(system_prompt)
+            + sum(self._estimate_tokens(t["content"]) for t in trimmed_history)
+            + self._estimate_tokens(query)
+            + sum(self._estimate_tokens(c.content) for c in context_chunks)
+        )
+
+        self.logger.debug(
+            "multiturn_prompt_built",
+            mode=mode,
+            turn_number=turn_number,
+            max_turns=max_turns,
+            history_turns=len(trimmed_history),
+            context_chunks=len(context_chunks),
+            total_tokens_estimate=total_estimate,
+        )
+
+        return PromptBundle(
+            system_prompt=system_prompt,
+            user_message=query,
+            document_blocks=document_blocks,
+            context_chunks=context_chunks,
+            total_tokens_estimate=total_estimate,
+            messages=messages,
+        )
+
+    def _trim_history(
+        self,
+        history: list[dict[str, str]],
+        token_budget: int,
+    ) -> list[dict[str, str]]:
+        """Trim conversation history to fit within token budget.
+
+        Strategy: always keep the first user/assistant pair, then add
+        the most recent pairs until the budget is exhausted.
+        """
+        if not history:
+            return []
+
+        total_tokens = sum(self._estimate_tokens(t["content"]) for t in history)
+        if total_tokens <= token_budget:
+            return list(history)
+
+        # Keep first pair (turns 0-1) + most recent pairs
+        first_pair = history[:2] if len(history) >= 2 else list(history)
+        first_pair_tokens = sum(self._estimate_tokens(t["content"]) for t in first_pair)
+
+        if first_pair_tokens >= token_budget:
+            # Even the first pair is too large; truncate content
+            return first_pair
+
+        remaining_budget = token_budget - first_pair_tokens
+        remaining = history[2:]
+
+        # Add from the end (most recent)
+        kept_tail: list[dict[str, str]] = []
+        for turn in reversed(remaining):
+            turn_tokens = self._estimate_tokens(turn["content"])
+            if turn_tokens > remaining_budget:
+                break
+            kept_tail.insert(0, turn)
+            remaining_budget -= turn_tokens
+
+        return first_pair + kept_tail
 
     def _fit_to_budget(
         self,

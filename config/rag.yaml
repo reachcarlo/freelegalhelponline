@@ -30,7 +30,53 @@ generation:
   max_output_tokens: 2000    # Max answer length
   temperature: 0.1           # Low temperature for factual accuracy
   citations_enabled: true    # Use Claude Citations API
-  timeout_seconds: 120
+  timeout_seconds: 45
 
   # Citation validation
   citation_validation: "strict"  # "strict" (remove hallucinated) or "permissive" (mark [unverified])
+
+conversation:
+  max_turns:
+    consumer: 3
+    attorney: 5
+  history_token_budget: 2000
+  short_followup_threshold: 6
+
+# Tone and style settings — adjust these to change response style
+tone:
+  consumer:
+    reading_level: "college"
+    style: "conversational"
+    questioning_style: "inviting"  # warm, supportive — "I'd love to help you narrow this down"
+    # Response sections (rendered in order). Set a section to null to skip it.
+    response_format:
+      - heading: "Short Answer"
+        instruction: "A direct 2-3 sentence answer to the question in plain language."
+      - heading: "What You Should Know"
+        instruction: "2-3 paragraphs (3-5 sentences each) explaining the relevant rights, protections, and practical details. Use topic sentences and transitions."
+      - heading: "Next Steps"
+        instruction: "Concrete actions the person can take — filing a complaint, contacting an agency, consulting an attorney. Be specific."
+      - heading: "A Few Questions That Would Help"
+        instruction: "1-2 pointed questions whose answers would let you give significantly more specific guidance. Frame them warmly. Omit this section on the final turn."
+
+  attorney:
+    reading_level: "3rd-year-associate"
+    style: "conversational-professional"
+    questioning_style: "discerning"  # precise, challenging — "the analysis turns on whether..."
+    # Response sections (rendered in order). Set a section to null to skip it.
+    response_format:
+      - heading: "tl;dr"
+        instruction: "One sentence. The bottom line a partner would want to hear walking into a meeting."
+      - heading: "Short Answer"
+        instruction: "2-3 sentences. The core legal conclusion with the key statutory basis."
+      - heading: "Analysis"
+        instruction: "3-5 paragraphs (3-5 sentences each). Full statutory analysis with citations, elements, burdens, defenses, and remedies as applicable. Use topic sentences and transitions. Each paragraph should advance the analysis."
+      - heading: "Follow-up Questions"
+        instruction: "2-3 precise, pointed questions that would materially sharpen the analysis. Frame them as an experienced associate probing for the facts that matter — e.g., 'The burden-shifting framework changes significantly depending on employer size. How many employees?' Omit this section on the final turn."
+
+# Progressive detail: the system should provide more detailed and certain
+# answers as the user provides more information across turns. Early turns
+# can hedge more; later turns should commit to the best available answer.
+progressive_detail:
+  early_turn_hedge: true   # OK to say "it depends" and ask for facts
+  final_turn_commit: true  # Must give best answer with available info + point to resources
