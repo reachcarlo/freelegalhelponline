@@ -32,6 +32,6 @@ htmlcov/
 
 # Docs and misc
 docs/
-*.md
+!docs/requirements/PHASE_1_KNOWLEDGE_ACQUISITION.md
 spike/
 .claude/
