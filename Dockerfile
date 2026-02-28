@@ -46,9 +46,6 @@ COPY --from=builder /app/pyproject.toml pyproject.toml
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-# Data directory — mount Railway persistent volume here
-VOLUME /app/data
-
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
