@@ -2,13 +2,14 @@ import { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Terms of Use — Free Legal Help",
+  title: "Terms of Use — Find Legal Help",
   description:
-    "Terms of Use for Free Legal Help, an AI-powered California employment law information tool.",
+    "Terms of Use for Find Legal Help (findlegalhelp.online), an AI-powered California employment law information tool.",
 };
 
 export default function TermsPage() {
   return (
+    <div className="h-full overflow-y-auto">
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
       <nav className="mb-6 text-sm text-text-tertiary">
         <Link href="/" className="hover:text-accent">
@@ -31,7 +32,7 @@ export default function TermsPage() {
             1. Acceptance of Terms
           </h2>
           <p className="mt-3">
-            By accessing or using Free Legal Help (&quot;the Service&quot;), you
+            By accessing or using Find Legal Help (findlegalhelp.online) (&quot;the Service&quot;), you
             agree to be bound by these Terms of Use. If you do not agree, do not
             use the Service.
           </p>
@@ -168,6 +169,7 @@ export default function TermsPage() {
           Back to Home
         </Link>
       </div>
+    </div>
     </div>
   );
 }

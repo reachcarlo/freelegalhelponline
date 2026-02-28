@@ -90,14 +90,32 @@
   --color-feedback-text-down: var(--feedback-text-down);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --animate-loading-bar: loading-bar 1.5s ease-in-out infinite;
+  --animate-blink: blink 0.8s step-end infinite;
+  --animate-fade-in: fade-in 0.3s ease-out;
 }
 
-/* ── Loading bar animation ── */
-@keyframes loading-bar {
-  0% { transform: translateX(-100%); }
-  50% { transform: translateX(200%); }
-  100% { transform: translateX(-100%); }
+/* ── Typing dots animation ── */
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+.typing-dot { animation: typing-bounce 1.4s ease-in-out infinite; }
+
+/* ── Blinking cursor animation ── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* ── Fade-in animation for new messages ── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── dvh fallback for older browsers ── */
+@supports not (height: 1dvh) {
+  .h-dvh { height: 100vh; }
 }
 
 /* ── Base styles ── */

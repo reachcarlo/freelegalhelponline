@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ConsentProvider } from "@/lib/consent-context";
@@ -21,12 +21,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
-  title: "Free Legal Help — California Employment Rights",
+  title: "Find Legal Help — California Employment Rights",
   description:
     "AI-powered answers about California employment law. Get plain-language guidance on your workplace rights or statutory analysis for legal research.",
   openGraph: {
-    title: "Free Legal Help — California Employment Rights",
+    title: "Find Legal Help — California Employment Rights",
     description:
       "AI-powered answers about California employment law. Get plain-language guidance on your workplace rights.",
     type: "website",
@@ -59,8 +65,8 @@ export default function RootLayout({
       >
         <ConsentProvider>
           <ModeProvider>
-            <div className="flex min-h-screen flex-col">
-              <main className="flex-1">{children}</main>
+            <div className="flex h-dvh flex-col overflow-hidden">
+              <main className="flex-1 flex flex-col min-h-0">{children}</main>
               <Disclaimer />
             </div>
           </ModeProvider>

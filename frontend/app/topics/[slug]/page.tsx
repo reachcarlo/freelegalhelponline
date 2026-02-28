@@ -19,7 +19,7 @@ export async function generateMetadata({
   if (!topic) return {};
 
   return {
-    title: `${topic.title} — Free Legal Help`,
+    title: `${topic.title} — Find Legal Help`,
     description: topic.metaDescription,
     openGraph: {
       title: topic.title,
@@ -59,6 +59,7 @@ export default async function TopicPage({ params }: TopicPageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
+      <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="mb-6 text-sm text-text-tertiary">
@@ -164,6 +165,7 @@ export default async function TopicPage({ params }: TopicPageProps) {
             </div>
           </section>
         )}
+      </div>
       </div>
     </>
   );
