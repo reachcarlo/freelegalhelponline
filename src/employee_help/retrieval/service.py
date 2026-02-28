@@ -164,7 +164,7 @@ class RetrievalService:
         """Build LanceDB filter expression based on mode and language."""
         filters = ["is_active = true"]
 
-        if language:
+        if language and "language" in self.vector_store.columns:
             filters.append(f"language = '{language}'")
 
         if mode == "consumer":

@@ -70,6 +70,16 @@ class VectorStore:
     def table(self):
         return self._get_table()
 
+    @property
+    def columns(self) -> set[str]:
+        """Return the set of column names in the embeddings table."""
+        if self.table is None:
+            return set()
+        try:
+            return set(self.table.schema.names)
+        except Exception:
+            return set()
+
     # ── Table creation ──────────────────────────────────────────────
 
     def create_table(self, embeddings: list[ChunkEmbedding]) -> None:
