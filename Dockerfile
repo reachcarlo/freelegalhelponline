@@ -16,8 +16,11 @@ WORKDIR /app
 # Copy dependency files first (layer caching)
 COPY pyproject.toml uv.lock ./
 
-# Install production dependencies (rag + web groups)
-RUN uv sync --frozen --no-dev --extra rag --extra web
+# Copy readme referenced by pyproject.toml
+COPY docs/requirements/PHASE_1_KNOWLEDGE_ACQUISITION.md docs/requirements/
+
+# Install dependencies only (no project install yet)
+RUN uv sync --frozen --no-dev --extra rag --extra web --no-install-project
 
 # Copy source code and config
 COPY src/ src/
