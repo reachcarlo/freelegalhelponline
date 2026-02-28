@@ -49,9 +49,23 @@ COPY --from=builder /app/pyproject.toml pyproject.toml
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
+# Bootstrap data (baked into image, copied to volume on first boot)
+COPY data/lancedb/ /app/_bootstrap/lancedb/
+COPY data/employee_help.db /app/_bootstrap/employee_help.db
+
+# Startup script: copy bootstrap data to volume if empty, then start server
+RUN echo '#!/bin/sh\n\
+if [ ! -f /app/data/employee_help.db ]; then\n\
+  echo "Bootstrapping data to volume..."\n\
+  cp -r /app/_bootstrap/* /app/data/\n\
+  echo "Bootstrap complete."\n\
+fi\n\
+exec uvicorn employee_help.api.main:app --host 0.0.0.0 --port ${PORT:-8000}\n\
+' > /app/start.sh && chmod +x /app/start.sh
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/api/health || exit 1
 
-CMD ["sh", "-c", "uvicorn employee_help.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["/app/start.sh"]
