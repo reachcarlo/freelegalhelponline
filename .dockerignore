@@ -5,11 +5,8 @@ frontend/
 tests/
 learning/
 
-# Data files — allow splits and small lancedb files for bootstrap
+# Data files (served from persistent volume)
 data/
-!data/splits/
-!data/lancedb/
-data/lancedb/chunk_embeddings.lance/data/0000001000110111110001105ab58d465ea9b138c06c4baa3b.lance
 
 # Git and IDE
 .git/
