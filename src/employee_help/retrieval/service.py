@@ -160,9 +160,12 @@ class RetrievalService:
 
         return results
 
-    def _build_filter(self, mode: str) -> str | None:
-        """Build LanceDB filter expression based on mode."""
+    def _build_filter(self, mode: str, language: str = "en") -> str | None:
+        """Build LanceDB filter expression based on mode and language."""
         filters = ["is_active = true"]
+
+        if language:
+            filters.append(f"language = '{language}'")
 
         if mode == "consumer":
             categories = ", ".join(f"'{c}'" for c in CONSUMER_CATEGORIES)

@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from employee_help.config import CrawlConfig, ChunkingConfig, SourceConfig, StatutoryConfig, ExtractionConfig
-from employee_help.pipeline import Pipeline, PipelineStats
+from employee_help.pipeline import Pipeline, PipelineStats, detect_language_from_url
 from employee_help.scraper.crawler import CrawlResult, UrlClassification
 from employee_help.storage.models import ContentCategory, ContentType, SourceType
 
@@ -366,3 +366,84 @@ class TestCACIPipelineRouting:
         assert len(chunks) > 0
         for chunk in chunks:
             assert chunk.content_category == ContentCategory.JURY_INSTRUCTION
+
+
+class TestDetectLanguageFromUrl:
+    """Tests for detect_language_from_url()."""
+
+    def test_english_suffix(self) -> None:
+        assert detect_language_from_url("https://example.com/Fact-Sheet_ENG.pdf") == "en"
+
+    def test_spanish_patterns(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_Spanish.pdf") == "es"
+        assert detect_language_from_url("https://example.com/doc_SP.pdf") == "es"
+        assert detect_language_from_url("https://example.com/doc_ES.pdf") == "es"
+
+    def test_chinese_patterns(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_CHINESE.pdf") == "zh"
+        assert detect_language_from_url("https://example.com/doc_CH.pdf") == "zh"
+        assert detect_language_from_url("https://example.com/doc_CHN.pdf") == "zh"
+
+    def test_korean_patterns(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_KOREAN.pdf") == "ko"
+        assert detect_language_from_url("https://example.com/doc_KO.pdf") == "ko"
+        assert detect_language_from_url("https://example.com/doc_KR.pdf") == "ko"
+        assert detect_language_from_url("https://example.com/doc_K.pdf") == "ko"
+
+    def test_tagalog_patterns(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_TAGALOG.pdf") == "tl"
+        assert detect_language_from_url("https://example.com/doc_TGL.pdf") == "tl"
+        assert detect_language_from_url("https://example.com/doc_TG.pdf") == "tl"
+        assert detect_language_from_url("https://example.com/doc_TL.pdf") == "tl"
+
+    def test_vietnamese_patterns(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_VIETNAMESE.pdf") == "vi"
+        assert detect_language_from_url("https://example.com/doc_VIE.pdf") == "vi"
+        assert detect_language_from_url("https://example.com/doc_VT.pdf") == "vi"
+        assert detect_language_from_url("https://example.com/doc_VI.pdf") == "vi"
+
+    def test_punjabi_patterns(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_PUNJABI.pdf") == "pa"
+        assert detect_language_from_url("https://example.com/doc_PA.pdf") == "pa"
+
+    def test_arabic(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_ARABIC.pdf") == "ar"
+
+    def test_farsi(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_FARSI.pdf") == "fa"
+
+    def test_hmong(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_HMONG.pdf") == "hmn"
+
+    def test_mixteco(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_MIXTECO.pdf") == "mix"
+
+    def test_armenian(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_Armenian.pdf") == "hy"
+
+    def test_hindi(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_Hindi.pdf") == "hi"
+
+    def test_japanese(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_Japanese.pdf") == "ja"
+
+    def test_khmer(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_Khmer.pdf") == "km"
+
+    def test_russian(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_Russian.pdf") == "ru"
+
+    def test_thai(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_Thai.pdf") == "th"
+
+    def test_default_english_no_pattern(self) -> None:
+        assert detect_language_from_url("https://example.com/some-page.html") == "en"
+        assert detect_language_from_url("https://example.com/employment/") == "en"
+
+    def test_hyphen_separator(self) -> None:
+        assert detect_language_from_url("https://example.com/doc-Spanish.pdf") == "es"
+        assert detect_language_from_url("https://example.com/doc-CHINESE.pdf") == "zh"
+
+    def test_case_insensitive(self) -> None:
+        assert detect_language_from_url("https://example.com/doc_spanish.pdf") == "es"
+        assert detect_language_from_url("https://example.com/doc_SPANISH.pdf") == "es"

@@ -4,6 +4,9 @@ import pytest
 
 from employee_help.processing.chunker import (
     ChunkResult,
+    _hard_split,
+    _split_by_sentences,
+    _split_large_section,
     chunk_document,
     content_hash,
     estimate_tokens,
@@ -136,3 +139,69 @@ class TestChunkDocument:
         chunks = chunk_document(text, min_tokens=50, max_tokens=2000, document_title="Doc")
         paths = [c.heading_path for c in chunks]
         assert any("Sub Level" in p for p in paths)
+
+
+class TestOversizedParagraphSplitting:
+    """Tests for sentence-level and hard splitting of oversized paragraphs."""
+
+    def test_oversized_paragraph_produces_multiple_chunks(self) -> None:
+        """A single paragraph exceeding max_tokens gets split by sentences."""
+        # Build a single paragraph (no \n\n) with many sentences
+        sentences = [f"Sentence number {i} about employment law protections." for i in range(80)]
+        text = "## Big Section\n\n" + " ".join(sentences)
+        chunks = chunk_document(text, min_tokens=50, max_tokens=300)
+        assert len(chunks) >= 2
+        for chunk in chunks:
+            assert chunk.token_count <= 350  # small overshoot OK from overlap
+
+    def test_mixed_normal_and_oversized_paragraphs(self) -> None:
+        """Normal paragraphs and an oversized paragraph in the same section."""
+        normal = "Short normal paragraph about wages."
+        oversized = " ".join(
+            [f"This is sentence {i} in a very long paragraph about discrimination." for i in range(80)]
+        )
+        text = "## Mixed\n\n" + normal + "\n\n" + oversized + "\n\n" + normal
+        chunks = chunk_document(text, min_tokens=10, max_tokens=300)
+        assert len(chunks) >= 2
+        for chunk in chunks:
+            assert chunk.token_count <= 350
+
+    def test_no_boundary_text_triggers_hard_split(self) -> None:
+        """A paragraph with no sentence boundaries is hard-split by character."""
+        # Text with no periods/question marks/exclamation marks
+        text = "## Wall\n\n" + "abcde " * 2000  # ~12000 chars, no sentence enders
+        chunks = chunk_document(text, min_tokens=10, max_tokens=300)
+        assert len(chunks) >= 2
+        for chunk in chunks:
+            assert chunk.token_count <= 350
+
+    def test_split_by_sentences_directly(self) -> None:
+        """Direct test of the _split_by_sentences helper."""
+        sentences = [f"Sentence {i} about worker rights." for i in range(60)]
+        text = " ".join(sentences)
+        results = _split_by_sentences(text, "Test > Path", 0, 300, 50)
+        assert len(results) >= 2
+        for r in results:
+            assert r.heading_path == "Test > Path"
+            assert r.token_count <= 350
+
+    def test_hard_split_directly(self) -> None:
+        """Direct test of the _hard_split helper."""
+        text = "x" * 5000  # 5000 chars, ~1250 tokens
+        results = _hard_split(text, "Path", 0, 300)
+        assert len(results) >= 2
+        # Reconstructed text should match original
+        reconstructed = "".join(r.content for r in results)
+        assert reconstructed == text
+
+    def test_split_large_section_with_oversized_para(self) -> None:
+        """_split_large_section handles a mix of normal and oversized paragraphs."""
+        normal_para = "Normal paragraph about employment." * 5
+        oversized_para = " ".join(
+            [f"Detailed sentence {i} about labor code section." for i in range(60)]
+        )
+        text = normal_para + "\n\n" + oversized_para + "\n\n" + normal_para
+        results = _split_large_section(text, "Heading", 0, 300, 50)
+        assert len(results) >= 2
+        for r in results:
+            assert r.token_count <= 350

@@ -45,6 +45,7 @@ class ChunkEmbedding:
     is_active: bool
     source_url: str = ""
     model_version: str = ""
+    language: str = "en"
 
 
 class EmbeddingService:
@@ -172,6 +173,7 @@ class EmbeddingService:
         source_id: int,
         batch_size: int = 32,
         doc_url_map: dict[int, str] | None = None,
+        doc_language_map: dict[int, str] | None = None,
     ) -> list[ChunkEmbedding]:
         """Embed chunks with metadata for vector store insertion.
 
@@ -184,6 +186,7 @@ class EmbeddingService:
             source_id: Source ID for all chunks.
             batch_size: Batch size for model inference.
             doc_url_map: Optional mapping of document_id -> source_url.
+            doc_language_map: Optional mapping of document_id -> language code.
 
         Returns:
             List of ChunkEmbedding objects ready for vector store.
@@ -192,6 +195,7 @@ class EmbeddingService:
             return []
 
         doc_url_map = doc_url_map or {}
+        doc_language_map = doc_language_map or {}
         total = len(chunks)
         log_interval = max(batch_size, 500 - (500 % batch_size))  # nearest multiple of batch_size <= 500
 
@@ -253,6 +257,7 @@ class EmbeddingService:
                         is_active=chunk.is_active,
                         source_url=doc_url_map.get(chunk.document_id or 0, ""),
                         model_version=self.model_version,
+                        language=doc_language_map.get(chunk.document_id or 0, "en"),
                     )
                 )
 

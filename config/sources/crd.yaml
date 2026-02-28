@@ -17,17 +17,19 @@ crawl:
     - "https://calcivilrights.ca.gov/employment/"
     - "https://calcivilrights.ca.gov/complaintprocess/"
     - "https://calcivilrights.ca.gov/Posters/?openTab=2"
+    - "https://calcivilrights.ca.gov/fair-chance-act/"
+    - "https://calcivilrights.ca.gov/shptfaq-employee/"
+    - "https://calcivilrights.ca.gov/shptfaq-employer/"
 
   allowlist_patterns:
     - "calcivilrights\\.ca\\.gov/employment"
     - "calcivilrights\\.ca\\.gov/complaintprocess"
     - "calcivilrights\\.ca\\.gov/Posters"
     - "calcivilrights\\.ca\\.gov/wp-content/uploads/sites/32/.*\\.pdf"
+    - "calcivilrights\\.ca\\.gov/fair-chance-act"
+    - "calcivilrights\\.ca\\.gov/shptfaq"
 
   blocklist_patterns:
-    # Non-English PDFs (language suffixes)
-    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*_(SP|ARABIC|CHINESE|KOREAN|HMONG|TAGALOG|VIETNAMESE|PUNJABI|MIXTECO|CH|K|VT|TG|ES|FARSI)\\."
-    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*-(SP|ARABIC|CHINESE|KOREAN|HMONG|TAGALOG|VIETNAMESE|PUNJABI|MIXTECO|CH|K|VT|TG|ES|FARSI)\\."
     # Non-employment domains
     - "calcivilrights\\.ca\\.gov/housing"
     - "calcivilrights\\.ca\\.gov/hate-violence"
@@ -54,6 +56,9 @@ crawl:
     - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Ralph"
     - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Hate-Violence"
     - "calcivilrights\\.ca\\.gov/wp-content/uploads.*California-Protects-The-Civil-Rights"
+    # Housing PDFs
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Student-Housing"
+    - "calcivilrights\\.ca\\.gov/wp-content/uploads.*Tenant-on-Tenant"
 
   rate_limit_seconds: 2.0
   max_pages: 100

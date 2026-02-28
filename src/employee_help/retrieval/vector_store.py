@@ -98,7 +98,7 @@ class VectorStore:
         if self.table is None:
             return
 
-        for col in ("chunk_id", "content_category", "source_id"):
+        for col in ("chunk_id", "content_category", "source_id", "language"):
             try:
                 self.table.create_scalar_index(col, replace=True)
             except Exception as e:
@@ -326,6 +326,7 @@ class VectorStore:
                     "is_active": emb.is_active,
                     "source_url": emb.source_url,
                     "model_version": emb.model_version,
+                    "language": emb.language,
                 }
             )
         return records

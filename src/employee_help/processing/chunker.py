@@ -339,6 +339,30 @@ def _split_large_section(
     for para in paragraphs:
         para_tokens = estimate_tokens(para)
 
+        # Handle oversized paragraphs that exceed max_tokens on their own
+        if para_tokens > max_tokens:
+            # Flush any accumulated parts first
+            if current_parts:
+                chunk_text = "\n\n".join(current_parts)
+                chunks.append(
+                    ChunkResult(
+                        content=chunk_text,
+                        heading_path=heading_path,
+                        chunk_index=start_index + len(chunks),
+                        token_count=estimate_tokens(chunk_text),
+                        content_hash=content_hash(chunk_text),
+                    )
+                )
+                current_parts = []
+                current_tokens = 0
+
+            # Split the oversized paragraph by sentences
+            sub_chunks = _split_by_sentences(
+                para, heading_path, start_index + len(chunks), max_tokens, overlap_tokens,
+            )
+            chunks.extend(sub_chunks)
+            continue
+
         if current_tokens + para_tokens > max_tokens and current_parts:
             # Flush current chunk
             chunk_text = "\n\n".join(current_parts)
@@ -378,6 +402,106 @@ def _split_large_section(
                 chunk_index=start_index + len(chunks),
                 token_count=estimate_tokens(chunk_text),
                 content_hash=content_hash(chunk_text),
+            )
+        )
+
+    return chunks
+
+
+def _split_by_sentences(
+    text: str,
+    heading_path: str,
+    start_index: int,
+    max_tokens: int,
+    overlap_tokens: int,
+) -> list[ChunkResult]:
+    """Split an oversized paragraph into chunks at sentence boundaries.
+
+    Falls back to _hard_split() when no sentence boundaries exist.
+    """
+    sentences = re.split(r"(?<=[.?!])\s+", text)
+
+    # If no sentence boundaries found, hard-split by character
+    if len(sentences) <= 1:
+        return _hard_split(text, heading_path, start_index, max_tokens)
+
+    chunks: list[ChunkResult] = []
+    current_parts: list[str] = []
+    current_tokens = 0
+
+    for sent in sentences:
+        sent_tokens = estimate_tokens(sent)
+
+        # Single sentence exceeds max — hard-split it
+        if sent_tokens > max_tokens and not current_parts:
+            sub_chunks = _hard_split(
+                sent, heading_path, start_index + len(chunks), max_tokens,
+            )
+            chunks.extend(sub_chunks)
+            continue
+
+        if current_tokens + sent_tokens > max_tokens and current_parts:
+            chunk_text = " ".join(current_parts)
+            chunks.append(
+                ChunkResult(
+                    content=chunk_text,
+                    heading_path=heading_path,
+                    chunk_index=start_index + len(chunks),
+                    token_count=estimate_tokens(chunk_text),
+                    content_hash=content_hash(chunk_text),
+                )
+            )
+
+            # Overlap: keep trailing sentences up to overlap_tokens
+            overlap_parts: list[str] = []
+            overlap_count = 0
+            for part in reversed(current_parts):
+                part_tokens = estimate_tokens(part)
+                if overlap_count + part_tokens > overlap_tokens:
+                    break
+                overlap_parts.insert(0, part)
+                overlap_count += part_tokens
+
+            current_parts = overlap_parts
+            current_tokens = overlap_count
+
+        current_parts.append(sent)
+        current_tokens += sent_tokens
+
+    if current_parts:
+        chunk_text = " ".join(current_parts)
+        chunks.append(
+            ChunkResult(
+                content=chunk_text,
+                heading_path=heading_path,
+                chunk_index=start_index + len(chunks),
+                token_count=estimate_tokens(chunk_text),
+                content_hash=content_hash(chunk_text),
+            )
+        )
+
+    return chunks
+
+
+def _hard_split(
+    text: str,
+    heading_path: str,
+    start_index: int,
+    max_tokens: int,
+) -> list[ChunkResult]:
+    """Last-resort character-based split when no sentence boundaries exist."""
+    max_chars = max_tokens * 4  # ~4 chars per token estimate
+    chunks: list[ChunkResult] = []
+
+    for i in range(0, len(text), max_chars):
+        fragment = text[i : i + max_chars]
+        chunks.append(
+            ChunkResult(
+                content=fragment,
+                heading_path=heading_path,
+                chunk_index=start_index + len(chunks),
+                token_count=estimate_tokens(fragment),
+                content_hash=content_hash(fragment),
             )
         )
 

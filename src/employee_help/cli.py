@@ -825,9 +825,10 @@ def _embed_all(storage, embedding_service, vector_store, rebuild=False) -> int:
 
     print(f"Embedding {len(chunks_to_embed)} chunks (total active: {len(active_chunks)})...")
 
-    # Build doc URL map for source_url metadata
+    # Build doc URL map and language map for metadata
     all_docs = storage.get_all_documents()
     doc_url_map = {d.id: d.source_url for d in all_docs if d.id}
+    doc_language_map = {d.id: d.language for d in all_docs if d.id}
 
     # Build source_id map from documents
     doc_source_map = {d.id: d.source_id for d in all_docs if d.id}
@@ -837,6 +838,7 @@ def _embed_all(storage, embedding_service, vector_store, rebuild=False) -> int:
         chunks_to_embed,
         source_id=0,  # Will be overridden per-chunk below
         doc_url_map=doc_url_map,
+        doc_language_map=doc_language_map,
     )
 
     # Fix source_id per embedding
@@ -882,11 +884,13 @@ def _embed_source(slug, storage, embedding_service, vector_store) -> int:
 
     all_docs = storage.get_all_documents(source_id=source.id)
     doc_url_map = {d.id: d.source_url for d in all_docs if d.id}
+    doc_language_map = {d.id: d.language for d in all_docs if d.id}
 
     embeddings = embedding_service.embed_chunks(
         chunks_to_embed,
         source_id=source.id or 0,
         doc_url_map=doc_url_map,
+        doc_language_map=doc_language_map,
     )
 
     vector_store.upsert_embeddings(embeddings)

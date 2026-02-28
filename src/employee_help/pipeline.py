@@ -31,6 +31,57 @@ from employee_help.storage.storage import Storage
 
 logger = structlog.get_logger()
 
+# Language detection patterns for CRD PDF filenames.
+# Order matters: more specific patterns first.
+_LANGUAGE_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"[_\-](ENG)\b", re.IGNORECASE), "en"),
+    # Spanish
+    (re.compile(r"[_\-](Spanish|SP|ES)\b", re.IGNORECASE), "es"),
+    # Chinese
+    (re.compile(r"[_\-](CHINESE|CHN|CH)\b", re.IGNORECASE), "zh"),
+    # Korean
+    (re.compile(r"[_\-](KOREAN|KO|KR|K)\b", re.IGNORECASE), "ko"),
+    # Tagalog
+    (re.compile(r"[_\-](TAGALOG|TGL|TG|TL)\b", re.IGNORECASE), "tl"),
+    # Vietnamese
+    (re.compile(r"[_\-](VIETNAMESE|VIE|VT|VI)\b", re.IGNORECASE), "vi"),
+    # Punjabi
+    (re.compile(r"[_\-](PUNJABI|PA)\b", re.IGNORECASE), "pa"),
+    # Arabic
+    (re.compile(r"[_\-](ARABIC)\b", re.IGNORECASE), "ar"),
+    # Farsi
+    (re.compile(r"[_\-](FARSI)\b", re.IGNORECASE), "fa"),
+    # Hmong
+    (re.compile(r"[_\-](HMONG)\b", re.IGNORECASE), "hmn"),
+    # Mixteco
+    (re.compile(r"[_\-](MIXTECO)\b", re.IGNORECASE), "mix"),
+    # Armenian
+    (re.compile(r"[_\-](Armenian)\b", re.IGNORECASE), "hy"),
+    # Hindi
+    (re.compile(r"[_\-](Hindi)\b", re.IGNORECASE), "hi"),
+    # Japanese
+    (re.compile(r"[_\-](Japanese)\b", re.IGNORECASE), "ja"),
+    # Khmer
+    (re.compile(r"[_\-](Khmer)\b", re.IGNORECASE), "km"),
+    # Russian
+    (re.compile(r"[_\-](Russian)\b", re.IGNORECASE), "ru"),
+    # Thai
+    (re.compile(r"[_\-](Thai)\b", re.IGNORECASE), "th"),
+]
+
+
+def detect_language_from_url(url: str) -> str:
+    """Detect document language from CRD-style filename patterns.
+
+    CRD PDFs use suffixes like ``_ENG.pdf``, ``_Spanish.pdf``, ``_CH.pdf``
+    to indicate language.  Returns an ISO 639 code (e.g. ``"en"``, ``"es"``).
+    Defaults to ``"en"`` when no pattern matches.
+    """
+    for pattern, lang_code in _LANGUAGE_PATTERNS:
+        if pattern.search(url):
+            return lang_code
+    return "en"
+
 
 @dataclass
 class PipelineStats:
@@ -477,7 +528,7 @@ class Pipeline:
                             content_type=content_type,
                             raw_content=cleaned_content,
                             content_hash=chunks[0].content_hash if chunks else "",
-                            language="en",
+                            language=detect_language_from_url(url),
                             crawl_run_id=run_id,
                             source_id=source_id,
                             content_category=content_category,
