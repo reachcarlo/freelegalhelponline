@@ -22,11 +22,50 @@ export default function QuestionPanel() {
   const [pendingQuery, setPendingQuery] = useState<string | null>(null);
   const [showConsentModal, setShowConsentModal] = useState(false);
 
-  // Scroll to bottom when new content appears
+  // Smart auto-scroll: only scroll if user is near the bottom already
   const threadEndRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
+  const scrollThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track whether the user is near the bottom of the page
   useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversation.turns.length, conversation.streamingAnswer]);
+    const handleScroll = () => {
+      const scrollBottom =
+        window.innerHeight + window.scrollY;
+      const docHeight = document.documentElement.scrollHeight;
+      isNearBottomRef.current = docHeight - scrollBottom < 150;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Scroll on new completed turns (user submitted, expects to see response)
+  useEffect(() => {
+    if (conversation.turns.length > 0 || conversation.isStreaming) {
+      threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      isNearBottomRef.current = true;
+    }
+  }, [conversation.turns.length]);
+
+  // Throttled scroll during streaming — only if user is near bottom
+  useEffect(() => {
+    if (!conversation.isStreaming || !isNearBottomRef.current) return;
+    if (scrollThrottleRef.current) return; // already scheduled
+
+    scrollThrottleRef.current = setTimeout(() => {
+      scrollThrottleRef.current = null;
+      if (isNearBottomRef.current) {
+        threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 300);
+
+    return () => {
+      if (scrollThrottleRef.current) {
+        clearTimeout(scrollThrottleRef.current);
+        scrollThrottleRef.current = null;
+      }
+    };
+  }, [conversation.streamingAnswer, conversation.isStreaming]);
 
   // Reset conversation when mode changes
   const prevModeRef = useRef(mode);
