@@ -64,12 +64,13 @@ set -e\n\
 echo "Data dir contents:"\n\
 mkdir -p /app/data\n\
 ls -la /app/data/ || true\n\
-if [ ! -f /app/data/employee_help.db ]; then\n\
-  echo "Bootstrapping data to volume..."\n\
+DB_SIZE=$(stat -c%s /app/data/employee_help.db 2>/dev/null || echo 0)\n\
+if [ "$DB_SIZE" -lt 1000000 ]; then\n\
+  echo "Bootstrapping data to volume (db size: $DB_SIZE)..."\n\
   cp -r /app/_bootstrap/* /app/data/\n\
-  echo "Bootstrap complete."\n\
+  echo "Bootstrap complete. New db size: $(stat -c%s /app/data/employee_help.db)"\n\
 else\n\
-  echo "Data already present, skipping bootstrap."\n\
+  echo "Data already present ($DB_SIZE bytes), skipping bootstrap."\n\
 fi\n\
 echo "Starting server on port ${PORT:-8000}..."\n\
 exec uvicorn employee_help.api.main:app --host 0.0.0.0 --port ${PORT:-8000}\n\
