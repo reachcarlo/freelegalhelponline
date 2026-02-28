@@ -49,9 +49,14 @@ COPY --from=builder /app/pyproject.toml pyproject.toml
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-# Bootstrap data (baked into image, copied to volume on first boot)
+# Bootstrap data (baked into image, reassembled from splits)
 COPY data/lancedb/ /app/_bootstrap/lancedb/
-COPY data/employee_help.db /app/_bootstrap/employee_help.db
+COPY data/splits/large_lance.part_* /tmp/lance_parts/
+RUN cat /tmp/lance_parts/large_lance.part_* > /app/_bootstrap/lancedb/chunk_embeddings.lance/data/0000001000110111110001105ab58d465ea9b138c06c4baa3b.lance \
+    && rm -rf /tmp/lance_parts
+COPY data/splits/employee_help.db.part_* /tmp/db_parts/
+RUN cat /tmp/db_parts/employee_help.db.part_* > /app/_bootstrap/employee_help.db \
+    && rm -rf /tmp/db_parts
 
 # Startup script: copy bootstrap data to volume if empty, then start server
 RUN echo '#!/bin/sh\n\
