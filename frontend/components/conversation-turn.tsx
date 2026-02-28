@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import type { AskMetadata, SourceInfo } from "@/lib/api";
 import AnswerDisplay from "./answer-display";
 import FeedbackButtons from "./feedback-buttons";
@@ -24,8 +25,31 @@ export default function ConversationTurnView({
   isLatest,
   mode,
 }: ConversationTurnProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(answer);
+    } catch {
+      // Legacy fallback
+      const ta = document.createElement("textarea");
+      ta.value = answer;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [answer]);
+
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      className="flex flex-col gap-4 animate-fade-in"
+      style={{ overflowAnchor: "none" }}
+    >
       {/* User query bubble */}
       <div className="flex justify-end">
         <div className="max-w-[80%] rounded-lg bg-accent/10 px-4 py-3 text-sm text-text-primary">
@@ -36,8 +60,63 @@ export default function ConversationTurnView({
       {/* Sources */}
       <SourceList sources={sources} />
 
-      {/* AI answer */}
-      <AnswerDisplay text={answer} isStreaming={isStreaming} mode={mode} />
+      {/* AI answer with copy button */}
+      {(answer || isStreaming) && (
+        <div className="group relative">
+          <AnswerDisplay text={answer} isStreaming={isStreaming} mode={mode} />
+          {answer && !isStreaming && (
+            <button
+              onClick={handleCopy}
+              className="absolute right-2 top-2 rounded-md border border-border bg-surface p-1.5
+                         opacity-0 transition-opacity group-hover:opacity-100 max-sm:opacity-100
+                         focus:outline-none focus:ring-2 focus:ring-accent/20"
+              aria-label={copied ? "Copied" : "Copy answer"}
+            >
+              {copied ? (
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  className="text-feedback-text-up"
+                >
+                  <path
+                    d="M3 8.5l3 3 7-7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  className="text-text-tertiary"
+                >
+                  <rect
+                    x="5"
+                    y="5"
+                    width="8"
+                    height="8"
+                    rx="1.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  />
+                  <path
+                    d="M3 11V3.5A.5.5 0 013.5 3H11"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              )}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Per-answer disclaimer — shown after answer completes */}
       {answer && !isStreaming && (

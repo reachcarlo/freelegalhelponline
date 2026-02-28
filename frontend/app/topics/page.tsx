@@ -3,13 +3,14 @@ import Link from "next/link";
 import { topics } from "@/lib/topics";
 
 export const metadata: Metadata = {
-  title: "California Employment Law Topics — Free Legal Help",
+  title: "California Employment Law Topics — Find Legal Help",
   description:
     "Browse California employment law topics — wages, discrimination, retaliation, leave, workplace safety, unemployment, and more. AI-powered guidance on your rights.",
 };
 
 export default function TopicsIndex() {
   return (
+    <div className="h-full overflow-y-auto">
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
       {/* Breadcrumb */}
       <nav className="mb-6 text-sm text-text-tertiary">
@@ -55,6 +56,7 @@ export default function TopicsIndex() {
           </Link>
         ))}
       </div>
+    </div>
     </div>
   );
 }

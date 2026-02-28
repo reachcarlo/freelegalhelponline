@@ -159,6 +159,29 @@ export function useConversation(mode: "consumer" | "attorney") {
     [clearResponseTimeout]
   );
 
+  const stopStreaming = useCallback(() => {
+    clearResponseTimeout();
+    abortRef.current?.abort();
+
+    // Preserve partial response as a completed turn
+    if (streamingAnswerRef.current || streamingSourcesRef.current.length > 0) {
+      const completedTurn: CompletedTurn = {
+        query: streamingQueryRef.current,
+        answer: streamingAnswerRef.current,
+        sources: streamingSourcesRef.current,
+        metadata: null,
+      };
+      setTurns((prev) => [...prev, completedTurn]);
+      setCurrentTurn((prev) => prev + 1);
+    }
+
+    setIsStreaming(false);
+  }, [clearResponseTimeout]);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   return {
     sessionId,
     turns,
@@ -178,5 +201,7 @@ export function useConversation(mode: "consumer" | "attorney") {
     onToken,
     onDone,
     onError,
+    stopStreaming,
+    clearError,
   };
 }

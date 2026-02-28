@@ -37,7 +37,9 @@ export default function FeedbackButtons({ queryId }: FeedbackButtonsProps) {
       <button
         onClick={() => handleFeedback(1)}
         disabled={submitting}
-        className="rounded px-2 py-1 text-sm text-text-tertiary hover:bg-feedback-hover-up hover:text-feedback-text-up disabled:opacity-50"
+        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded px-2 py-1
+                   text-sm text-text-tertiary hover:bg-feedback-hover-up hover:text-feedback-text-up
+                   disabled:opacity-50"
         aria-label="Thumbs up"
       >
         👍
@@ -45,7 +47,9 @@ export default function FeedbackButtons({ queryId }: FeedbackButtonsProps) {
       <button
         onClick={() => handleFeedback(-1)}
         disabled={submitting}
-        className="rounded px-2 py-1 text-sm text-text-tertiary hover:bg-feedback-hover-down hover:text-feedback-text-down disabled:opacity-50"
+        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded px-2 py-1
+                   text-sm text-text-tertiary hover:bg-feedback-hover-down hover:text-feedback-text-down
+                   disabled:opacity-50"
         aria-label="Thumbs down"
       >
         👎

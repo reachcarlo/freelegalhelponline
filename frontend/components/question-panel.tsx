@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { askQuestion } from "@/lib/api";
 import { useConsent } from "@/lib/consent-context";
 import { useMode } from "@/lib/mode-context";
 import { useConversation } from "@/lib/use-conversation";
+import { topics } from "@/lib/topics";
 import ConsentModal from "./consent-modal";
 import ConversationEnded from "./conversation-ended";
 import ConversationTurnView from "./conversation-turn";
-import LoadingBar from "./loading-bar";
 import ModeToggle from "./mode-toggle";
 import QuestionInput from "./question-input";
 import TurnProgress from "./turn-progress";
@@ -21,48 +22,52 @@ export default function QuestionPanel() {
   const [query, setQuery] = useState("");
   const [pendingQuery, setPendingQuery] = useState<string | null>(null);
   const [showConsentModal, setShowConsentModal] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
-  // Smart auto-scroll: only scroll if user is near the bottom already
+  // Scroll refs
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
-  const scrollThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafRef = useRef<number | null>(null);
 
-  // Track whether the user is near the bottom of the page
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollBottom =
-        window.innerHeight + window.scrollY;
-      const docHeight = document.documentElement.scrollHeight;
-      isNearBottomRef.current = docHeight - scrollBottom < 150;
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+  // Track whether user is near the bottom of scroll container
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    isNearBottomRef.current = distanceFromBottom < 150;
+    setShowScrollButton(distanceFromBottom > 300);
   }, []);
 
-  // Scroll on new completed turns (user submitted, expects to see response)
+  // Scroll to bottom on new completed turn
   useEffect(() => {
     if (conversation.turns.length > 0 || conversation.isStreaming) {
-      threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      isNearBottomRef.current = true;
+      const container = scrollContainerRef.current;
+      if (container) {
+        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+        isNearBottomRef.current = true;
+      }
     }
   }, [conversation.turns.length]);
 
-  // Throttled scroll during streaming — only if user is near bottom
+  // rAF-driven scroll during streaming — only if user is near bottom
   useEffect(() => {
     if (!conversation.isStreaming || !isNearBottomRef.current) return;
-    if (scrollThrottleRef.current) return; // already scheduled
+    if (rafRef.current) return;
 
-    scrollThrottleRef.current = setTimeout(() => {
-      scrollThrottleRef.current = null;
-      if (isNearBottomRef.current) {
-        threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const container = scrollContainerRef.current;
+      if (container && isNearBottomRef.current) {
+        container.scrollTop = container.scrollHeight;
       }
-    }, 300);
+    });
 
     return () => {
-      if (scrollThrottleRef.current) {
-        clearTimeout(scrollThrottleRef.current);
-        scrollThrottleRef.current = null;
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
     };
   }, [conversation.streamingAnswer, conversation.isStreaming]);
@@ -142,21 +147,28 @@ export default function QuestionPanel() {
     setQuery("");
   }, [conversation.startNewConversation]);
 
+  const handleStop = useCallback(() => {
+    conversation.stopStreaming();
+  }, [conversation.stopStreaming]);
+
+  const handleRetry = useCallback(() => {
+    if (conversation.streamingQuery) {
+      conversation.clearError();
+      submitQuery(conversation.streamingQuery);
+    }
+  }, [conversation, submitQuery]);
+
+  const scrollToBottom = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
+  }, []);
+
   const hasTurns = conversation.turns.length > 0 || conversation.isStreaming;
   const inputPlaceholder = hasTurns
     ? "Ask a follow-up..."
     : "Ask a question about California employment law...";
-
-  // The question input component — rendered in different positions based on state
-  const questionInput = !conversation.isAtLimit ? (
-    <QuestionInput
-      value={query}
-      onChange={setQuery}
-      onSubmit={handleSubmit}
-      disabled={conversation.isStreaming}
-      placeholder={inputPlaceholder}
-    />
-  ) : null;
 
   return (
     <>
@@ -168,97 +180,199 @@ export default function QuestionPanel() {
         />
       )}
 
-      <div className="flex flex-col gap-6">
-        {/* Header: mode toggle + New Chat button */}
-        <div className="flex items-center justify-center gap-4">
-          <ModeToggle
-            mode={mode}
-            onChange={handleModeChange}
-            disabled={conversation.isStreaming}
-          />
-          {hasTurns && (
-            <button
-              onClick={handleNewChat}
-              disabled={conversation.isStreaming}
-              className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium
-                         text-text-secondary transition-colors hover:bg-surface-raised
-                         focus:outline-none focus:ring-2 focus:ring-accent/20
-                         disabled:cursor-not-allowed disabled:opacity-50"
+      <div className="flex flex-1 flex-col min-h-0">
+        {/* ── Zone 1: Header (shrink-0) ── */}
+        <div className="shrink-0 px-4 pt-4 pb-2 sm:px-6">
+          <div className="mx-auto max-w-3xl">
+            <h1
+              className={`text-center font-bold tracking-tight text-text-primary transition-all ${
+                hasTurns
+                  ? "text-lg"
+                  : "text-3xl sm:text-4xl"
+              }`}
             >
-              New Chat
+              Find Legal Help
+            </h1>
+            {!hasTurns && (
+              <>
+                <p className="mt-3 text-center text-lg text-text-secondary">
+                  California Employment Rights — Answered by AI
+                </p>
+                <p className="mt-2 text-center text-sm text-text-tertiary">
+                  Ask questions about wages, discrimination, retaliation, leave,
+                  unemployment insurance, and other California workplace
+                  protections.
+                </p>
+              </>
+            )}
+            <div className="mt-3 flex items-center justify-center gap-4">
+              <ModeToggle
+                mode={mode}
+                onChange={handleModeChange}
+                disabled={conversation.isStreaming}
+              />
+              {hasTurns && (
+                <button
+                  onClick={handleNewChat}
+                  disabled={conversation.isStreaming}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium
+                             text-text-secondary transition-colors hover:bg-surface-raised
+                             focus:outline-none focus:ring-2 focus:ring-accent/20
+                             disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  New Chat
+                </button>
+              )}
+            </div>
+            <p className="mt-2 text-center text-sm text-text-tertiary">
+              {mode === "consumer"
+                ? "Plain-language answers focused on your rights and next steps."
+                : "Statutory analysis with code citations for legal research."}
+            </p>
+          </div>
+        </div>
+
+        {/* ── Zone 2: Scrollable message area (flex-1) ── */}
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="relative flex-1 overflow-y-auto"
+        >
+          <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6">
+            <div className="flex flex-col gap-6">
+              {/* Browse by Topic — visible only before conversation starts */}
+              {!hasTurns && (
+                <section className="pt-4">
+                  <h2 className="text-center text-lg font-semibold text-text-primary">
+                    Browse by Topic
+                  </h2>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    {topics.map((topic) => (
+                      <Link
+                        key={topic.slug}
+                        href={`/topics/${topic.slug}`}
+                        className="rounded-full border border-border px-4 py-2 text-sm text-text-secondary transition-colors hover:border-border-hover hover:bg-accent-surface hover:text-accent"
+                      >
+                        {topic.shortTitle}
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Turn progress */}
+              {hasTurns && (
+                <div className="flex justify-center">
+                  <TurnProgress
+                    currentTurn={conversation.currentTurn}
+                    maxTurns={conversation.maxTurns}
+                    isStreaming={conversation.isStreaming}
+                  />
+                </div>
+              )}
+
+              {/* Error message with retry */}
+              {conversation.error && !conversation.isAtLimit && (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-error-border bg-error-bg p-4 text-sm text-error-text">
+                  <span>{conversation.error}</span>
+                  <button
+                    onClick={handleRetry}
+                    className="shrink-0 rounded-md border border-error-border px-3 py-1.5 text-xs font-medium
+                               transition-colors hover:bg-error-border/20
+                               focus:outline-none focus:ring-2 focus:ring-error-border/40"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
+
+              {/* Conversation thread — completed turns */}
+              {conversation.turns.map((turn, i) => (
+                <ConversationTurnView
+                  key={i}
+                  query={turn.query}
+                  answer={turn.answer}
+                  sources={turn.sources}
+                  metadata={turn.metadata}
+                  isStreaming={false}
+                  isLatest={
+                    i === conversation.turns.length - 1 &&
+                    !conversation.isStreaming
+                  }
+                  mode={mode}
+                />
+              ))}
+
+              {/* Currently streaming turn */}
+              {conversation.isStreaming && (
+                <ConversationTurnView
+                  query={conversation.streamingQuery}
+                  answer={conversation.streamingAnswer}
+                  sources={conversation.streamingSources}
+                  metadata={null}
+                  isStreaming={true}
+                  isLatest={true}
+                  mode={mode}
+                />
+              )}
+
+              {/* Conversation ended banner */}
+              {conversation.isAtLimit && (
+                <ConversationEnded onStartNew={handleNewChat} />
+              )}
+
+              {/* Scroll anchor */}
+              <div
+                ref={threadEndRef}
+                className="h-px"
+                style={{ overflowAnchor: "auto" }}
+              />
+            </div>
+          </div>
+
+          {/* Scroll-to-bottom FAB */}
+          {showScrollButton && (
+            <button
+              onClick={scrollToBottom}
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-border
+                         bg-surface p-2.5 shadow-lg transition-all hover:bg-surface-raised
+                         focus:outline-none focus:ring-2 focus:ring-accent/20"
+              aria-label="Scroll to bottom"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                className="text-text-secondary"
+              >
+                <path
+                  d="M8 3v10m0 0l-4-4m4 4l4-4"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
           )}
         </div>
 
-        {/* Mode description */}
-        <p className="text-center text-sm text-text-tertiary">
-          {mode === "consumer"
-            ? "Plain-language answers focused on your rights and next steps."
-            : "Statutory analysis with code citations for legal research."}
-        </p>
-
-        {/* Turn progress */}
-        {hasTurns && (
-          <div className="flex justify-center">
-            <TurnProgress
-              currentTurn={conversation.currentTurn}
-              maxTurns={conversation.maxTurns}
-              isStreaming={conversation.isStreaming}
-            />
+        {/* ── Zone 3: Input area (shrink-0) ── */}
+        {!conversation.isAtLimit && (
+          <div className="shrink-0 border-t border-border bg-background px-4 pb-[env(safe-area-inset-bottom,0px)] sm:px-6">
+            <div className="mx-auto max-w-3xl py-3">
+              <QuestionInput
+                value={query}
+                onChange={setQuery}
+                onSubmit={handleSubmit}
+                onStop={handleStop}
+                isStreaming={conversation.isStreaming}
+                placeholder={inputPlaceholder}
+              />
+            </div>
           </div>
         )}
-
-        {/* Question input — at top only before conversation starts */}
-        {!hasTurns && questionInput}
-
-        {/* Error message */}
-        {conversation.error && !conversation.isAtLimit && (
-          <div className="rounded-lg border border-error-border bg-error-bg p-4 text-sm text-error-text">
-            {conversation.error}
-          </div>
-        )}
-
-        {/* Conversation thread — completed turns */}
-        {conversation.turns.map((turn, i) => (
-          <ConversationTurnView
-            key={i}
-            query={turn.query}
-            answer={turn.answer}
-            sources={turn.sources}
-            metadata={turn.metadata}
-            isStreaming={false}
-            isLatest={
-              i === conversation.turns.length - 1 && !conversation.isStreaming
-            }
-            mode={mode}
-          />
-        ))}
-
-        {/* Currently streaming turn */}
-        {conversation.isStreaming && (
-          <ConversationTurnView
-            query={conversation.streamingQuery}
-            answer={conversation.streamingAnswer}
-            sources={conversation.streamingSources}
-            metadata={null}
-            isStreaming={true}
-            isLatest={true}
-            mode={mode}
-          />
-        )}
-
-        {/* Loading bar */}
-        <LoadingBar active={conversation.isStreaming} />
-
-        {/* Question input — at bottom once conversation has started */}
-        {hasTurns && questionInput}
-
-        {/* Conversation ended banner */}
-        {conversation.isAtLimit && (
-          <ConversationEnded onStartNew={handleNewChat} />
-        )}
-
-        <div ref={threadEndRef} />
       </div>
     </>
   );
