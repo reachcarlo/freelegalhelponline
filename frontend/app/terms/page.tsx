@@ -161,7 +161,13 @@ export default function TermsPage() {
         </section>
       </div>
 
-      <div className="mt-10">
+      <div className="mt-10 flex gap-4">
+        <Link
+          href="/privacy"
+          className="text-sm text-accent underline hover:text-accent-hover"
+        >
+          Privacy Policy
+        </Link>
         <Link
           href="/"
           className="text-sm text-accent underline hover:text-accent-hover"

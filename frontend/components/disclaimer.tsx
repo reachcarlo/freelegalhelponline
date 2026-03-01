@@ -14,7 +14,14 @@ export default function Disclaimer() {
           href="/terms"
           className="underline hover:opacity-80"
         >
-          View Terms of Use
+          Terms of Use
+        </Link>
+        {" · "}
+        <Link
+          href="/privacy"
+          className="underline hover:opacity-80"
+        >
+          Privacy Policy
         </Link>
       </p>
     </div>

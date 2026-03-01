@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from employee_help.api.sanitize import detect_prompt_injection, sanitize_text
 
 
 class ConversationTurn(BaseModel):
@@ -13,15 +15,40 @@ class ConversationTurn(BaseModel):
     role: Literal["user", "assistant"]
     content: str = Field(..., max_length=20000)
 
+    @field_validator("content", mode="before")
+    @classmethod
+    def sanitize_content(cls, v: str) -> str:
+        if isinstance(v, str):
+            return sanitize_text(v)
+        return v
+
 
 class AskRequest(BaseModel):
     """Request body for POST /api/ask."""
 
     query: str = Field(..., min_length=1, max_length=2000)
     mode: Literal["consumer", "attorney"] = "consumer"
-    session_id: str | None = None
+    session_id: str | None = Field(default=None, max_length=100, pattern=r"^[a-zA-Z0-9\-_]+$")
     conversation_history: list[ConversationTurn] = Field(default_factory=list, max_length=20)
     turn_number: int = Field(default=1, ge=1, le=10)
+
+    @field_validator("query", mode="before")
+    @classmethod
+    def sanitize_query(cls, v: str) -> str:
+        if isinstance(v, str):
+            return sanitize_text(v)
+        return v
+
+    @field_validator("query")
+    @classmethod
+    def check_prompt_injection(cls, v: str) -> str:
+        match = detect_prompt_injection(v)
+        if match:
+            raise ValueError(
+                "Your query was flagged by our safety filter. "
+                "Please rephrase your question about California employment law."
+            )
+        return v
 
 
 class SourceInfo(BaseModel):
@@ -54,7 +81,7 @@ class AskMetadata(BaseModel):
 class FeedbackRequest(BaseModel):
     """Request body for POST /api/feedback."""
 
-    query_id: str = Field(..., min_length=1)
+    query_id: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9\-]+$")
     rating: Literal[1, -1]
 
 
