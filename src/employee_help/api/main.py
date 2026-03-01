@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
+import sentry_sdk
 import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,6 +34,18 @@ if _env_path.exists():
                 os.environ.setdefault(_key.strip(), _val.strip())
 
 # --- Configuration from environment ---
+
+# --- Sentry error tracking ---
+
+_sentry_dsn = os.environ.get("SENTRY_DSN")
+if _sentry_dsn:
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+        enable_tracing=True,
+    )
+    logger.info("sentry_initialized", environment=os.environ.get("SENTRY_ENVIRONMENT", "production"))
 
 CORS_ORIGINS = os.environ.get(
     "CORS_ORIGINS",
