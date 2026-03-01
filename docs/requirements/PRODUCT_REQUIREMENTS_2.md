@@ -3,7 +3,7 @@
 > **Project:** FindLegalHelp.online — AI-Powered California Employment Law Platform
 > **Author:** Claude (Opus 4.6) with Product Manager + Venture Capital lens
 > **Date:** 2026-02-28
-> **Status:** DRAFT — Awaiting PO review and decisions on flagged items
+> **Status:** APPROVED — All 8 PO decisions resolved (2026-02-28)
 > **Supersedes:** EXPANDED_REQUIREMENTS.md Phases 3C through 5 (Phases 1–3B are DONE and preserved)
 
 ---
@@ -219,7 +219,7 @@ The market research identifies a critical legal structure question for the attor
 - Simplest legally; can add marketplace later
 - Revenue: attorney subscriptions only ($49–149/month)
 
-**Recommendation**: Start with **Option C** (build tools, no marketplace) for the immediate build phase. This is the safest path that lets us accumulate users and build the product. Add **Option A** (flat-fee leads) once we have consumer traffic. Pursue **Option B** (certified LRS) only after proving lead quality — it is higher-revenue but requires significant legal and financial setup.
+**PO-1 resolved:** Start with **Option C** (build tools, no marketplace) for the immediate build phase. **Flat-fee advertising (Option A) is the intended future direction** once consumer traffic justifies it. Architect the consumer assessment to capture structured data that could fuel lead routing later, without building routing now. Pursue Option B (certified LRS) only if revenue projections justify the setup costs.
 
 ### 4.4 Additional Compliance Items
 
@@ -263,11 +263,11 @@ The roadmap is organized as **independent workstreams** that can be built in par
 | A.5 | **Embed and index case law** — Run embedding pipeline on case law chunks. Update LanceDB with new `case_law` content category. Add `case_law` to attorney mode retrieval. | A.1–A.4 | Case law in vector store, retrievable | Low |
 | A.6 | **Citation verification pipeline** — For every citation the LLM generates: (1) extract via Eyecite, (2) verify case exists via CourtListener API, (3) check statute currency against PUBINFO, (4) assign confidence score. Flag unverified citations. | CourtListener API, Eyecite, PUBINFO | `src/employee_help/generation/citation_verifier.py` | Medium |
 
-**Target:** 5,000–10,000 California employment law opinions in the knowledge base. Every citation in LLM output verified against real sources.
+**Target:** 2,000–5,000 California state appellate employment law opinions in the knowledge base. Every citation in LLM output verified against real sources.
 
 **New content category:** `case_law` — included in attorney mode, excluded from consumer mode (consumers get plain-language guidance, not case citations).
 
-> **[PO DECISION]** Scope of initial case law ingestion: Should we start with (a) only California appellate opinions citing FEHA/Labor Code sections already in our knowledge base (~2,000–5,000 opinions), or (b) broader employment law opinions including federal Title VII, FLSA for California context (~10,000+)? Recommendation: start narrow (option a) to ship faster and avoid noise.
+**PO-3 resolved:** CA state appellate only (Supreme Court + Courts of Appeal). Federal courts (Ninth Circuit, CA district courts) revisited based on attorney feedback. Pipeline built extensible — court list and statute list are configurable, so adding federal is a config change.
 
 ---
 
@@ -325,7 +325,7 @@ The roadmap is organized as **independent workstreams** that can be built in par
 | D.6 | **Export and copy tools** — Copy citation, copy analysis section, export full answer to Word/PDF. Formatted for direct insertion into briefs, memos, demand letters. | Without easy export, the tool creates extra work | Copy/export buttons + document formatter | Low |
 | D.7 | **Research session memory** — Save and resume research sessions. Tag by case. Search across saved research. Build a personal knowledge base. | Attorneys research across days/weeks per case | Session persistence + search | Medium |
 
-> **[PO DECISION]** Prioritization of D.1–D.7 for initial attorney build phase. Recommendation based on market research pain-point ranking: D.5 (intake screening) and D.1 (demand letters) first — they solve the two highest-pain-point problems (intake bottleneck and drafting time). D.6 (export) and D.4 (deadline tracker) are quick wins to ship alongside.
+**PO-4 resolved:** D.5 (intake screening) + D.1 (demand letters) first — they solve the two highest-pain-point problems. D.6 (export/copy) and D.4 (deadline tracker) ship alongside as quick wins.
 
 **Critical constraint on document generation (D.1, D.2, D.3):** All generated documents MUST be:
 - Labeled "DRAFT — Requires Attorney Review Before Use"
@@ -411,12 +411,14 @@ The workstreams above are independent, but there's a logical sequencing that max
 | **Citation Verification** | F.1, F.2, F.3, F.4 | The existential risk mitigation. Must ship alongside case law. Verified citations are the #1 differentiator vs. ChatGPT/Westlaw AI. |
 | **SEO + Content** | G.1, G.3 | Claim-type landing pages and calculators drive organic traffic. Must go live before we need the traffic. |
 | **Infrastructure** | H.1, H.2, H.4, H.5 | CI/CD, error tracking, privacy policy, input sanitization. Table stakes for a production legal product. |
+| **Spanish Consumer UI** | G.4 (partial) + API language param | Spanish UI strings, `/es` route prefix, `language` parameter so Claude responds in Spanish. No KB translation — legal authority is the same. LLM already speaks Spanish. |
 
 **Exit criteria:**
-- Case law in knowledge base (target: 2,000+ California employment opinions)
+- Case law in knowledge base (target: 2,000+ California state appellate employment opinions)
 - Consumer assessment flow live and usable
 - Citation verification pipeline operational
 - 8 claim-type landing pages live with schema.org markup
+- Spanish consumer experience functional (`/es` route, Spanish LLM responses)
 - CI/CD pipeline operational
 
 ### Phase 5: Attorney Workflow + Knowledge Expansion (Following 8–12 weeks)
@@ -449,7 +451,7 @@ The workstreams above are independent, but there's a logical sequencing that max
 | **Multilingual** | G.4 | Spanish language pages. Unlock the 7M+ limited-English-proficiency California workers. |
 | **Marketplace Prep** | Attorney profiles, lead routing logic, flat-fee billing | Only if consumer traffic justifies it |
 
-> **[PO DECISION]** Phase 6 timing and scope should be re-evaluated based on Phase 4–5 metrics. The marketplace is the highest-revenue opportunity but also the highest legal complexity. Do not build it prematurely.
+> **Note:** Phase 6 timing and scope should be re-evaluated based on Phase 4–5 metrics. Per PO-1, the marketplace uses a flat-fee advertising model (Option A) when consumer traffic justifies it. Do not build prematurely.
 
 ---
 
@@ -480,7 +482,7 @@ The workstreams above are independent, but there's a logical sequencing that max
 | **Attorney directory** | Monthly listing fee ($50–100) | Recurring |
 | **Featured placement** | Premium positioning ($200–500/month) | Recurring |
 
-> This layer requires resolving the PO Decision in Section 4.3 (referral service structure).
+> **PO-1 resolved:** Tools only for now. Flat-fee advertising model (Option A) is the intended future direction once consumer traffic justifies it.
 
 ### Long-Term Vision: Settlement Data Moat
 
@@ -514,20 +516,18 @@ Every case flowing through the platform (with consent) builds a proprietary sett
 
 ---
 
-## Part 9: Open PO Decisions
+## Part 9: PO Decisions (All Resolved 2026-02-28)
 
-These decisions are documented throughout the roadmap and collected here for easy reference. None of them block the immediate build work (Phase 4 can proceed while these are pending), but they should be resolved before Phase 5 completes.
-
-| # | Decision | Options | Recommendation | Urgency |
-|---|----------|---------|----------------|---------|
-| PO-1 | **Attorney marketplace legal structure** (Section 4.3) | (A) Flat-fee marketing, (B) Certified LRS, (C) No marketplace yet | Start with C, add A later | Low — not needed until Phase 6 |
-| PO-2 | **Disclaimer language review** (Section 4.2) | PO (licensed attorney) reviews and approves all disclaimer text | Must happen | Medium — should be done during Phase 4 |
-| PO-3 | **Case law ingestion scope** (Workstream A) | (a) CA appellate only citing our statutes, (b) Broader incl. federal | Start with (a), expand to (b) in Phase 5 | Medium — needed before A.1 begins |
-| PO-4 | **Attorney tool prioritization** (Workstream D) | D.1+D.5 first? D.4+D.6 first? All parallel? | D.5 (intake) + D.1 (demand letter) + D.6 (export) first | Medium — needed before Phase 5 |
-| PO-5 | **LDA registration** | Register as Legal Document Assistant if offering consumer document generation? | Defer — attorney-only doc generation avoids this | Low — revisit if consumer doc features added |
-| PO-6 | **Pricing validation approach** | (a) Ship free, add payments later, (b) Launch with pricing from day 1, (c) Early-access pricing experiment | (a) for consumers, (c) for attorneys | Medium — needed before Phase 5 |
-| PO-7 | **Spanish language priority** | Build now vs. Phase 6? | Phase 6 unless consumer metrics show demand | Low |
-| PO-8 | **Data retention policy** | How long to keep user queries? Anonymization? | Define policy for privacy page | Medium — needed for H.4 |
+| # | Decision | Resolution |
+|---|----------|-----------|
+| PO-1 | **Attorney marketplace legal structure** | **Option C: Tools only, no marketplace.** Flat-fee advertising (Option A) is the intended future direction once consumer traffic justifies it. Architect consumer assessment to capture structured data that could fuel lead routing later, without building routing now. |
+| PO-2 | **Disclaimer language review** | **Flagged for dedicated review pass.** PO (licensed attorney) will review all disclaimer text (consent modal, inline disclaimer, terms page) as a separate task. Not a build blocker. |
+| PO-3 | **Case law ingestion scope** | **CA state appellate only.** California Supreme Court + Courts of Appeal opinions citing statutes already in our knowledge base. Federal (Ninth Circuit, CA district courts) revisited based on attorney feedback. Pipeline built to be extensible — adding federal is a config change, not a code change. |
+| PO-4 | **Attorney tool prioritization** | **D.5 (intake screening) + D.1 (demand letters) first.** These solve the #1 and #2 attorney pain points. D.6 (export/copy) and D.4 (deadline tracker) ship alongside as quick wins. |
+| PO-5 | **LDA registration** | **Deferred.** All document generation features (demand letters, complaints, discovery) are attorney-mode only. This avoids LDA registration requirements. Revisit if consumer-facing document generation is added. |
+| PO-6 | **Pricing validation approach** | **Free for now, add payments later.** Launch all features free to accumulate users and usage data. Add Stripe payments once we have 20+ active attorneys and can validate willingness to pay with real data. No payment infrastructure needed in Phase 4–5. |
+| PO-7 | **Spanish language priority** | **Phase 4 — consumer UI and LLM responses only.** Spanish UI strings, `/es` route prefix, `language` parameter so Claude responds in Spanish. No knowledge base translation needed — the legal authority is the same. The LLM already speaks Spanish; we just need the UI and routing layer. |
+| PO-8 | **Data retention policy** | **90-day full retention, then anonymize.** Keep full query logs (including IP) for 90 days for quality improvement and debugging. After 90 days, strip IP addresses and PII, keep anonymized query + response for aggregate analytics indefinitely. |
 
 ---
 
