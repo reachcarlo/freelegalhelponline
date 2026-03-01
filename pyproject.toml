@@ -49,6 +49,7 @@ addopts = [
     "--strict-markers",
     "--tb=short",
     "-q",
+    "-m", "not (slow or live or llm or evaluation or validation or spot_check)",
 ]
 markers = [
     "integration: marks tests that hit live external services (deselect with '-m \"not integration\"')",
@@ -57,6 +58,7 @@ markers = [
     "llm: marks tests that require a live LLM API key (deselect with '-m \"not llm\"')",
     "evaluation: marks RAG evaluation tests (deselect with '-m \"not evaluation\"')",
     "validation: marks live API validation tests (deselect with '-m \"not validation\"')",
+    "spot_check: marks tests that require the live ingested database (deselect with '-m \"not spot_check\"')",
 ]
 
 [tool.coverage.run]

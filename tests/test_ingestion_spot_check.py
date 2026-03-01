@@ -41,15 +41,17 @@ EXPECTED_SOURCES = {
     "unemp_ins_code": "statutory_code",
     "bus_prof_code": "statutory_code",
     "ccp": "statutory_code",
+    "caci": "statutory_code",
     "dir": "agency",
     "edd": "agency",
     "calhr": "agency",
+    "crd": "agency",
 }
 
 
 class TestSourceCompleteness:
     def test_all_expected_sources_present(self, db):
-        """All 9 configured sources exist in the database."""
+        """All 11 configured sources exist in the database."""
         rows = db.execute("SELECT slug, source_type FROM sources").fetchall()
         slugs = {r["slug"]: r["source_type"] for r in rows}
         for slug, expected_type in EXPECTED_SOURCES.items():
@@ -67,9 +69,11 @@ class TestSourceCompleteness:
             "unemp_ins_code": 700,
             "bus_prof_code": 400,
             "ccp": 3000,
+            "caci": 300,
             "dir": 200,
             "edd": 150,
             "calhr": 250,
+            "crd": 5,
         }
         for slug, min_docs in minimums.items():
             row = db.execute(
@@ -91,9 +95,11 @@ class TestSourceCompleteness:
             "unemp_ins_code": 800,
             "bus_prof_code": 400,
             "ccp": 3000,
+            "caci": 300,
             "dir": 1500,
             "edd": 350,
             "calhr": 1000,
+            "crd": 5,
         }
         for slug, min_chunks in minimums.items():
             row = db.execute(
@@ -318,15 +324,19 @@ class TestContentQuality:
 # ── 5. Content category integrity ────────────────────────────
 
 
+VALID_STATUTORY_CATEGORIES = {"statutory_code", "jury_instruction"}
+
+
 class TestContentCategory:
     def test_statutory_chunks_have_statutory_category(self, db):
-        """All chunks under statutory sources have content_category = 'statutory_code'."""
+        """All chunks under statutory sources have a valid statutory content_category."""
+        placeholders = ",".join(f"'{c}'" for c in VALID_STATUTORY_CATEGORIES)
         row = db.execute(
-            """SELECT COUNT(*) as cnt FROM chunks c
+            f"""SELECT COUNT(*) as cnt FROM chunks c
                JOIN documents d ON c.document_id = d.id
                JOIN sources s ON d.source_id = s.id
                WHERE s.source_type = 'statutory_code'
-                 AND c.content_category != 'statutory_code'
+                 AND c.content_category NOT IN ({placeholders})
                  AND c.is_active = 1""",
         ).fetchone()
         assert row["cnt"] == 0, (

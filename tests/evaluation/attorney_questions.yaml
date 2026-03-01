@@ -6,7 +6,7 @@
 questions:
   # Statutory Interpretation (8)
   - question: "What are the elements of a FEHA retaliation claim under Government Code section 12940(h)?"
-    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_categories: ["statutory_code", "agency_guidance", "jury_instruction"]
     expected_citations: ["12940"]
     expected_structure: ["elements", "burden", "defenses", "remedies"]
 
@@ -16,7 +16,7 @@ questions:
     expected_structure: ["elements", "protected activity", "adverse action"]
 
   - question: "What are the employer's obligations under FEHA regarding disability accommodation?"
-    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_categories: ["statutory_code", "agency_guidance", "jury_instruction"]
     expected_citations: ["12940"]
     expected_structure: ["interactive process", "reasonable accommodation", "undue hardship"]
 
@@ -42,30 +42,30 @@ questions:
 
   # Element Analysis (5)
   - question: "What must a plaintiff prove to establish a wrongful termination in violation of public policy?"
-    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_categories: ["statutory_code", "agency_guidance", "jury_instruction"]
     expected_citations: []
     expected_structure: ["elements", "public policy", "causation"]
 
   - question: "What are the elements of a harassment claim under FEHA?"
-    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_categories: ["statutory_code", "agency_guidance", "jury_instruction"]
     expected_citations: ["12940"]
     expected_structure: ["severe or pervasive", "hostile work environment"]
 
   - question: "What constitutes an adverse employment action for purposes of a retaliation claim?"
-    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_categories: ["statutory_code", "agency_guidance", "jury_instruction"]
     expected_citations: []
 
   - question: "What are the requirements for a valid WARN Act notice under Labor Code?"
-    expected_categories: ["statutory_code"]
+    expected_categories: ["statutory_code", "jury_instruction"]
     expected_citations: ["1400", "1401"]
 
   - question: "What constitutes a 'protected activity' under the whistleblower statutes?"
-    expected_categories: ["statutory_code"]
+    expected_categories: ["statutory_code", "jury_instruction"]
     expected_citations: ["1102.5"]
 
   # Cross-Statutory Issues (4)
   - question: "How do FEHA and Labor Code whistleblower protections overlap for retaliation claims?"
-    expected_categories: ["statutory_code"]
+    expected_categories: ["statutory_code", "jury_instruction"]
     expected_citations: ["12940", "1102.5"]
 
   - question: "Compare the remedies available under FEHA versus Labor Code section 1102.5"
@@ -82,7 +82,7 @@ questions:
 
   # Procedural Questions (3)
   - question: "What is the administrative exhaustion requirement for FEHA claims?"
-    expected_categories: ["statutory_code", "agency_guidance"]
+    expected_categories: ["statutory_code", "agency_guidance", "jury_instruction"]
     expected_citations: ["12960", "12965"]
 
   - question: "What are the procedural requirements for filing a Labor Commissioner complaint?"
@@ -95,7 +95,7 @@ questions:
 
   # Remedies Analysis (3)
   - question: "What damages are available in a FEHA employment discrimination case?"
-    expected_categories: ["statutory_code"]
+    expected_categories: ["statutory_code", "jury_instruction"]
     expected_citations: ["12965"]
     expected_structure: ["compensatory", "punitive", "attorney fees"]
 
