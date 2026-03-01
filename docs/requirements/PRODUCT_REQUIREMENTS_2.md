@@ -402,24 +402,149 @@ The workstreams above are independent, but there's a logical sequencing that max
 
 **Goal:** Make the product genuinely useful for both audiences. Add case law (the missing foundation for attorneys), build the consumer assessment tool (the free acquisition wedge), and harden for production.
 
-**Parallel tracks:**
+**Dependency graph:**
 
-| Track | Workstream Items | Why Now |
-|-------|-----------------|---------|
-| **Case Law Foundation** | A.1, A.2, A.3, A.5, A.6 | Case law is the #1 gap in our knowledge base. Without it, attorney mode is a statute lookup, not a research tool. CourtListener is free. |
-| **Consumer Assessment** | C.1, C.2, C.3, C.5 | The free wedge. SEO acquisition engine. Every assessment is a potential attorney lead (future). Interactive tools > static content for search rankings. |
-| **Citation Verification** | F.1, F.2, F.3, F.4 | The existential risk mitigation. Must ship alongside case law. Verified citations are the #1 differentiator vs. ChatGPT/Westlaw AI. |
-| **SEO + Content** | G.1, G.3 | Claim-type landing pages and calculators drive organic traffic. Must go live before we need the traffic. |
-| **Infrastructure** | H.1, H.2, H.4, H.5 | CI/CD, error tracking, privacy policy, input sanitization. Table stakes for a production legal product. |
-| **Spanish Consumer UI** | G.4 (partial) + API language param | Spanish UI strings, `/es` route prefix, `language` parameter so Claude responds in Spanish. No KB translation — legal authority is the same. LLM already speaks Spanish. |
+```
+4A Infrastructure ──┐
+                    ├── 4B Eyecite + CourtListener Client ──┐
+                    │                                        ├── 4C Case Law Pipeline
+                    │                                        └── 4D Citation Verification
+                    │
+                    ├── 4E Consumer Assessment Tools (independent)
+                    ├── 4F SEO Content Pages (after 4E)
+                    └── 4G Spanish Consumer UI (independent)
+```
 
-**Exit criteria:**
-- Case law in knowledge base (target: 2,000+ California state appellate employment opinions)
-- Consumer assessment flow live and usable
-- Citation verification pipeline operational
-- 8 claim-type landing pages live with schema.org markup
-- Spanish consumer experience functional (`/es` route, Spanish LLM responses)
-- CI/CD pipeline operational
+Critical path: 4A → 4B → 4C → 4D (~7–10 weeks). Consumer track (4E, 4F, 4G) runs in parallel with the case law chain. Every sub-phase has its own gate and test suite. Nothing ships without tests.
+
+#### 4A — Infrastructure Foundation (1–2 weeks)
+
+| # | Task | Deliverable | Tests |
+|---|------|-------------|-------|
+| 4A.1 | **CI/CD pipeline** — GitHub Actions: run `uv run pytest` on every PR, deploy staging on merge to main, production with manual approval gate. | `.github/workflows/ci.yml` | CI runs 774 existing tests green on first PR |
+| 4A.2 | **Error tracking** — Sentry integration for FastAPI backend and Next.js frontend. Alert on error rate spikes. | Sentry DSN configured, error captured in test | Sentry captures a test exception end-to-end |
+| 4A.3 | **Privacy policy page** — CCPA/CPRA compliant. Documents: data collected (queries, feedback, IP), 90-day full retention then anonymization (per PO-8), user rights (know/delete/opt-out). | `/privacy` page (frontend) | Page renders, linked from footer, content covers required CCPA sections |
+| 4A.4 | **Input sanitization** — Validate and sanitize all user inputs on API boundary. Prompt injection prevention (detect and reject adversarial prompts). | Input validation middleware in FastAPI | Unit tests: valid input passes, injection attempts blocked, oversized input rejected |
+
+**[GATE 4A]** CI pipeline green on every PR. Sentry reporting errors. Privacy policy live. Input sanitization active.
+
+---
+
+#### 4B — Core Libraries: Eyecite + CourtListener Client (2–3 weeks)
+
+These are the foundation libraries that the case law pipeline and citation verification both depend on.
+
+| # | Task | Deliverable | Tests |
+|---|------|-------------|-------|
+| 4B.1 | **Eyecite integration** — Python module wrapping the Eyecite library for citation extraction from legal text. Extract both case citations (e.g., "Yanowitz v. L'Oreal USA, Inc. (2005) 36 Cal.4th 1028") and statutory citations (e.g., "Gov. Code, § 12940, subd. (a)"). Normalize to standard format. | `src/employee_help/processing/citation_extractor.py` | Unit tests: extract case cites, statutory cites, mixed text, California-specific formats, edge cases (parentheticals, string cites, pin cites) |
+| 4B.2 | **CourtListener API client** — Authenticated REST client for CourtListener v4 API. Endpoints: search opinions, fetch opinion text, fetch clusters, citation lookup. Pagination support (cursor-based). Rate limit handling (5,000 req/hr). Retry with backoff on transient errors. | `src/employee_help/scraper/extractors/courtlistener.py` | Unit tests (mocked HTTP via respx): search, fetch, pagination, rate limit 429 handling, retry on 500, auth header |
+| 4B.3 | **Opinion loader** — Bulk download pipeline: paginate through CA Supreme Court + Courts of Appeal opinions via CourtListener API, run Eyecite on each opinion to extract cited statutes, filter to opinions citing employment statutes in our knowledge base (FEHA, Labor Code, UIC, B&P, CCP). Configurable court list and statute list for extensibility. | Opinion loader with configurable filters | Integration tests: filter pipeline correctly identifies employment opinions, rejects non-employment opinions, handles malformed opinion text |
+
+**[GATE 4B]** Eyecite extracts citations from 20 sample opinions with >95% accuracy. CourtListener client can paginate through search results (verified against live API with 5 test queries). Opinion loader filters corpus to employment-relevant opinions.
+
+---
+
+#### 4C — Case Law Pipeline (2–3 weeks) — depends on 4B
+
+| # | Task | Deliverable | Tests |
+|---|------|-------------|-------|
+| 4C.1 | **Case law content category** — Add `CASE_LAW = "case_law"` to ContentCategory enum. Add to attorney mode retrieval categories. Exclude from consumer mode. | Updated `storage/models.py`, `retrieval/service.py` | Unit tests: attorney mode includes case_law, consumer mode excludes it |
+| 4C.2 | **Case law chunking strategy** — New `case_law` chunking mode: extract opinion metadata (parties, court, date, case citation, docket number), split opinion into meaningful sections (background, analysis, holding), each chunk carries full case citation. Long opinions split at paragraph boundaries preserving citation context. | Enhanced `chunker.py` with `strategy: case_law` | Chunking tests: metadata extraction, long opinion splitting, citation on every chunk, short opinion stays single chunk |
+| 4C.3 | **Citation linking table** — Run Eyecite over all ingested opinions. Build bidirectional links in SQLite: for each case, which statutes it cites; for each statute, which cases cite it. | New `citation_links` table in SQLite, CRUD methods in storage | Link table tests: citation counts match, bidirectional lookups work, deduplication, no orphaned links |
+| 4C.4 | **Source config + pipeline integration** — Create `config/sources/courtlistener.yaml`. Integrate opinion loader into pipeline via new `_run_caselaw()` method. CLI command: `employee-help ingest-caselaw`. | Source config, pipeline method, CLI command | Pipeline test: end-to-end ingest of 10 test opinions, verify documents + chunks + links created |
+| 4C.5 | **Embed and index case law** — Run embedding pipeline on case law chunks. Update LanceDB FTS index. Verify hybrid search returns case law for attorney queries. | Case law vectors in LanceDB | Retrieval tests: attorney query for "FEHA retaliation elements" returns case law; citation query for "Yanowitz" returns the case; consumer query returns zero case law |
+| 4C.6 | **Full ingestion run** — Download and ingest CA state appellate employment opinions. Target: 2,000–5,000 opinions. | Populated case law knowledge base | Spot-check: 20 random opinions verified for correct citation, court, date, content quality |
+
+**[GATE 4C]** 2,000+ employment opinions ingested and embedded. Attorney search returns case law alongside statutes. Consumer mode returns zero case law. Updated retrieval quality eval passes with `case_law` in expected categories.
+
+---
+
+#### 4D — Citation Verification (1–2 weeks) — depends on 4B, 4C
+
+| # | Task | Deliverable | Tests |
+|---|------|-------------|-------|
+| 4D.1 | **CourtListener case verification** — For every case citation in LLM output: query CourtListener API to verify case exists, check citation format matches, confirm California jurisdiction, validate year. Return verification result (verified/not_found/wrong_jurisdiction/date_mismatch). | `src/employee_help/generation/citation_verifier.py` | Unit tests (mocked API): valid CA case → verified, fake case → not_found, federal case → wrong_jurisdiction, wrong year → date_mismatch |
+| 4D.2 | **Statute currency check** — For every statute citation: verify section exists and is active in PUBINFO (`active_flg = 'Y'`). Check if section was amended since last ingestion. | Statute verifier in `citation_verifier.py` | Unit tests: active section → verified, repealed → flagged, amended → warning with date |
+| 4D.3 | **Confidence scoring** — Aggregate verification results into per-citation confidence: Verified (all checks pass), Unverified (case/statute not found in external source), Suspicious (wrong jurisdiction, date mismatch, repealed). | Confidence scoring logic | Scoring tests: all-pass → Verified, missing case → Unverified, repealed statute → Suspicious |
+| 4D.4 | **Wire into answer generation** — Integrate citation verifier into AnswerService: after LLM generates response, extract citations via Eyecite, verify each, annotate response with confidence scores. Runs asynchronously to avoid blocking streaming. | Updated `generation/service.py` | E2E test: ask attorney question → response includes citations → each citation has confidence score |
+| 4D.5 | **Confidence badges in UI** — Display verification status next to each citation: green checkmark (Verified), yellow question mark (Unverified), red warning (Suspicious). Tooltip shows verification details. | Frontend citation badge component | Frontend renders badges, tooltips display correct status text |
+| 4D.6 | **Citation audit log** — Log every citation generated, verification status, verification source, and timestamp. CLI report: `employee-help citation-audit --since 2026-03-01`. | `citation_audit` table in SQLite, CLI command | Audit table populated after queries, CLI report shows correct counts |
+
+**[GATE 4D]** Every citation in attorney mode output is mechanically verified. Run 25-question attorney eval: zero hallucinated citations, all citations carry confidence badges. Citation audit log captures all verification activity.
+
+---
+
+#### 4E — Consumer Assessment Tools (2–3 weeks) — parallel with 4B–4D
+
+Independent of the case law chain. Can start as soon as 4A is complete.
+
+| # | Task | Deliverable | Tests |
+|---|------|-------------|-------|
+| 4E.1 | **Statute of limitations calculator** — Input: claim type + incident date. Output: all relevant deadlines (CRD 3yr, EEOC 300d, PAGA LWDA 1yr, govt tort 6mo, Labor Code varies by section). Urgency warnings for deadlines < 90 days. | Backend: `/api/deadlines` endpoint. Frontend: calculator component. | Unit tests: every claim type, boundary dates, expired deadlines, multiple overlapping deadlines. Edge cases: weekends, leap years. |
+| 4E.2 | **Unpaid wages calculator** — Input: hours/week, hourly rate, breaks missed, weeks worked. Output: regular pay, daily overtime (>8hrs), weekly overtime (>40hrs), double time (>12hrs), meal break premiums (Lab. Code § 226.7), rest break premiums, waiting time penalties (Lab. Code § 203). | Backend: `/api/wages` endpoint. Frontend: calculator component. | Math unit tests: daily OT, weekly OT, double time, 7th-day premium, meal/rest premiums at regular rate, waiting time (30-day cap). Validate against known examples. |
+| 4E.3 | **Agency routing guide** — Input: claim type(s). Output: which agency to file with (CRD vs. EEOC vs. DLSE vs. LWDA vs. court), step-by-step filing instructions, direct links to filing portals. Decision logic handles dual-filing scenarios (e.g., FEHA + Title VII → CRD cross-files with EEOC). | Backend: routing logic. Frontend: step-by-step guide component. | Routing logic tests: each claim type maps to correct agency, dual-filing detected, links validated |
+| 4E.4 | **Guided intake questionnaire** — Multi-step conversational form. Steps: (1) What happened? (category selection), (2) When? (timeline), (3) Where? (employer info), (4) Protected characteristics? (if discrimination), (5) Reporting history (internal complaints, agency filings). Maps answers to claim categories. Prominent disclaimer at every step. | Backend: `/api/assess` endpoint. Frontend: `/assess` route with multi-step form. | Flow tests: complete path for each of 5 claim types (discrimination, wage theft, retaliation, wrongful termination, leave violation). Disclaimer present on every step. Incomplete submissions handled gracefully. |
+| 4E.5 | **Rights summary generator** — After assessment, generate plain-language summary using RAG pipeline: "Based on what you've described, here are the California employment rights that may be relevant..." Includes statute citations, agency links, filing deadlines, and next steps. Strong disclaimer. | Backend: assessment → RAG query. Frontend: summary display with citations + disclaimer. | API tests: assessment data produces relevant summary with real citations. Disclaimer always present. Summary covers correct claim types for input. |
+
+**[GATE 4E]** All calculators produce correct results for test vectors. Assessment flow completable for 5 claim types. Rights summary includes verified statute citations and disclaimer. All consumer tools render correctly on mobile (44px touch targets).
+
+---
+
+#### 4F — SEO Content Pages (1–2 weeks) — after 4E
+
+Builds on 4E by linking to the interactive assessment tools and calculators from each content page.
+
+| # | Task | Deliverable | Tests |
+|---|------|-------------|-------|
+| 4F.1 | **8 claim-type landing pages** (SSG) — One per major claim type: wrongful termination, FEHA discrimination, FEHA harassment, wage theft, retaliation, PAGA, CFRA leave, misclassification. Each page includes: overview, elements of the claim, relevant statutes, filing deadlines, "Assess Your Situation" CTA linking to `/assess`, 5+ FAQs with schema.org FAQPage markup, internal links to related topics and calculators. | 8 new pages in `frontend/app/claims/[type]/page.tsx` | Build passes. Schema.org validates (Google Rich Results Test). Internal links resolve. CTA links to working assessment tool. |
+| 4F.2 | **Calculator pages** — Standalone SEO-optimized pages wrapping the C.2 statute of limitations calculator and C.6 unpaid wages calculator. Each has its own URL, meta description, schema.org markup, and educational content above the calculator. | `/tools/overtime-calculator`, `/tools/deadline-calculator` pages | Pages render. Calculators functional. Schema.org markup present. |
+
+**[GATE 4F]** 8 claim-type pages + 2 calculator pages live. All schema.org markup validates. Internal linking complete across topic pages, claim pages, and calculator pages.
+
+---
+
+#### 4G — Spanish Consumer UI (1–2 weeks) — parallel with 4B–4F
+
+Independent track. Can start as soon as 4A is complete.
+
+| # | Task | Deliverable | Tests |
+|---|------|-------------|-------|
+| 4G.1 | **API `language` parameter** — Add optional `language` field to AskRequest schema. When `language: "es"`, system prompt includes instruction: "Respond entirely in Spanish. Translate legal terms but include the English legal term in parentheses on first use." | Updated `schemas.py`, `prompts.py` | API test: Spanish query → Spanish response. English legal terms preserved in parentheses. Citations remain in English (statute numbers are language-neutral). |
+| 4G.2 | **Spanish UI strings** — Extract all user-facing text (buttons, labels, headings, disclaimers, consent modal, error messages) into a locale system. Create Spanish translations. | `frontend/lib/i18n/` with `en.json` + `es.json` | String coverage test: every key in `en.json` has corresponding key in `es.json` |
+| 4G.3 | **`/es` route prefix** — Next.js i18n routing: `/es` prefix loads Spanish locale, default (no prefix) is English. `hreflang` tags on all pages (`<link rel="alternate" hreflang="es">` and vice versa). Language toggle in header. | i18n config in `next.config.ts`, layout updates | Route test: `/es` loads Spanish UI. `/es/topics` loads Spanish topic page. `hreflang` tags present on every page. Language toggle switches between `/` and `/es`. |
+| 4G.4 | **Spanish assessment flow** — Ensure guided intake questionnaire (4E.4), rights summary (4E.5), and calculators (4E.1, 4E.2) all work in Spanish using the locale strings and Spanish LLM responses. | Assessment flow functional in Spanish | E2E test: Spanish user completes assessment → receives Spanish rights summary with English citations |
+| 4G.5 | **Spanish topic pages** — Translate top 5 existing topic pages to Spanish (SSG). | `/es/topics/[slug]` pages | Pages render. `hreflang` tags cross-link English ↔ Spanish versions. |
+
+**[GATE 4G]** Spanish user can: visit `/es` → browse topics in Spanish → ask question in Spanish → receive Spanish response → complete assessment in Spanish → view deadline calculator in Spanish. All disclaimers rendered in Spanish.
+
+---
+
+#### Phase 4 Summary
+
+| Sub-phase | Duration | Depends On | Parallel With | Key Deliverable |
+|-----------|----------|-----------|---------------|----------------|
+| **4A** Infrastructure | 1–2 wks | — | — | CI/CD, Sentry, privacy policy, input sanitization |
+| **4B** Core Libraries | 2–3 wks | 4A | 4E, 4G | Eyecite + CourtListener client + opinion loader |
+| **4C** Case Law Pipeline | 2–3 wks | 4B | 4E, 4F, 4G | 2,000+ opinions ingested, case law in attorney search |
+| **4D** Citation Verification | 1–2 wks | 4B, 4C | 4F, 4G | Every citation mechanically verified, confidence badges |
+| **4E** Consumer Assessment | 2–3 wks | 4A | 4B, 4C, 4D | Calculators, assessment flow, rights summary |
+| **4F** SEO Pages | 1–2 wks | 4E | 4D, 4G | 8 claim pages + 2 calculator pages |
+| **4G** Spanish UI | 1–2 wks | 4A | 4B–4F | Full Spanish consumer experience |
+
+**Critical path:** 4A → 4B → 4C → 4D = ~7–10 weeks
+**Total with parallelism:** ~8–12 weeks
+**Tests added (estimated):** ~150–200 new tests across all sub-phases
+
+**Phase 4 Exit Criteria:**
+- [ ] Case law in knowledge base: 2,000+ CA state appellate employment opinions
+- [ ] Citation verification pipeline operational: zero hallucinated citations in 25-question eval
+- [ ] Consumer assessment flow live for 5 claim types
+- [ ] Statute of limitations calculator and unpaid wages calculator functional
+- [ ] 8 claim-type landing pages + 2 calculator pages live with schema.org markup
+- [ ] Spanish consumer experience functional (`/es` route, Spanish LLM responses)
+- [ ] CI/CD pipeline operational: tests run on every PR, staging auto-deploy
+- [ ] Privacy policy live, Sentry tracking errors, input sanitization active
+- [ ] Total test count: 900+ (current 774 + ~150–200 new)
 
 ### Phase 5: Attorney Workflow + Knowledge Expansion (Following 8–12 weeks)
 
