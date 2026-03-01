@@ -36,6 +36,7 @@ class ContentCategory(str, Enum):
     POSTER = "poster"
     FAQ = "faq"
     JURY_INSTRUCTION = "jury_instruction"
+    CASE_LAW = "case_law"
 
 
 @dataclass
@@ -89,3 +90,25 @@ class Chunk:
     content_category: ContentCategory = ContentCategory.AGENCY_GUIDANCE
     citation: str | None = None
     is_active: bool = True
+
+
+@dataclass
+class CitationLink:
+    """Bidirectional link between a citing chunk and a cited reference.
+
+    Enables lookups in both directions:
+    - Forward: given a case chunk, which statutes/cases does it cite?
+    - Reverse: given a statute chunk, which cases cite it?
+    """
+
+    source_chunk_id: int
+    cited_text: str
+    citation_type: str  # "case" | "statute" | "short_case" | "id" | "supra"
+    reporter: str | None = None
+    volume: str | None = None
+    page: str | None = None
+    section: str | None = None
+    is_california: bool = False
+    target_chunk_id: int | None = None
+    created_at: datetime = field(default_factory=_utcnow)
+    id: int | None = None

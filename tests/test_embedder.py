@@ -223,6 +223,52 @@ class TestEmbeddingService:
         embeddings = service.embed_chunks(chunks, source_id=1, batch_size=3)
         assert len(embeddings) == 2  # Only second batch succeeds
 
+    def test_embed_case_law_chunks(self, service, mock_model):
+        """Embedding pipeline should handle CASE_LAW chunks transparently."""
+        import numpy as np
+
+        chunks = [
+            Chunk(
+                content="The court held that FEHA protects against retaliation.",
+                content_hash="case_hash_1",
+                chunk_index=0,
+                heading_path="Case Law > Yanowitz v. L'Oreal",
+                token_count=12,
+                document_id=1,
+                id=200,
+                content_category=ContentCategory.CASE_LAW,
+                citation="Yanowitz v. L'Oreal USA, Inc. (2005) 36 Cal.4th 1028",
+                is_active=True,
+            ),
+            Chunk(
+                content="Wrongful termination in violation of public policy.",
+                content_hash="case_hash_2",
+                chunk_index=0,
+                heading_path="Case Law > Tameny v. Atlantic Richfield",
+                token_count=9,
+                document_id=2,
+                id=201,
+                content_category=ContentCategory.CASE_LAW,
+                citation="Tameny v. Atlantic Richfield Co. (1980) 27 Cal.3d 167",
+                is_active=True,
+            ),
+        ]
+
+        mock_model.encode.return_value = np.random.rand(2, 768).astype("float32")
+
+        embeddings = service.embed_chunks(
+            chunks,
+            source_id=10,
+            doc_url_map={1: "https://courtlistener.com/1", 2: "https://courtlistener.com/2"},
+        )
+
+        assert len(embeddings) == 2
+        assert embeddings[0].content_category == "case_law"
+        assert embeddings[0].citation == "Yanowitz v. L'Oreal USA, Inc. (2005) 36 Cal.4th 1028"
+        assert embeddings[0].chunk_id == 200
+        assert embeddings[1].content_category == "case_law"
+        assert embeddings[1].citation == "Tameny v. Atlantic Richfield Co. (1980) 27 Cal.3d 167"
+
     def test_import_error_without_sentence_transformers(self):
         svc = EmbeddingService(model_name="test", device="cpu")
         with patch.dict("sys.modules", {"sentence_transformers": None}):

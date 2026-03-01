@@ -223,6 +223,10 @@ class RetrievalService:
             if candidate.content_category == "jury_instruction":
                 candidate.relevance_score *= 1.3
 
+            # Case law boost in attorney mode
+            if candidate.content_category == "case_law":
+                candidate.relevance_score *= 1.25
+
             # Citation match boost — strong boost for exact section match
             if (
                 processed.has_citation

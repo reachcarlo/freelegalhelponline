@@ -9,6 +9,7 @@ from pathlib import Path
 
 from employee_help.storage.models import (
     Chunk,
+    CitationLink,
     ContentCategory,
     ContentType,
     CrawlRun,
@@ -67,6 +68,25 @@ CREATE TABLE IF NOT EXISTS chunks (
     citation TEXT,
     is_active INTEGER NOT NULL DEFAULT 1
 );
+
+CREATE TABLE IF NOT EXISTS citation_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_chunk_id INTEGER NOT NULL REFERENCES chunks(id) ON DELETE CASCADE,
+    cited_text TEXT NOT NULL,
+    citation_type TEXT NOT NULL,
+    reporter TEXT,
+    volume TEXT,
+    page TEXT,
+    section TEXT,
+    is_california INTEGER NOT NULL DEFAULT 0,
+    target_chunk_id INTEGER REFERENCES chunks(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_citation_links_source ON citation_links(source_chunk_id);
+CREATE INDEX IF NOT EXISTS idx_citation_links_target ON citation_links(target_chunk_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_citation_links_dedup
+    ON citation_links(source_chunk_id, cited_text);
 
 CREATE INDEX IF NOT EXISTS idx_documents_content_hash ON documents(content_hash);
 CREATE INDEX IF NOT EXISTS idx_documents_source_url ON documents(source_url);
@@ -449,6 +469,151 @@ class Storage:
             ).fetchall()
         return [self._row_to_chunk(row) for row in rows]
 
+    # ── Citation Links ─────────────────────────────────────────
+
+    def insert_citation_links(self, links: list[CitationLink]) -> int:
+        """Bulk-insert citation links, skipping duplicates.
+
+        Deduplicates on (source_chunk_id, cited_text) so re-processing
+        the same opinion is idempotent.
+
+        Returns:
+            Number of links inserted.
+        """
+        inserted = 0
+        for link in links:
+            try:
+                self._conn.execute(
+                    """INSERT INTO citation_links
+                       (source_chunk_id, cited_text, citation_type, reporter,
+                        volume, page, section, is_california, target_chunk_id, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        link.source_chunk_id,
+                        link.cited_text,
+                        link.citation_type,
+                        link.reporter,
+                        link.volume,
+                        link.page,
+                        link.section,
+                        1 if link.is_california else 0,
+                        link.target_chunk_id,
+                        link.created_at.isoformat(),
+                    ),
+                )
+                inserted += 1
+            except sqlite3.IntegrityError:
+                # Duplicate (source_chunk_id, cited_text) — skip
+                continue
+        self._conn.commit()
+        return inserted
+
+    def get_citations_for_chunk(self, chunk_id: int) -> list[CitationLink]:
+        """Get all citations made by a chunk (forward lookup).
+
+        Args:
+            chunk_id: The citing chunk's ID.
+
+        Returns:
+            List of CitationLink objects for citations in this chunk.
+        """
+        rows = self._conn.execute(
+            "SELECT * FROM citation_links WHERE source_chunk_id = ? ORDER BY id",
+            (chunk_id,),
+        ).fetchall()
+        return [self._row_to_citation_link(row) for row in rows]
+
+    def get_citing_chunks(self, chunk_id: int) -> list[CitationLink]:
+        """Get all citation links that point to a chunk (reverse lookup).
+
+        Args:
+            chunk_id: The cited chunk's ID (target_chunk_id).
+
+        Returns:
+            List of CitationLink objects where this chunk is the target.
+        """
+        rows = self._conn.execute(
+            "SELECT * FROM citation_links WHERE target_chunk_id = ? ORDER BY id",
+            (chunk_id,),
+        ).fetchall()
+        return [self._row_to_citation_link(row) for row in rows]
+
+    def get_citation_link_count(self) -> int:
+        """Return total number of citation links."""
+        row = self._conn.execute(
+            "SELECT COUNT(*) as cnt FROM citation_links"
+        ).fetchone()
+        return row["cnt"]
+
+    def delete_citation_links_for_chunk(self, chunk_id: int) -> int:
+        """Delete all citation links originating from a chunk.
+
+        Used to re-process a chunk's citations cleanly.
+
+        Returns:
+            Number of links deleted.
+        """
+        cur = self._conn.execute(
+            "DELETE FROM citation_links WHERE source_chunk_id = ?",
+            (chunk_id,),
+        )
+        self._conn.commit()
+        return cur.rowcount
+
+    def resolve_citation_targets(self) -> int:
+        """Resolve unlinked citation_links to target chunks by matching citations.
+
+        For statute citations, matches the section number against chunks
+        with a matching citation field. For case citations, matches the
+        reporter + volume + page against chunk citation text.
+
+        Returns:
+            Number of links resolved.
+        """
+        resolved = 0
+
+        # Resolve statute citations: match section against chunk citation field
+        cur = self._conn.execute(
+            """UPDATE citation_links SET target_chunk_id = (
+                   SELECT c.id FROM chunks c
+                   WHERE c.citation IS NOT NULL
+                     AND c.is_active = 1
+                     AND citation_links.section IS NOT NULL
+                     AND c.citation LIKE '%§ ' || citation_links.section || '%'
+                   ORDER BY c.id LIMIT 1
+               )
+               WHERE target_chunk_id IS NULL
+                 AND citation_type = 'statute'
+                 AND section IS NOT NULL"""
+        )
+        resolved += cur.rowcount
+
+        # Resolve case citations: match volume + reporter + page
+        cur = self._conn.execute(
+            """UPDATE citation_links SET target_chunk_id = (
+                   SELECT c.id FROM chunks c
+                   WHERE c.citation IS NOT NULL
+                     AND c.is_active = 1
+                     AND c.content_category = 'case_law'
+                     AND citation_links.volume IS NOT NULL
+                     AND citation_links.reporter IS NOT NULL
+                     AND citation_links.page IS NOT NULL
+                     AND c.citation LIKE '%' || citation_links.volume
+                         || ' ' || citation_links.reporter
+                         || ' ' || citation_links.page || '%'
+                   ORDER BY c.id LIMIT 1
+               )
+               WHERE target_chunk_id IS NULL
+                 AND citation_type = 'case'
+                 AND volume IS NOT NULL
+                 AND reporter IS NOT NULL
+                 AND page IS NOT NULL"""
+        )
+        resolved += cur.rowcount
+
+        self._conn.commit()
+        return resolved
+
     # ── Cross-Source Duplicate Detection ────────────────────────
 
     def find_cross_source_duplicates(self) -> list[dict]:
@@ -543,4 +708,20 @@ class Storage:
             content_category=ContentCategory(row["content_category"]),
             citation=row["citation"],
             is_active=bool(row["is_active"]),
+        )
+
+    @staticmethod
+    def _row_to_citation_link(row: sqlite3.Row) -> CitationLink:
+        return CitationLink(
+            id=row["id"],
+            source_chunk_id=row["source_chunk_id"],
+            cited_text=row["cited_text"],
+            citation_type=row["citation_type"],
+            reporter=row["reporter"],
+            volume=row["volume"],
+            page=row["page"],
+            section=row["section"],
+            is_california=bool(row["is_california"]),
+            target_chunk_id=row["target_chunk_id"],
+            created_at=datetime.fromisoformat(row["created_at"]),
         )

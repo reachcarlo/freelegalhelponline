@@ -214,6 +214,85 @@ class TestVectorStoreSearch:
             assert r["is_active"] is True
 
 
+class TestCaseLawIndexing:
+    """Tests for case law embedding indexing and retrieval (4C.5)."""
+
+    def test_case_law_stored_in_vector_index(self, vector_store):
+        """Case law embeddings should be stored alongside other categories."""
+        embeddings = [
+            _make_embedding(1, "FEHA retaliation elements", content_category="statutory_code"),
+            _make_embedding(
+                2, "Yanowitz court held adverse action includes pattern of retaliatory conduct",
+                content_category="case_law",
+                citation="Yanowitz v. L'Oreal USA, Inc. (2005) 36 Cal.4th 1028",
+            ),
+            _make_embedding(3, "Agency guidance on filing complaints", content_category="agency_guidance"),
+        ]
+        vector_store.create_table(embeddings)
+
+        stats = vector_store.get_stats()
+        assert stats["embedding_count"] == 3
+        assert stats["content_categories"]["case_law"] == 1
+
+    def test_case_law_excluded_by_consumer_filter(self, vector_store):
+        """Consumer mode filter should exclude case_law from results."""
+        embeddings = [
+            _make_embedding(1, "agency content", content_category="agency_guidance"),
+            _make_embedding(2, "case law content", content_category="case_law"),
+        ]
+        vector_store.create_table(embeddings)
+
+        query_vec = [0.1 * (i % 10) for i in range(768)]
+        results = vector_store.search_vector(
+            query_vec, top_k=10,
+            filter_expr="is_active = true AND content_category IN ('agency_guidance', 'fact_sheet', 'faq')",
+        )
+        for r in results:
+            assert r["content_category"] != "case_law"
+
+    def test_case_law_included_in_attorney_filter(self, vector_store):
+        """Attorney mode filter (is_active only) should include case_law."""
+        embeddings = [
+            _make_embedding(1, "statutory content", content_category="statutory_code"),
+            _make_embedding(2, "case law content", content_category="case_law"),
+        ]
+        vector_store.create_table(embeddings)
+
+        query_vec = [0.1 * (i % 10) for i in range(768)]
+        results = vector_store.search_vector(
+            query_vec, top_k=10,
+            filter_expr="is_active = true",
+        )
+        categories = {r["content_category"] for r in results}
+        assert "case_law" in categories
+
+    def test_case_law_fts_searchable(self, vector_store):
+        """Case law content should be discoverable via FTS/BM25 search."""
+        embeddings = [
+            _make_embedding(
+                1, "Yanowitz adverse employment action retaliation FEHA",
+                content_category="case_law",
+                citation="Yanowitz v. L'Oreal USA, Inc. (2005) 36 Cal.4th 1028",
+            ),
+        ]
+        vector_store.create_table(embeddings)
+
+        results = vector_store.search_keyword("Yanowitz retaliation", top_k=5)
+        assert len(results) > 0
+        assert results[0]["content_category"] == "case_law"
+
+    def test_case_law_citation_in_fts_content(self, vector_store):
+        """Case law citation should be prepended to FTS content for discoverability."""
+        emb = _make_embedding(
+            1, "The court analyzed the elements of retaliation.",
+            content_category="case_law",
+            citation="Yanowitz v. L'Oreal USA, Inc. (2005) 36 Cal.4th 1028",
+        )
+        records = vector_store._embeddings_to_records([emb])
+        # Citation should be prepended to the searchable content
+        assert "[Yanowitz v. L'Oreal" in records[0]["content"]
+
+
 class TestFTSIndex:
     """Tests for FTS index management."""
 

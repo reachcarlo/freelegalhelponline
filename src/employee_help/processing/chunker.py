@@ -35,6 +35,152 @@ def content_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def chunk_case_law(
+    text: str,
+    case_citation: str,
+    heading_path: str,
+    max_tokens: int = 1500,
+    overlap_tokens: int = 100,
+) -> list[ChunkResult]:
+    """Chunk a court opinion for RAG retrieval.
+
+    Strategy:
+    - Short opinions (≤ max_tokens): single chunk with full text.
+    - Long opinions: split at paragraph boundaries (double newlines),
+      prepending the case citation header to each continuation chunk
+      so every chunk is self-identifying.
+
+    Args:
+        text: Full text of the court opinion.
+        case_citation: Canonical citation (e.g., "Tameny v. Atlantic Richfield Co. (1980) 27 Cal.3d 167").
+        heading_path: Hierarchy path for the opinion.
+        max_tokens: Maximum tokens per chunk.
+        overlap_tokens: Overlap tokens when splitting long opinions.
+
+    Returns:
+        List of ChunkResult objects.
+    """
+    if not text.strip():
+        return []
+
+    tokens = estimate_tokens(text)
+
+    if tokens <= max_tokens:
+        return [
+            ChunkResult(
+                content=text,
+                heading_path=heading_path,
+                chunk_index=0,
+                token_count=tokens,
+                content_hash=content_hash(text),
+            )
+        ]
+
+    # Long opinion — split at paragraph boundaries with citation headers
+    citation_header = f"[{case_citation}]\n\n"
+    paragraphs = re.split(r"\n\n+", text)
+    chunks: list[ChunkResult] = []
+    current_parts: list[str] = []
+    current_tokens = 0
+    citation_tokens = estimate_tokens(citation_header)
+
+    for para in paragraphs:
+        para_tokens = estimate_tokens(para)
+
+        # Handle oversized paragraphs
+        if para_tokens > max_tokens:
+            # Flush accumulated parts first
+            if current_parts:
+                chunk_text = "\n\n".join(current_parts)
+                if chunks:
+                    chunk_text = citation_header + chunk_text
+                chunks.append(
+                    ChunkResult(
+                        content=chunk_text,
+                        heading_path=heading_path,
+                        chunk_index=len(chunks),
+                        token_count=estimate_tokens(chunk_text),
+                        content_hash=content_hash(chunk_text),
+                    )
+                )
+                current_parts = []
+                current_tokens = 0
+
+            # Split oversized paragraph by sentences
+            sub_chunks = _split_by_sentences(
+                para, heading_path, len(chunks), max_tokens, overlap_tokens,
+            )
+            # Prepend citation header to sub-chunks if not the first chunk overall
+            for sc in sub_chunks:
+                if chunks:
+                    new_content = citation_header + sc.content
+                    sc = ChunkResult(
+                        content=new_content,
+                        heading_path=sc.heading_path,
+                        chunk_index=len(chunks),
+                        token_count=estimate_tokens(new_content),
+                        content_hash=content_hash(new_content),
+                    )
+                else:
+                    sc = ChunkResult(
+                        content=sc.content,
+                        heading_path=sc.heading_path,
+                        chunk_index=len(chunks),
+                        token_count=sc.token_count,
+                        content_hash=sc.content_hash,
+                    )
+                chunks.append(sc)
+            continue
+
+        if current_tokens + para_tokens > max_tokens and current_parts:
+            # Flush current chunk
+            chunk_text = "\n\n".join(current_parts)
+            if chunks:
+                chunk_text = citation_header + chunk_text
+            chunks.append(
+                ChunkResult(
+                    content=chunk_text,
+                    heading_path=heading_path,
+                    chunk_index=len(chunks),
+                    token_count=estimate_tokens(chunk_text),
+                    content_hash=content_hash(chunk_text),
+                )
+            )
+
+            # Overlap: keep trailing paragraphs up to overlap_tokens
+            overlap_parts: list[str] = []
+            overlap_count = 0
+            for part in reversed(current_parts):
+                part_tokens = estimate_tokens(part)
+                if overlap_count + part_tokens > overlap_tokens:
+                    break
+                overlap_parts.insert(0, part)
+                overlap_count += part_tokens
+
+            current_parts = overlap_parts
+            current_tokens = overlap_count + citation_tokens
+
+        current_parts.append(para)
+        current_tokens += para_tokens
+
+    # Flush remaining
+    if current_parts:
+        chunk_text = "\n\n".join(current_parts)
+        if chunks:
+            chunk_text = citation_header + chunk_text
+        chunks.append(
+            ChunkResult(
+                content=chunk_text,
+                heading_path=heading_path,
+                chunk_index=len(chunks),
+                token_count=estimate_tokens(chunk_text),
+                content_hash=content_hash(chunk_text),
+            )
+        )
+
+    return chunks
+
+
 def chunk_statute_section(
     text: str,
     citation: str,

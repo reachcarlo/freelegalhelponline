@@ -356,6 +356,53 @@ def main() -> int:
         help="Feedback database path (default: data/feedback.db).",
     )
 
+    # Ingest-caselaw command
+    caselaw_parser = subparsers.add_parser(
+        "ingest-caselaw",
+        help="Download and ingest California employment case law from CourtListener.",
+    )
+    caselaw_parser.add_argument(
+        "--max-opinions",
+        type=int,
+        default=None,
+        help="Maximum number of opinions to ingest (default: from config).",
+    )
+    caselaw_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Process opinions without storing to database.",
+    )
+    caselaw_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/employee_help.db",
+        help="Database path (default: data/employee_help.db).",
+    )
+    caselaw_parser.add_argument(
+        "--config",
+        type=str,
+        default="config/sources/courtlistener.yaml",
+        help="Path to courtlistener source config (default: config/sources/courtlistener.yaml).",
+    )
+
+    # Spot-check-caselaw command (4C.6)
+    spotcheck_parser = subparsers.add_parser(
+        "spot-check-caselaw",
+        help="Spot-check ingested case law for quality.",
+    )
+    spotcheck_parser.add_argument(
+        "--samples",
+        type=int,
+        default=20,
+        help="Number of opinions to sample (default: 20).",
+    )
+    spotcheck_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/employee_help.db",
+        help="Database path (default: data/employee_help.db).",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -389,6 +436,10 @@ def main() -> int:
             return _handle_evaluate_answers(args)
         elif args.command == "feedback":
             return _handle_feedback(args)
+        elif args.command == "ingest-caselaw":
+            return _handle_ingest_caselaw(args)
+        elif args.command == "spot-check-caselaw":
+            return _handle_spot_check_caselaw(args)
         else:
             parser.print_help()
             return 1
@@ -1312,6 +1363,135 @@ def _handle_feedback(args) -> int:
 
     finally:
         store.close()
+
+
+def _handle_ingest_caselaw(args) -> int:
+    """Execute the ingest-caselaw command."""
+    from employee_help.pipeline import Pipeline
+
+    config_path = Path(args.config)
+    logger.info("ingest_caselaw", config_path=str(config_path), dry_run=args.dry_run)
+
+    try:
+        source_config = load_source_config(config_path)
+    except FileNotFoundError:
+        print(f"Error: Config not found at {config_path}", file=sys.stderr)
+        return 1
+    except ValueError as e:
+        print(f"Error: Invalid config: {e}", file=sys.stderr)
+        return 1
+
+    if not source_config.caselaw:
+        print("Error: Config has no 'caselaw' section.", file=sys.stderr)
+        return 1
+
+    # Override max_opinions from CLI if provided
+    if args.max_opinions is not None:
+        source_config.caselaw.max_opinions = args.max_opinions
+
+    # Override db path if provided
+    if args.db != "data/employee_help.db":
+        source_config.database_path = args.db
+
+    pipeline = Pipeline(source_config)
+    stats = pipeline.run(dry_run=args.dry_run)
+
+    print("\n" + "=" * 60)
+    print("CASE LAW INGESTION REPORT")
+    print("=" * 60)
+    print(f"Source:              {stats.source_slug}")
+    print(f"Opinions processed:  {stats.urls_crawled}")
+    print(f"Documents stored:    {stats.documents_stored}")
+    print(f"Chunks created:      {stats.chunks_created}")
+    print(f"Errors:              {stats.errors}")
+    print(f"Duration:            {stats.duration_seconds:.1f}s")
+    print("=" * 60 + "\n")
+
+    return 0 if stats.errors == 0 else 1
+
+
+def _handle_spot_check_caselaw(args) -> int:
+    """Spot-check ingested case law for quality (4C.6)."""
+    import random
+
+    from employee_help.storage.storage import Storage
+
+    storage = Storage(args.db)
+    try:
+        source = storage.get_source("courtlistener")
+        if not source:
+            print("No 'courtlistener' source found in database.")
+            print("Run 'employee-help ingest-caselaw' first.")
+            return 1
+
+        docs = storage.get_all_documents(source_id=source.id)
+        if not docs:
+            print("No case law documents found.")
+            return 1
+
+        sample_size = min(args.samples, len(docs))
+        sampled = random.sample(docs, sample_size)
+
+        print(f"\n{'=' * 70}")
+        print(f"CASE LAW SPOT CHECK  ({sample_size} of {len(docs)} opinions)")
+        print(f"{'=' * 70}")
+
+        issues = 0
+        for i, doc in enumerate(sampled, 1):
+            chunks = storage.get_chunks_for_document(doc.id)
+            first_chunk = chunks[0] if chunks else None
+
+            # Checks
+            checks = []
+            has_citation = bool(first_chunk and first_chunk.citation)
+            has_content = bool(doc.raw_content and len(doc.raw_content) > 100)
+            has_title = bool(doc.title and doc.title != "Unknown")
+            is_case_law = doc.content_category.value == "case_law"
+            has_chunks = len(chunks) > 0
+
+            if not has_citation:
+                checks.append("MISSING citation")
+            if not has_content:
+                checks.append("EMPTY/SHORT content")
+            if not has_title:
+                checks.append("MISSING title")
+            if not is_case_law:
+                checks.append(f"WRONG category ({doc.content_category.value})")
+            if not has_chunks:
+                checks.append("NO chunks")
+
+            status = "PASS" if not checks else "FAIL"
+            if checks:
+                issues += 1
+
+            print(f"\n[{i}/{sample_size}] {status}")
+            print(f"  Title:      {doc.title[:70]}")
+            print(f"  URL:        {doc.source_url}")
+            if first_chunk and first_chunk.citation:
+                print(f"  Citation:   {first_chunk.citation[:70]}")
+            print(f"  Chunks:     {len(chunks)}")
+            print(f"  Content:    {len(doc.raw_content)} chars")
+            print(f"  Category:   {doc.content_category.value}")
+            if checks:
+                print(f"  Issues:     {', '.join(checks)}")
+
+        # Citation links summary
+        link_count = storage.get_citation_link_count()
+
+        print(f"\n{'=' * 70}")
+        print(f"SUMMARY")
+        print(f"  Total opinions:    {len(docs)}")
+        print(f"  Sampled:           {sample_size}")
+        print(f"  Passed:            {sample_size - issues}")
+        print(f"  Failed:            {issues}")
+        print(f"  Citation links:    {link_count}")
+        print(f"  Quality:           {(sample_size - issues) / sample_size:.0%}")
+        print(f"{'=' * 70}\n")
+
+        return 0 if issues == 0 else 1
+
+    finally:
+        storage.close()
 
 
 def _handle_status(args) -> int:

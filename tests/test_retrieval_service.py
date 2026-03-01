@@ -251,3 +251,167 @@ class TestJuryInstructionBoost:
         filter_expr = service._build_filter("consumer")
         # The filter uses CONSUMER_CATEGORIES which doesn't include jury_instruction
         assert "jury_instruction" not in filter_expr
+
+
+class TestCaseLawRetrieval:
+    """Tests for case law retrieval in attorney and consumer modes (4C.5)."""
+
+    def test_attorney_query_returns_case_law(self, service, mock_vector_store):
+        """Attorney mode should include case_law results alongside statutes."""
+        mock_vector_store.search_hybrid.return_value = [
+            _make_raw_result(1, "statutory_code", _relevance_score=0.8),
+            _make_raw_result(
+                2, "case_law",
+                _relevance_score=0.8,
+                citation="Yanowitz v. L'Oreal USA, Inc. (2005) 36 Cal.4th 1028",
+                content="FEHA retaliation elements require adverse employment action.",
+            ),
+            _make_raw_result(3, "agency_guidance", _relevance_score=0.7),
+        ]
+        results = service.retrieve("FEHA retaliation elements", mode="attorney")
+
+        case_law_results = [r for r in results if r.content_category == "case_law"]
+        assert len(case_law_results) > 0, "Attorney mode should return case law results"
+
+    def test_consumer_query_excludes_case_law(self, service, mock_vector_store):
+        """Consumer mode filter should exclude case_law content."""
+        filter_expr = service._build_filter("consumer")
+        assert "case_law" not in filter_expr
+        assert "case_law" not in CONSUMER_CATEGORIES
+
+    def test_attorney_mode_case_law_boost(self, service, mock_vector_store):
+        """Attorney mode should boost case_law chunks by 1.25x."""
+        mock_vector_store.search_hybrid.return_value = [
+            _make_raw_result(1, "agency_guidance", _relevance_score=0.8),
+            _make_raw_result(
+                2, "case_law",
+                _relevance_score=0.8,
+                citation="Tameny v. Atlantic Richfield Co. (1980) 27 Cal.3d 167",
+            ),
+        ]
+        results = service.retrieve("wrongful termination public policy", mode="attorney")
+
+        case_results = [r for r in results if r.content_category == "case_law"]
+        agency_results = [r for r in results if r.content_category == "agency_guidance"]
+
+        assert len(case_results) > 0, "Expected case_law results"
+        assert len(agency_results) > 0, "Expected agency results"
+        # case_law gets 1.25x boost vs agency_guidance (no boost)
+        assert case_results[0].relevance_score > agency_results[0].relevance_score
+
+    def test_case_citation_query_finds_case(self, service, mock_vector_store):
+        """Citation query for a specific case should find it via citation boost."""
+        mock_vector_store.search_hybrid.return_value = [
+            _make_raw_result(
+                1, "case_law",
+                _relevance_score=0.7,
+                citation="Yanowitz v. L'Oreal USA, Inc. (2005) 36 Cal.4th 1028",
+                content="The Yanowitz court established the framework for FEHA retaliation claims.",
+            ),
+            _make_raw_result(
+                2, "case_law",
+                _relevance_score=0.7,
+                citation="Tameny v. Atlantic Richfield Co. (1980) 27 Cal.3d 167",
+                content="Wrongful termination in violation of public policy.",
+            ),
+        ]
+        results = service.retrieve("Yanowitz case FEHA", mode="attorney")
+        assert len(results) > 0
+        # Both should be case_law
+        for r in results:
+            assert r.content_category == "case_law"
+
+    def test_case_law_mixed_with_statutory(self, service, mock_vector_store):
+        """Attorney mode retrieval should return a mix of case law and statutes."""
+        mock_vector_store.search_hybrid.return_value = [
+            _make_raw_result(
+                1, "statutory_code",
+                _relevance_score=0.9,
+                citation="Cal. Gov. Code § 12940",
+            ),
+            _make_raw_result(
+                2, "case_law",
+                _relevance_score=0.85,
+                citation="Yanowitz v. L'Oreal USA, Inc. (2005) 36 Cal.4th 1028",
+            ),
+            _make_raw_result(
+                3, "jury_instruction",
+                _relevance_score=0.8,
+                citation="CACI No. 2505",
+            ),
+            _make_raw_result(4, "agency_guidance", _relevance_score=0.75),
+        ]
+        results = service.retrieve("FEHA employment discrimination", mode="attorney")
+
+        categories = {r.content_category for r in results}
+        assert "statutory_code" in categories
+        assert "case_law" in categories
+
+    def test_case_law_deduplication(self, service, mock_vector_store):
+        """Case law chunks from the same opinion should be deduplicated by content_hash."""
+        mock_vector_store.search_hybrid.return_value = [
+            _make_raw_result(
+                1, "case_law",
+                _relevance_score=0.9,
+                content="Opinion text chunk 1",
+                content_hash="case_hash_shared",
+            ),
+            _make_raw_result(
+                2, "case_law",
+                _relevance_score=0.85,
+                content="Opinion text chunk 1 (duplicate)",
+                content_hash="case_hash_shared",
+            ),
+            _make_raw_result(
+                3, "case_law",
+                _relevance_score=0.8,
+                content="Different opinion chunk",
+                content_hash="case_hash_unique",
+            ),
+        ]
+        results = service.retrieve("test", mode="attorney")
+        hashes = [r.content_hash for r in results]
+        assert len(hashes) == len(set(hashes)), "Duplicate case law chunks should be deduplicated"
+
+    def test_attorney_filter_includes_all_categories(self, service):
+        """Attorney mode filter should not restrict by content category."""
+        filter_expr = service._build_filter("attorney")
+        assert "content_category" not in filter_expr
+        # This means case_law, statutory_code, jury_instruction all pass through
+
+    def test_case_law_boost_value(self):
+        """Verify case_law gets exactly 1.25x boost in attorney mode."""
+        svc = RetrievalService(
+            vector_store=MagicMock(),
+            embedding_service=MagicMock(),
+        )
+        candidate = RetrievalResult(
+            chunk_id=1, document_id=1, source_id=1,
+            content="test", heading_path="test",
+            content_category="case_law",
+            citation=None, relevance_score=1.0,
+        )
+        processed = MagicMock()
+        processed.has_citation = False
+        processed.cited_section = None
+
+        svc._apply_mode_scoring([candidate], "attorney", processed)
+        assert candidate.relevance_score == pytest.approx(1.25)
+
+    def test_case_law_no_boost_in_consumer_mode(self):
+        """Case law should not receive any boost in consumer mode."""
+        svc = RetrievalService(
+            vector_store=MagicMock(),
+            embedding_service=MagicMock(),
+        )
+        candidate = RetrievalResult(
+            chunk_id=1, document_id=1, source_id=1,
+            content="test", heading_path="test",
+            content_category="case_law",
+            citation=None, relevance_score=1.0,
+        )
+        processed = MagicMock()
+        processed.has_citation = False
+
+        svc._apply_mode_scoring([candidate], "consumer", processed)
+        assert candidate.relevance_score == pytest.approx(1.0)

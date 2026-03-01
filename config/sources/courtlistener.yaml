@@ -1,0 +1,56 @@
+# ============================================================
+# Employee Help — CourtListener Case Law Source Configuration
+# ============================================================
+# California state appellate employment law opinions.
+# Downloaded from CourtListener API, filtered by employment
+# statute citations and employment-specific terminology.
+# Attorney mode only (consumer mode filters out case_law).
+# ============================================================
+#
+# Requires COURTLISTENER_API_TOKEN environment variable.
+
+source:
+  name: "CourtListener Case Law"
+  slug: courtlistener
+  source_type: statutory_code
+  base_url: "https://www.courtlistener.com"
+  enabled: true
+
+crawl:
+  seed_urls: []
+  allowlist_patterns:
+    - "courtlistener\\.com"
+  blocklist_patterns: []
+  rate_limit_seconds: 1.0
+  max_pages: 1
+
+extraction:
+  content_selector: ""
+  boilerplate_patterns: []
+  content_category: case_law
+
+chunking:
+  strategy: section_boundary
+  min_tokens: 50
+  max_tokens: 1500
+  overlap_tokens: 100
+
+caselaw:
+  courts:
+    - cal
+    - calctapp
+  filed_after: "1990-01-01"
+  max_opinions: 5000
+  search_queries:
+    - '"Labor Code" "wrongful termination"'
+    - '"Government Code" "section 12940"'
+    - '"FEHA" employment discrimination'
+    - '"Labor Code" "section 1102.5" retaliation'
+    - '"Labor Code" "section 98.6"'
+    - '"PAGA" "Labor Code" "section 2699"'
+    - '"wage and hour" "Labor Code"'
+    - '"Fair Employment and Housing Act"'
+    - '"wrongful termination" "public policy"'
+    - '"employment discrimination" "disparate treatment"'
+
+database_path: "data/employee_help.db"

@@ -14,8 +14,8 @@ from pathlib import Path
 
 import structlog
 
-from employee_help.config import CrawlConfig, SourceConfig
-from employee_help.processing.chunker import chunk_document, chunk_statute_section
+from employee_help.config import CaselawConfig, CrawlConfig, SourceConfig
+from employee_help.processing.chunker import chunk_case_law, chunk_document, chunk_statute_section
 from employee_help.processing.cleaner import clean
 from employee_help.scraper.crawler import Crawler
 from employee_help.storage.models import (
@@ -130,13 +130,16 @@ class Pipeline:
     ) -> None:
         if isinstance(config, SourceConfig):
             self.source_config = config
-            # Statutory sources don't need a CrawlConfig (no seed URLs / crawler).
+            # Statutory / caselaw sources don't need a CrawlConfig (no seed URLs / crawler).
             # Only convert to CrawlConfig for agency sources that use the web crawler.
-            is_statutory = (
-                config.statutory is not None
-                and config.source_type == SourceType.STATUTORY_CODE
+            is_non_crawl = (
+                config.caselaw is not None
+                or (
+                    config.statutory is not None
+                    and config.source_type == SourceType.STATUTORY_CODE
+                )
             )
-            if is_statutory:
+            if is_non_crawl:
                 # Build a minimal CrawlConfig for storage path and chunking settings
                 self.config = CrawlConfig(
                     seed_urls=["https://placeholder.invalid"],
@@ -154,13 +157,18 @@ class Pipeline:
             self.config = config
 
         self.storage = storage or Storage(self.config.database_path)
-        # Statutory sources don't need a crawler; agency/legacy sources do
-        is_statutory = (
+        # Statutory / caselaw sources don't need a crawler; agency/legacy sources do
+        skip_crawler = (
             self.source_config is not None
-            and self.source_config.statutory is not None
-            and self.source_config.source_type == SourceType.STATUTORY_CODE
+            and (
+                self.source_config.caselaw is not None
+                or (
+                    self.source_config.statutory is not None
+                    and self.source_config.source_type == SourceType.STATUTORY_CODE
+                )
+            )
         )
-        self.crawler: Crawler | None = None if is_statutory else Crawler(self.config)
+        self.crawler: Crawler | None = None if skip_crawler else Crawler(self.config)
         self.logger = structlog.get_logger(
             __name__,
             source=self.source_config.slug if self.source_config else "legacy",
@@ -196,10 +204,14 @@ class Pipeline:
     def run(self, dry_run: bool = False) -> PipelineStats:
         """Execute the complete pipeline.
 
-        Routes to either the web crawler pipeline (agency sources) or the
-        statutory extractor pipeline (statutory_code sources) based on
-        source configuration.
+        Routes to either the web crawler pipeline (agency sources), the
+        statutory extractor pipeline (statutory_code sources), or the
+        case law pipeline (CourtListener sources) based on config.
         """
+        # Route to case law pipeline if applicable
+        if self.source_config and self.source_config.caselaw:
+            return self._run_caselaw(dry_run)
+
         # Route to statutory pipeline if applicable
         if (
             self.source_config
@@ -444,6 +456,217 @@ class Pipeline:
             self.logger.error("statutory_pipeline_failed", error=str(e))
             stats.end_time = datetime.now(tz=timezone.utc)
             raise
+
+    def _run_caselaw(self, dry_run: bool = False) -> PipelineStats:
+        """Execute the case law ingestion pipeline via CourtListener.
+
+        Downloads opinions using OpinionLoader, chunks them with
+        chunk_case_law(), creates citation links via Eyecite, and
+        resolves links to existing statute chunks.
+        """
+        import os
+
+        from employee_help.processing.citation_extractor import ExtractedCitation
+        from employee_help.scraper.extractors.opinion_loader import OpinionLoader
+        from employee_help.storage.models import CitationLink
+
+        start_time = datetime.now(tz=timezone.utc)
+        slug = self.source_config.slug
+        caselaw_cfg = self.source_config.caselaw
+
+        stats = PipelineStats(
+            run_id=-1,
+            urls_crawled=0,
+            documents_stored=0,
+            chunks_created=0,
+            errors=0,
+            start_time=start_time,
+            end_time=start_time,
+            source_slug=slug,
+        )
+
+        source_id = None
+        run_id = None
+
+        try:
+            if not dry_run:
+                source_id = self._ensure_source_record()
+                run = self.storage.create_run(source_id=source_id)
+                run_id = run.id
+                stats.run_id = run_id
+                self.logger.info("caselaw_run_created", run_id=run_id)
+
+            # Determine content category
+            category_str = self.source_config.extraction.content_category
+            try:
+                content_category = ContentCategory(category_str)
+            except ValueError:
+                content_category = ContentCategory.CASE_LAW
+
+            api_token = os.environ.get("COURTLISTENER_API_TOKEN")
+
+            loader = OpinionLoader(
+                api_token=api_token,
+                courts=caselaw_cfg.courts,
+                search_queries=caselaw_cfg.search_queries or None,
+                filed_after=caselaw_cfg.filed_after,
+                filed_before=caselaw_cfg.filed_before,
+            )
+
+            try:
+                for opinion in loader.load(
+                    max_opinions=caselaw_cfg.max_opinions,
+                ):
+                    stats.urls_crawled += 1
+
+                    try:
+                        # Build canonical citation string
+                        case_citation = opinion.citations[0] if opinion.citations else opinion.case_name
+
+                        # Build heading path
+                        court_label = opinion.court_id or "CA"
+                        date_label = opinion.date_filed or "unknown"
+                        heading_path = f"Case Law > {court_label} > {date_label} > {opinion.case_name}"
+
+                        # Chunk the opinion
+                        chunks = chunk_case_law(
+                            opinion.opinion_text,
+                            case_citation=case_citation,
+                            heading_path=heading_path,
+                            max_tokens=self.source_config.chunking.max_tokens,
+                            overlap_tokens=self.source_config.chunking.overlap_tokens,
+                        )
+
+                        if not chunks:
+                            self.logger.warning(
+                                "no_chunks_for_opinion",
+                                case_name=opinion.case_name,
+                            )
+                            continue
+
+                        if not dry_run and run_id:
+                            # Build source URL
+                            source_url = (
+                                f"https://www.courtlistener.com{opinion.absolute_url}"
+                                if opinion.absolute_url
+                                else f"https://www.courtlistener.com/opinion/{opinion.cluster_id}/"
+                            )
+
+                            document = Document(
+                                source_url=source_url,
+                                title=opinion.case_name,
+                                content_type=ContentType.HTML,
+                                raw_content=opinion.opinion_text,
+                                content_hash=chunks[0].content_hash,
+                                language="en",
+                                crawl_run_id=run_id,
+                                source_id=source_id,
+                                content_category=content_category,
+                            )
+
+                            stored_doc, is_new = self.storage.upsert_document(document)
+
+                            if stored_doc.id and is_new:
+                                chunk_objects = [
+                                    Chunk(
+                                        content=chunk.content,
+                                        content_hash=chunk.content_hash,
+                                        chunk_index=chunk.chunk_index,
+                                        heading_path=chunk.heading_path,
+                                        token_count=chunk.token_count,
+                                        document_id=stored_doc.id,
+                                        content_category=content_category,
+                                        citation=case_citation,
+                                    )
+                                    for chunk in chunks
+                                ]
+                                self.storage.insert_chunks(chunk_objects)
+
+                                # Create citation links from eyecite-extracted citations
+                                stored_chunks = self.storage.get_chunks_for_document(
+                                    stored_doc.id
+                                )
+                                if stored_chunks:
+                                    first_chunk_id = stored_chunks[0].id
+                                    citation_links = self._build_citation_links(
+                                        first_chunk_id, opinion.all_citations
+                                    )
+                                    if citation_links:
+                                        self.storage.insert_citation_links(citation_links)
+
+                            elif not is_new:
+                                self.logger.debug(
+                                    "opinion_unchanged",
+                                    case_name=opinion.case_name,
+                                )
+
+                        stats.documents_stored += 1
+                        stats.chunks_created += len(chunks)
+
+                    except Exception as e:
+                        stats.errors += 1
+                        self.logger.error(
+                            "error_processing_opinion",
+                            case_name=opinion.case_name,
+                            error=str(e),
+                        )
+
+            finally:
+                loader.close()
+
+            # Resolve citation targets against existing statute chunks
+            if not dry_run:
+                resolved = self.storage.resolve_citation_targets()
+                if resolved:
+                    self.logger.info("citation_targets_resolved", count=resolved)
+
+            end_time = datetime.now(tz=timezone.utc)
+            if not dry_run and run_id:
+                status = CrawlStatus.COMPLETED if stats.errors == 0 else CrawlStatus.FAILED
+                summary = {
+                    "opinions_loaded": stats.documents_stored,
+                    "chunks_created": stats.chunks_created,
+                    "errors": stats.errors,
+                    "duration_seconds": (end_time - start_time).total_seconds(),
+                }
+                self.storage.complete_run(run_id, status, summary)
+
+            stats.end_time = end_time
+            self._log_run_summary(stats)
+            return stats
+
+        except Exception as e:
+            self.logger.error("caselaw_pipeline_failed", error=str(e))
+            stats.end_time = datetime.now(tz=timezone.utc)
+            raise
+
+    @staticmethod
+    def _build_citation_links(
+        source_chunk_id: int, citations: list
+    ) -> list:
+        """Build CitationLink objects from eyecite-extracted citations."""
+        from employee_help.storage.models import CitationLink
+
+        links = []
+        seen_texts: set[str] = set()
+        for cite in citations:
+            if cite.text in seen_texts:
+                continue
+            seen_texts.add(cite.text)
+
+            links.append(
+                CitationLink(
+                    source_chunk_id=source_chunk_id,
+                    cited_text=cite.text,
+                    citation_type=cite.citation_type,
+                    reporter=cite.reporter,
+                    volume=cite.volume,
+                    page=cite.page,
+                    section=cite.section,
+                    is_california=cite.is_california,
+                )
+            )
+        return links
 
     def _run_crawler(self, dry_run: bool = False) -> PipelineStats:
         """Execute the web crawler pipeline (for agency sources)."""

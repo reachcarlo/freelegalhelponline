@@ -95,6 +95,17 @@ class StatutoryConfig:
 
 
 @dataclass
+class CaselawConfig:
+    """Configuration for case law ingestion from CourtListener."""
+
+    courts: list[str] = field(default_factory=lambda: ["cal", "calctapp"])
+    filed_after: str | None = None
+    filed_before: str | None = None
+    max_opinions: int = 5000
+    search_queries: list[str] = field(default_factory=list)
+
+
+@dataclass
 class SourceConfig:
     """Configuration for a single data source (agency or statutory code)."""
 
@@ -119,6 +130,9 @@ class SourceConfig:
 
     # Statutory code settings (only for source_type == statutory_code)
     statutory: StatutoryConfig | None = None
+
+    # Case law settings (only for CourtListener source)
+    caselaw: CaselawConfig | None = None
 
     # Storage
     database_path: str = "data/employee_help.db"
@@ -321,6 +335,18 @@ def load_source_config(config_path: str | Path) -> SourceConfig:
                 method=method,
             )
 
+    # Parse case law configuration (optional, for CourtListener source)
+    caselaw: CaselawConfig | None = None
+    caselaw_data = data.get("caselaw")
+    if caselaw_data and isinstance(caselaw_data, dict):
+        caselaw = CaselawConfig(
+            courts=caselaw_data.get("courts", ["cal", "calctapp"]),
+            filed_after=caselaw_data.get("filed_after"),
+            filed_before=caselaw_data.get("filed_before"),
+            max_opinions=int(caselaw_data.get("max_opinions", 5000)),
+            search_queries=caselaw_data.get("search_queries", []),
+        )
+
     # Parse database path
     database_path = data.get("database_path", "data/employee_help.db")
 
@@ -338,6 +364,7 @@ def load_source_config(config_path: str | Path) -> SourceConfig:
         extraction=extraction,
         chunking=chunking,
         statutory=statutory,
+        caselaw=caselaw,
         database_path=database_path,
     )
 
