@@ -206,6 +206,263 @@ export async function calculateDeadlines(
   return response.json();
 }
 
+// ── Agency routing guide ─────────────────────────────────────────────
+
+export interface AgencyRecommendationInfo {
+  agency_name: string;
+  agency_acronym: string;
+  agency_description: string;
+  agency_handles: string;
+  portal_url: string;
+  phone: string;
+  filing_methods: string[];
+  process_overview: string;
+  typical_timeline: string;
+  priority: "prerequisite" | "primary" | "alternative";
+  reason: string;
+  what_to_file: string;
+  notes: string;
+  related_claim_type: string | null;
+}
+
+export interface AgencyRoutingResponse {
+  issue_type: string;
+  issue_type_label: string;
+  is_government_employee: boolean;
+  recommendations: AgencyRecommendationInfo[];
+  disclaimer: string;
+}
+
+/**
+ * Get agency routing recommendations for an employment issue.
+ */
+export async function getAgencyRouting(
+  issueType: string,
+  isGovernmentEmployee: boolean = false
+): Promise<AgencyRoutingResponse> {
+  const response = await fetch("/api/agency-routing", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      issue_type: issueType,
+      is_government_employee: isGovernmentEmployee,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(
+      errorBody?.detail || `Request failed with status ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
+// ── Unpaid wages calculator ──────────────────────────────────────────
+
+export interface WageBreakdownInfo {
+  category: string;
+  label: string;
+  amount: string;
+  legal_citation: string;
+  description: string;
+  notes: string;
+}
+
+export interface UnpaidWagesResponse {
+  items: WageBreakdownInfo[];
+  total: string;
+  hourly_rate: string;
+  unpaid_hours: string;
+  disclaimer: string;
+}
+
+/**
+ * Calculate unpaid wages and related damages.
+ */
+export async function calculateUnpaidWages(
+  hourlyRate: number,
+  unpaidHours: number,
+  employmentStatus: string,
+  terminationDate?: string,
+  finalWagesPaidDate?: string,
+  missedMealBreaks?: number,
+  missedRestBreaks?: number,
+  unpaidSince?: string
+): Promise<UnpaidWagesResponse> {
+  const body: Record<string, unknown> = {
+    hourly_rate: hourlyRate,
+    unpaid_hours: unpaidHours,
+    employment_status: employmentStatus,
+  };
+  if (terminationDate) body.termination_date = terminationDate;
+  if (finalWagesPaidDate) body.final_wages_paid_date = finalWagesPaidDate;
+  if (missedMealBreaks !== undefined) body.missed_meal_breaks = missedMealBreaks;
+  if (missedRestBreaks !== undefined) body.missed_rest_breaks = missedRestBreaks;
+  if (unpaidSince) body.unpaid_since = unpaidSince;
+
+  const response = await fetch("/api/unpaid-wages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(
+      errorBody?.detail || `Request failed with status ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
+// ── Incident documentation helper ────────────────────────────────────
+
+export interface DocumentationFieldInfo {
+  name: string;
+  label: string;
+  field_type:
+    | "text"
+    | "textarea"
+    | "date"
+    | "time"
+    | "number"
+    | "select"
+    | "boolean";
+  placeholder: string;
+  required: boolean;
+  help_text: string;
+  options: string[];
+}
+
+export interface EvidenceItemInfo {
+  description: string;
+  importance: "critical" | "recommended" | "optional";
+  tip: string;
+}
+
+export interface IncidentDocResponse {
+  incident_type: string;
+  incident_type_label: string;
+  description: string;
+  common_fields: DocumentationFieldInfo[];
+  specific_fields: DocumentationFieldInfo[];
+  prompts: string[];
+  evidence_checklist: EvidenceItemInfo[];
+  related_claim_types: string[];
+  legal_tips: string[];
+  disclaimer: string;
+}
+
+/**
+ * Get incident documentation guidance for a workplace incident type.
+ */
+export async function getIncidentGuide(
+  incidentType: string
+): Promise<IncidentDocResponse> {
+  const response = await fetch("/api/incident-guide", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ incident_type: incidentType }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(
+      errorBody?.detail || `Request failed with status ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
+// ── Guided intake questionnaire ───────────────────────────────────────
+
+export interface IntakeAnswerOptionInfo {
+  key: string;
+  label: string;
+  help_text: string;
+}
+
+export interface IntakeQuestionInfo {
+  question_id: string;
+  question_text: string;
+  help_text: string;
+  options: IntakeAnswerOptionInfo[];
+  allow_multiple: boolean;
+  show_if: string[] | null;
+}
+
+export interface IntakeQuestionsResponse {
+  questions: IntakeQuestionInfo[];
+}
+
+export interface ToolRecommendationInfo {
+  tool_name: string;
+  tool_label: string;
+  tool_path: string;
+  description: string;
+  prefill_params: Record<string, string>;
+}
+
+export interface IdentifiedIssueInfo {
+  issue_type: string;
+  issue_label: string;
+  confidence: "high" | "medium";
+  description: string;
+  related_claim_types: string[];
+  tools: ToolRecommendationInfo[];
+  has_deadline_urgency: boolean;
+}
+
+export interface IntakeResponse {
+  identified_issues: IdentifiedIssueInfo[];
+  is_government_employee: boolean;
+  employment_status: string;
+  summary: string;
+  disclaimer: string;
+}
+
+/**
+ * Fetch the guided intake questionnaire.
+ */
+export async function getIntakeQuestions(): Promise<IntakeQuestionsResponse> {
+  const response = await fetch("/api/intake-questions");
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(
+      errorBody?.detail || `Request failed with status ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Evaluate intake answers and get identified issues with tool recommendations.
+ */
+export async function evaluateIntake(
+  answers: string[]
+): Promise<IntakeResponse> {
+  const response = await fetch("/api/intake", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ answers }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(
+      errorBody?.detail || `Request failed with status ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
 /**
  * Submit thumbs up/down feedback for a query.
  * Returns true on success, false on failure.

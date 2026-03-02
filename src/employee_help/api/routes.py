@@ -18,14 +18,31 @@ from employee_help.api.deps import (
     get_retrieval_service,
 )
 from employee_help.api.schemas import (
+    AgencyRecommendationInfo,
+    AgencyRoutingRequest,
+    AgencyRoutingResponse,
     AskRequest,
     DeadlineInfo,
     DeadlineRequest,
     DeadlineResponse,
+    DocumentationFieldInfo,
+    EvidenceItemInfo,
     FeedbackRequest,
     FeedbackResponse,
     HealthResponse,
+    IdentifiedIssueInfo,
+    IncidentDocRequest,
+    IncidentDocResponse,
+    IntakeAnswerOptionInfo,
+    IntakeQuestionsResponse,
+    IntakeQuestionInfo,
+    IntakeRequest,
+    IntakeResponse,
     SourceInfo,
+    ToolRecommendationInfo,
+    UnpaidWagesRequest,
+    UnpaidWagesResponse,
+    WageBreakdownInfo,
 )
 from employee_help.generation.models import TokenUsage
 
@@ -392,6 +409,194 @@ async def calculate_deadlines_endpoint(request: DeadlineRequest):
             )
             for r in results
         ],
+        disclaimer=DISCLAIMER,
+    )
+
+
+@router.post("/agency-routing", response_model=AgencyRoutingResponse)
+async def agency_routing_endpoint(request: AgencyRoutingRequest):
+    """Get agency routing recommendations for an employment issue."""
+    from employee_help.tools.routing import (
+        DISCLAIMER,
+        ISSUE_TYPE_LABELS,
+        get_agency_routing,
+    )
+
+    results = get_agency_routing(
+        request.issue_type,
+        is_government_employee=request.is_government_employee,
+    )
+
+    return AgencyRoutingResponse(
+        issue_type=request.issue_type.value,
+        issue_type_label=ISSUE_TYPE_LABELS[request.issue_type],
+        is_government_employee=request.is_government_employee,
+        recommendations=[
+            AgencyRecommendationInfo(
+                agency_name=r.agency.name,
+                agency_acronym=r.agency.acronym,
+                agency_description=r.agency.description,
+                agency_handles=r.agency.handles,
+                portal_url=r.agency.portal_url,
+                phone=r.agency.phone,
+                filing_methods=list(r.agency.filing_methods),
+                process_overview=r.agency.process_overview,
+                typical_timeline=r.agency.typical_timeline,
+                priority=r.priority.value,
+                reason=r.reason,
+                what_to_file=r.what_to_file,
+                notes=r.notes,
+                related_claim_type=r.related_claim_type,
+            )
+            for r in results
+        ],
+        disclaimer=DISCLAIMER,
+    )
+
+
+@router.post("/unpaid-wages", response_model=UnpaidWagesResponse)
+async def unpaid_wages_endpoint(request: UnpaidWagesRequest):
+    """Calculate unpaid wages and related damages."""
+    from decimal import Decimal
+
+    from employee_help.tools.unpaid_wages import (
+        DISCLAIMER,
+        calculate_unpaid_wages,
+    )
+
+    result = calculate_unpaid_wages(
+        hourly_rate=Decimal(str(request.hourly_rate)),
+        unpaid_hours=Decimal(str(request.unpaid_hours)),
+        employment_status=request.employment_status,
+        termination_date=request.termination_date,
+        final_wages_paid_date=request.final_wages_paid_date,
+        missed_meal_breaks=request.missed_meal_breaks,
+        missed_rest_breaks=request.missed_rest_breaks,
+        unpaid_since=request.unpaid_since,
+    )
+
+    return UnpaidWagesResponse(
+        items=[
+            WageBreakdownInfo(
+                category=item.category,
+                label=item.label,
+                amount=item.amount,
+                legal_citation=item.legal_citation,
+                description=item.description,
+                notes=item.notes,
+            )
+            for item in result.items
+        ],
+        total=result.total,
+        hourly_rate=result.hourly_rate,
+        unpaid_hours=result.unpaid_hours,
+        disclaimer=DISCLAIMER,
+    )
+
+
+@router.post("/incident-guide", response_model=IncidentDocResponse)
+async def incident_guide_endpoint(request: IncidentDocRequest):
+    """Get incident documentation guidance for a workplace incident type."""
+    from employee_help.tools.incident_docs import (
+        DISCLAIMER,
+        get_incident_guide,
+    )
+
+    guide = get_incident_guide(request.incident_type)
+
+    def _field_info(f):
+        return DocumentationFieldInfo(
+            name=f.name,
+            label=f.label,
+            field_type=f.field_type.value,
+            placeholder=f.placeholder,
+            required=f.required,
+            help_text=f.help_text,
+            options=list(f.options),
+        )
+
+    return IncidentDocResponse(
+        incident_type=guide.incident_type.value,
+        incident_type_label=guide.label,
+        description=guide.description,
+        common_fields=[_field_info(f) for f in guide.common_fields],
+        specific_fields=[_field_info(f) for f in guide.specific_fields],
+        prompts=list(guide.prompts),
+        evidence_checklist=[
+            EvidenceItemInfo(
+                description=e.description,
+                importance=e.importance.value,
+                tip=e.tip,
+            )
+            for e in guide.evidence_checklist
+        ],
+        related_claim_types=list(guide.related_claim_types),
+        legal_tips=list(guide.legal_tips),
+        disclaimer=DISCLAIMER,
+    )
+
+
+@router.get("/intake-questions", response_model=IntakeQuestionsResponse)
+async def intake_questions_endpoint():
+    """Return the guided intake questionnaire."""
+    from employee_help.tools.intake import get_questions
+
+    questions = get_questions()
+
+    return IntakeQuestionsResponse(
+        questions=[
+            IntakeQuestionInfo(
+                question_id=q.question_id,
+                question_text=q.question_text,
+                help_text=q.help_text,
+                options=[
+                    IntakeAnswerOptionInfo(
+                        key=opt.key.value,
+                        label=opt.label,
+                        help_text=opt.help_text,
+                    )
+                    for opt in q.options
+                ],
+                allow_multiple=q.allow_multiple,
+                show_if=[k.value for k in q.show_if] if q.show_if else None,
+            )
+            for q in questions
+        ]
+    )
+
+
+@router.post("/intake", response_model=IntakeResponse)
+async def intake_endpoint(request: IntakeRequest):
+    """Evaluate intake answers and return identified issues with tool recommendations."""
+    from employee_help.tools.intake import DISCLAIMER, evaluate_intake
+
+    result = evaluate_intake(request.answers)
+
+    return IntakeResponse(
+        identified_issues=[
+            IdentifiedIssueInfo(
+                issue_type=issue.issue_type.value,
+                issue_label=issue.issue_label,
+                confidence=issue.confidence,
+                description=issue.description,
+                related_claim_types=list(issue.related_claim_types),
+                tools=[
+                    ToolRecommendationInfo(
+                        tool_name=t.tool_name,
+                        tool_label=t.tool_label,
+                        tool_path=t.tool_path,
+                        description=t.description,
+                        prefill_params=dict(t.prefill_params),
+                    )
+                    for t in issue.tools
+                ],
+                has_deadline_urgency=issue.has_deadline_urgency,
+            )
+            for issue in result.identified_issues
+        ],
+        is_government_employee=result.is_government_employee,
+        employment_status=result.employment_status,
+        summary=result.summary,
         disclaimer=DISCLAIMER,
     )
 

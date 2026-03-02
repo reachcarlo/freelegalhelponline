@@ -9,10 +9,34 @@ export const metadata: Metadata = {
 
 const tools = [
   {
+    href: "/tools/guided-intake",
+    title: "Guided Intake",
+    description:
+      "Not sure where to start? Answer a few simple questions to identify your employment issue and find the right tools.",
+  },
+  {
     href: "/tools/deadline-calculator",
     title: "Statute of Limitations Calculator",
     description:
       "Enter your claim type and incident date to see all relevant filing deadlines with urgency warnings.",
+  },
+  {
+    href: "/tools/agency-routing",
+    title: "Agency Routing Guide",
+    description:
+      "Find out which California government agency handles your employment complaint and how to file.",
+  },
+  {
+    href: "/tools/unpaid-wages-calculator",
+    title: "Unpaid Wages Calculator",
+    description:
+      "Estimate how much you're owed including unpaid wages, waiting time penalties, and meal/rest break premiums.",
+  },
+  {
+    href: "/tools/incident-docs",
+    title: "Incident Documentation Helper",
+    description:
+      "Document workplace incidents while details are fresh. Guided forms, evidence checklists, and exportable records. Your data stays in your browser.",
   },
 ];
 

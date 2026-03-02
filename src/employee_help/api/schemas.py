@@ -5,10 +5,13 @@ from __future__ import annotations
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from employee_help.api.sanitize import detect_prompt_injection, sanitize_text
 from employee_help.tools.deadlines import ClaimType
+from employee_help.tools.incident_docs import IncidentType
+from employee_help.tools.routing import IssueType
+from employee_help.tools.unpaid_wages import EmploymentStatus
 
 
 class ConversationTurn(BaseModel):
@@ -141,4 +144,236 @@ class DeadlineResponse(BaseModel):
     claim_type_label: str
     incident_date: str  # ISO format
     deadlines: list[DeadlineInfo]
+    disclaimer: str
+
+
+# ── Agency routing schemas ───────────────────────────────────────────
+
+
+class AgencyRoutingRequest(BaseModel):
+    """Request body for POST /api/agency-routing."""
+
+    issue_type: IssueType
+    is_government_employee: bool = False
+
+
+class AgencyRecommendationInfo(BaseModel):
+    """A single agency recommendation."""
+
+    agency_name: str
+    agency_acronym: str
+    agency_description: str
+    agency_handles: str
+    portal_url: str
+    phone: str
+    filing_methods: list[str]
+    process_overview: str
+    typical_timeline: str
+    priority: str
+    reason: str
+    what_to_file: str
+    notes: str
+    related_claim_type: str | None = None
+
+
+class AgencyRoutingResponse(BaseModel):
+    """Response body for POST /api/agency-routing."""
+
+    issue_type: str
+    issue_type_label: str
+    is_government_employee: bool
+    recommendations: list[AgencyRecommendationInfo]
+    disclaimer: str
+
+
+# ── Unpaid wages calculator schemas ────────────────────────────────
+
+
+# ── Incident documentation schemas ──────────────────────────────────
+
+
+class IncidentDocRequest(BaseModel):
+    """Request body for POST /api/incident-guide."""
+
+    incident_type: IncidentType
+
+
+class DocumentationFieldInfo(BaseModel):
+    """A single form field description."""
+
+    name: str
+    label: str
+    field_type: str
+    placeholder: str
+    required: bool
+    help_text: str
+    options: list[str]
+
+
+class EvidenceItemInfo(BaseModel):
+    """A single evidence checklist item."""
+
+    description: str
+    importance: str
+    tip: str
+
+
+class IncidentDocResponse(BaseModel):
+    """Response body for POST /api/incident-guide."""
+
+    incident_type: str
+    incident_type_label: str
+    description: str
+    common_fields: list[DocumentationFieldInfo]
+    specific_fields: list[DocumentationFieldInfo]
+    prompts: list[str]
+    evidence_checklist: list[EvidenceItemInfo]
+    related_claim_types: list[str]
+    legal_tips: list[str]
+    disclaimer: str
+
+
+# ── Guided intake schemas ──────────────────────────────────────────
+
+
+class IntakeAnswerOptionInfo(BaseModel):
+    """A single answer option within a question."""
+
+    key: str
+    label: str
+    help_text: str
+
+
+class IntakeQuestionInfo(BaseModel):
+    """A single intake question with its options."""
+
+    question_id: str
+    question_text: str
+    help_text: str
+    options: list[IntakeAnswerOptionInfo]
+    allow_multiple: bool
+    show_if: list[str] | None = None
+
+
+class IntakeQuestionsResponse(BaseModel):
+    """Response body for GET /api/intake-questions."""
+
+    questions: list[IntakeQuestionInfo]
+
+
+class IntakeRequest(BaseModel):
+    """Request body for POST /api/intake."""
+
+    answers: list[str] = Field(..., min_length=1, max_length=30)
+
+    @field_validator("answers")
+    @classmethod
+    def validate_answer_keys(cls, v: list[str]) -> list[str]:
+        from employee_help.tools.intake import AnswerKey
+
+        valid_keys = {k.value for k in AnswerKey}
+        for answer in v:
+            if answer not in valid_keys:
+                raise ValueError(f"Invalid answer key: {answer!r}")
+        return v
+
+
+class ToolRecommendationInfo(BaseModel):
+    """A tool recommendation with pre-filled parameters."""
+
+    tool_name: str
+    tool_label: str
+    tool_path: str
+    description: str
+    prefill_params: dict[str, str]
+
+
+class IdentifiedIssueInfo(BaseModel):
+    """An identified employment issue with recommendations."""
+
+    issue_type: str
+    issue_label: str
+    confidence: str
+    description: str
+    related_claim_types: list[str]
+    tools: list[ToolRecommendationInfo]
+    has_deadline_urgency: bool
+
+
+class IntakeResponse(BaseModel):
+    """Response body for POST /api/intake."""
+
+    identified_issues: list[IdentifiedIssueInfo]
+    is_government_employee: bool
+    employment_status: str
+    summary: str
+    disclaimer: str
+
+
+class UnpaidWagesRequest(BaseModel):
+    """Request body for POST /api/unpaid-wages."""
+
+    hourly_rate: float = Field(..., gt=0, le=1000)
+    unpaid_hours: float = Field(..., ge=0, le=10000)
+    employment_status: EmploymentStatus = EmploymentStatus.still_employed
+    termination_date: date | None = None
+    final_wages_paid_date: date | None = None
+    missed_meal_breaks: int = Field(default=0, ge=0, le=1000)
+    missed_rest_breaks: int = Field(default=0, ge=0, le=1000)
+    unpaid_since: date | None = None
+
+    @field_validator("termination_date")
+    @classmethod
+    def validate_termination_date(cls, v: date | None, info) -> date | None:
+        if v is not None and v > date.today():
+            raise ValueError("Termination date cannot be in the future.")
+        return v
+
+    @field_validator("final_wages_paid_date")
+    @classmethod
+    def validate_final_wages_paid_date(cls, v: date | None, info) -> date | None:
+        if v is not None and v > date.today():
+            raise ValueError("Final wages paid date cannot be in the future.")
+        return v
+
+    @field_validator("unpaid_since")
+    @classmethod
+    def validate_unpaid_since(cls, v: date | None) -> date | None:
+        if v is not None and v > date.today():
+            raise ValueError("Unpaid since date cannot be in the future.")
+        return v
+
+    @model_validator(mode="after")
+    def validate_cross_field_rules(self):
+        if self.employment_status != EmploymentStatus.still_employed:
+            if self.termination_date is None:
+                raise ValueError(
+                    "Termination date is required when employment status is not 'still_employed'."
+                )
+        if self.final_wages_paid_date is not None and self.termination_date is not None:
+            if self.final_wages_paid_date < self.termination_date:
+                raise ValueError(
+                    "Final wages paid date cannot be before termination date."
+                )
+        return self
+
+
+class WageBreakdownInfo(BaseModel):
+    """A single line item in the wage breakdown."""
+
+    category: str
+    label: str
+    amount: str
+    legal_citation: str
+    description: str
+    notes: str
+
+
+class UnpaidWagesResponse(BaseModel):
+    """Response body for POST /api/unpaid-wages."""
+
+    items: list[WageBreakdownInfo]
+    total: str
+    hourly_rate: str
+    unpaid_hours: str
     disclaimer: str

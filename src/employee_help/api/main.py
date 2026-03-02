@@ -56,6 +56,10 @@ RATE_LIMIT_MAX = int(os.environ.get("RATE_LIMIT_MAX", "5"))
 RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))
 FEEDBACK_RATE_LIMIT_MAX = int(os.environ.get("FEEDBACK_RATE_LIMIT_MAX", "10"))
 DEADLINE_RATE_LIMIT_MAX = int(os.environ.get("DEADLINE_RATE_LIMIT_MAX", "20"))
+ROUTING_RATE_LIMIT_MAX = int(os.environ.get("ROUTING_RATE_LIMIT_MAX", "20"))
+WAGES_RATE_LIMIT_MAX = int(os.environ.get("WAGES_RATE_LIMIT_MAX", "20"))
+INCIDENT_GUIDE_RATE_LIMIT_MAX = int(os.environ.get("INCIDENT_GUIDE_RATE_LIMIT_MAX", "20"))
+INTAKE_RATE_LIMIT_MAX = int(os.environ.get("INTAKE_RATE_LIMIT_MAX", "20"))
 DAILY_QUERY_BUDGET = int(os.environ.get("DAILY_QUERY_BUDGET", "500"))
 
 # --- In-memory rate limit state ---
@@ -63,6 +67,10 @@ DAILY_QUERY_BUDGET = int(os.environ.get("DAILY_QUERY_BUDGET", "500"))
 _rate_limit_store: dict[str, list[float]] = defaultdict(list)
 _feedback_rate_store: dict[str, list[float]] = defaultdict(list)
 _deadline_rate_store: dict[str, list[float]] = defaultdict(list)
+_routing_rate_store: dict[str, list[float]] = defaultdict(list)
+_wages_rate_store: dict[str, list[float]] = defaultdict(list)
+_incident_guide_rate_store: dict[str, list[float]] = defaultdict(list)
+_intake_rate_store: dict[str, list[float]] = defaultdict(list)
 _daily_budget: dict[str, int] = {"date": "", "count": 0}  # type: ignore[dict-item]
 
 
@@ -206,6 +214,90 @@ async def rate_limit_middleware(request: Request, call_next):
 
         if len(_deadline_rate_store) > 100:
             _prune_stale_entries(_deadline_rate_store, 60)
+
+    # --- /api/agency-routing rate limiting ---
+    if request.url.path == "/api/agency-routing" and request.method == "POST":
+        _routing_rate_store[client_ip] = [
+            t for t in _routing_rate_store[client_ip] if now - t < 60
+        ]
+        count = len(_routing_rate_store[client_ip])
+
+        if count >= ROUTING_RATE_LIMIT_MAX:
+            oldest = _routing_rate_store[client_ip][0]
+            return Response(
+                content='{"detail":"Rate limit exceeded. Please wait before making another request."}',
+                status_code=429,
+                media_type="application/json",
+                headers=_rate_limit_headers(ROUTING_RATE_LIMIT_MAX, 0, oldest + 60),
+            )
+
+        _routing_rate_store[client_ip].append(now)
+
+        if len(_routing_rate_store) > 100:
+            _prune_stale_entries(_routing_rate_store, 60)
+
+    # --- /api/unpaid-wages rate limiting ---
+    if request.url.path == "/api/unpaid-wages" and request.method == "POST":
+        _wages_rate_store[client_ip] = [
+            t for t in _wages_rate_store[client_ip] if now - t < 60
+        ]
+        count = len(_wages_rate_store[client_ip])
+
+        if count >= WAGES_RATE_LIMIT_MAX:
+            oldest = _wages_rate_store[client_ip][0]
+            return Response(
+                content='{"detail":"Rate limit exceeded. Please wait before making another calculation."}',
+                status_code=429,
+                media_type="application/json",
+                headers=_rate_limit_headers(WAGES_RATE_LIMIT_MAX, 0, oldest + 60),
+            )
+
+        _wages_rate_store[client_ip].append(now)
+
+        if len(_wages_rate_store) > 100:
+            _prune_stale_entries(_wages_rate_store, 60)
+
+    # --- /api/incident-guide rate limiting ---
+    if request.url.path == "/api/incident-guide" and request.method == "POST":
+        _incident_guide_rate_store[client_ip] = [
+            t for t in _incident_guide_rate_store[client_ip] if now - t < 60
+        ]
+        count = len(_incident_guide_rate_store[client_ip])
+
+        if count >= INCIDENT_GUIDE_RATE_LIMIT_MAX:
+            oldest = _incident_guide_rate_store[client_ip][0]
+            return Response(
+                content='{"detail":"Rate limit exceeded. Please wait before making another request."}',
+                status_code=429,
+                media_type="application/json",
+                headers=_rate_limit_headers(INCIDENT_GUIDE_RATE_LIMIT_MAX, 0, oldest + 60),
+            )
+
+        _incident_guide_rate_store[client_ip].append(now)
+
+        if len(_incident_guide_rate_store) > 100:
+            _prune_stale_entries(_incident_guide_rate_store, 60)
+
+    # --- /api/intake rate limiting ---
+    if request.url.path == "/api/intake" and request.method == "POST":
+        _intake_rate_store[client_ip] = [
+            t for t in _intake_rate_store[client_ip] if now - t < 60
+        ]
+        count = len(_intake_rate_store[client_ip])
+
+        if count >= INTAKE_RATE_LIMIT_MAX:
+            oldest = _intake_rate_store[client_ip][0]
+            return Response(
+                content='{"detail":"Rate limit exceeded. Please wait before submitting another questionnaire."}',
+                status_code=429,
+                media_type="application/json",
+                headers=_rate_limit_headers(INTAKE_RATE_LIMIT_MAX, 0, oldest + 60),
+            )
+
+        _intake_rate_store[client_ip].append(now)
+
+        if len(_intake_rate_store) > 100:
+            _prune_stale_entries(_intake_rate_store, 60)
 
     # --- /api/feedback rate limiting ---
     if request.url.path == "/api/feedback" and request.method == "POST":
