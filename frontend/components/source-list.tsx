@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { SourceInfo } from "@/lib/api";
 
 interface SourceListProps {
@@ -15,6 +16,8 @@ function categoryLabel(cat: string): string {
     fact_sheet: "Fact Sheet",
     faq: "FAQ",
     policy: "Policy",
+    jury_instruction: "CACI",
+    case_law: "Case Law",
   };
   return labels[cat] || cat;
 }
@@ -33,34 +36,60 @@ function sourceLabel(source: SourceInfo): string {
 }
 
 export default function SourceList({ sources }: SourceListProps) {
+  const [expanded, setExpanded] = useState(false);
+
   if (sources.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <h3 className="mb-2 text-sm font-semibold text-text-secondary">
-        Sources ({sources.length})
-      </h3>
-      <ul className="space-y-1">
-        {sources.map((source, i) => (
-          <li key={source.chunk_id || i} className="text-sm text-text-secondary">
-            <span className="mr-2 inline-block rounded bg-badge-bg px-1.5 py-0.5 text-xs font-medium text-badge-text">
-              {categoryLabel(source.content_category)}
-            </span>
-            {source.source_url ? (
-              <a
-                href={source.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent underline hover:text-accent-hover"
-              >
-                {sourceLabel(source)}
-              </a>
-            ) : (
-              <span>{sourceLabel(source)}</span>
-            )}
-          </li>
-        ))}
-      </ul>
+    <div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-text-tertiary transition-colors hover:border-border-hover hover:text-text-secondary"
+        aria-expanded={expanded}
+      >
+        {sources.length} {sources.length === 1 ? "source" : "sources"}
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 16 16"
+          fill="none"
+          className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+        >
+          <path
+            d="M4 6l4 4 4-4"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="mt-2 rounded-lg border border-border bg-surface p-4 animate-fade-in">
+          <ul className="space-y-1">
+            {sources.map((source, i) => (
+              <li key={source.chunk_id || i} className="text-sm text-text-secondary">
+                <span className="mr-2 inline-block rounded bg-badge-bg px-1.5 py-0.5 text-xs font-medium text-badge-text">
+                  {categoryLabel(source.content_category)}
+                </span>
+                {source.source_url ? (
+                  <a
+                    href={source.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent underline hover:text-accent-hover"
+                  >
+                    {sourceLabel(source)}
+                  </a>
+                ) : (
+                  <span>{sourceLabel(source)}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

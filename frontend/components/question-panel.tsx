@@ -26,9 +26,7 @@ export default function QuestionPanel() {
 
   // Scroll refs
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const threadEndRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
-  const rafRef = useRef<number | null>(null);
 
   // Track whether user is near the bottom of scroll container
   const handleScroll = useCallback(() => {
@@ -40,37 +38,30 @@ export default function QuestionPanel() {
     setShowScrollButton(distanceFromBottom > 300);
   }, []);
 
-  // Scroll to bottom on new completed turn
+  // Scroll to bottom when streaming starts or a turn completes
   useEffect(() => {
     if (conversation.turns.length > 0 || conversation.isStreaming) {
-      const container = scrollContainerRef.current;
-      if (container) {
-        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
-        isNearBottomRef.current = true;
-      }
+      requestAnimationFrame(() => {
+        const container = scrollContainerRef.current;
+        if (container) {
+          container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+          isNearBottomRef.current = true;
+        }
+      });
     }
-  }, [conversation.turns.length]);
+  }, [conversation.turns.length, conversation.isStreaming]);
 
-  // rAF-driven scroll during streaming — only if user is near bottom
+  // Throttled smooth scroll during streaming — 200ms interval avoids jitter
   useEffect(() => {
-    if (!conversation.isStreaming || !isNearBottomRef.current) return;
-    if (rafRef.current) return;
-
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = null;
+    if (!conversation.isStreaming) return;
+    const timer = setInterval(() => {
       const container = scrollContainerRef.current;
       if (container && isNearBottomRef.current) {
-        container.scrollTop = container.scrollHeight;
+        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
       }
-    });
-
-    return () => {
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-    };
-  }, [conversation.streamingAnswer, conversation.isStreaming]);
+    }, 200);
+    return () => clearInterval(timer);
+  }, [conversation.isStreaming]);
 
   // Reset conversation when mode changes
   const prevModeRef = useRef(mode);
@@ -356,7 +347,7 @@ export default function QuestionPanel() {
               className="relative flex-1 overflow-y-auto"
             >
               <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6">
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-8">
                   {/* Turn progress */}
                   <div className="flex justify-center">
                     <TurnProgress
@@ -416,12 +407,6 @@ export default function QuestionPanel() {
                     <ConversationEnded onStartNew={handleNewChat} />
                   )}
 
-                  {/* Scroll anchor */}
-                  <div
-                    ref={threadEndRef}
-                    className="h-px"
-                    style={{ overflowAnchor: "auto" }}
-                  />
                 </div>
               </div>
 

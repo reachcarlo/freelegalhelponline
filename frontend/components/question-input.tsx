@@ -56,7 +56,13 @@ export default function QuestionInput({
 
   return (
     <form onSubmit={handleSubmit} className="w-full" aria-label="Ask a question">
-      <div className="flex items-end gap-3">
+      <div
+        className={`flex items-end gap-2 rounded-2xl border bg-surface-raised p-1.5 shadow-lg transition-all ${
+          isFocused
+            ? "border-accent/40 shadow-accent/5"
+            : "border-border/60"
+        }`}
+      >
         <textarea
           ref={textareaRef}
           rows={1}
@@ -67,17 +73,17 @@ export default function QuestionInput({
           onBlur={() => setIsFocused(false)}
           placeholder={placeholder}
           disabled={disabled}
-          className="peer flex-1 resize-none rounded-lg border border-border bg-input-bg px-4 py-3 text-base
-                     text-text-primary placeholder-text-tertiary shadow-sm transition-colors
-                     focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20
+          className="flex-1 resize-none bg-transparent px-3 py-2.5 text-base
+                     text-text-primary placeholder-text-tertiary
+                     focus:outline-none
                      disabled:cursor-not-allowed disabled:opacity-60"
         />
         {isStreaming ? (
           <button
             type="button"
             onClick={onStop}
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg
-                       border-2 border-accent bg-transparent text-accent shadow-sm
+            className="flex min-h-[40px] min-w-[40px] items-center justify-center rounded-xl
+                       border-2 border-accent bg-transparent text-accent
                        transition-colors hover:bg-accent/10
                        focus:outline-none focus:ring-2 focus:ring-accent/20"
             aria-label="Stop generating"
@@ -90,8 +96,8 @@ export default function QuestionInput({
           <button
             type="submit"
             disabled={disabled || !value.trim()}
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg bg-accent
-                       text-white shadow-sm transition-colors hover:bg-accent-hover
+            className="flex min-h-[40px] min-w-[40px] items-center justify-center rounded-xl bg-accent
+                       text-white transition-colors hover:bg-accent-hover
                        focus:outline-none focus:ring-2 focus:ring-accent/20
                        disabled:cursor-not-allowed disabled:bg-text-tertiary disabled:opacity-40"
             aria-label="Send message"
@@ -103,7 +109,7 @@ export default function QuestionInput({
         )}
       </div>
       <p
-        className={`mt-1 text-xs text-text-tertiary transition-opacity duration-150 ${
+        className={`mt-1.5 text-xs text-text-tertiary transition-opacity duration-150 ${
           isFocused && value.length > 0 ? "opacity-100" : "opacity-0"
         }`}
         aria-hidden="true"
