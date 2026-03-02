@@ -261,6 +261,17 @@ class IntakeQuestionsResponse(BaseModel):
     questions: list[IntakeQuestionInfo]
 
 
+def _validate_intake_answers(v: list[str]) -> list[str]:
+    """Shared validation for intake answer keys."""
+    from employee_help.tools.intake import AnswerKey
+
+    valid_keys = {k.value for k in AnswerKey}
+    for answer in v:
+        if answer not in valid_keys:
+            raise ValueError(f"Invalid answer key: {answer!r}")
+    return v
+
+
 class IntakeRequest(BaseModel):
     """Request body for POST /api/intake."""
 
@@ -269,13 +280,18 @@ class IntakeRequest(BaseModel):
     @field_validator("answers")
     @classmethod
     def validate_answer_keys(cls, v: list[str]) -> list[str]:
-        from employee_help.tools.intake import AnswerKey
+        return _validate_intake_answers(v)
 
-        valid_keys = {k.value for k in AnswerKey}
-        for answer in v:
-            if answer not in valid_keys:
-                raise ValueError(f"Invalid answer key: {answer!r}")
-        return v
+
+class IntakeSummaryRequest(BaseModel):
+    """Request body for POST /api/intake-summary."""
+
+    answers: list[str] = Field(..., min_length=1, max_length=30)
+
+    @field_validator("answers")
+    @classmethod
+    def validate_answer_keys(cls, v: list[str]) -> list[str]:
+        return _validate_intake_answers(v)
 
 
 class ToolRecommendationInfo(BaseModel):

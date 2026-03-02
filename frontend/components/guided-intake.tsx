@@ -5,9 +5,13 @@ import Link from "next/link";
 import {
   getIntakeQuestions,
   evaluateIntake,
+  streamIntakeSummary,
   type IntakeQuestionInfo,
   type IntakeResponse,
+  type SourceInfo,
 } from "@/lib/api";
+import AnswerDisplay from "@/components/answer-display";
+import SourceList from "@/components/source-list";
 
 function confidenceBadge(confidence: "high" | "medium") {
   if (confidence === "high") {
@@ -37,6 +41,13 @@ export default function GuidedIntake() {
   const [pendingAutoAdvance, setPendingAutoAdvance] = useState(false);
   const submitRef = useRef<() => void>(() => {});
 
+  // Rights summary streaming state
+  const [summaryText, setSummaryText] = useState("");
+  const [summarySources, setSummarySources] = useState<SourceInfo[]>([]);
+  const [summaryStreaming, setSummaryStreaming] = useState(false);
+  const [summaryError, setSummaryError] = useState("");
+  const summaryAbortRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     getIntakeQuestions()
       .then((data) => {
@@ -48,6 +59,28 @@ export default function GuidedIntake() {
         setFetchLoading(false);
       });
   }, []);
+
+  // Auto-trigger rights summary stream after intake results load
+  useEffect(() => {
+    if (!result || result.identified_issues.length === 0) return;
+    const allAnswers = Object.values(answers).flat();
+    setSummaryStreaming(true);
+    setSummaryText("");
+    setSummarySources([]);
+    setSummaryError("");
+
+    const controller = streamIntakeSummary(allAnswers, {
+      onSources: (s) => setSummarySources(s),
+      onToken: (t) => setSummaryText((prev) => prev + t),
+      onDone: () => setSummaryStreaming(false),
+      onError: (e) => {
+        setSummaryError(e);
+        setSummaryStreaming(false);
+      },
+    });
+    summaryAbortRef.current = controller;
+    return () => controller.abort();
+  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Compute visible questions based on current answers
   const visibleQuestions = useMemo(() => {
@@ -156,12 +189,17 @@ export default function GuidedIntake() {
   }
 
   function handleStartOver() {
+    summaryAbortRef.current?.abort();
     setAnswers({});
     setCurrentStep(0);
     setResult(null);
     setError("");
     setSlideDirection("right");
     setPendingAutoAdvance(false);
+    setSummaryText("");
+    setSummarySources([]);
+    setSummaryStreaming(false);
+    setSummaryError("");
   }
 
   // Loading state
@@ -266,6 +304,56 @@ export default function GuidedIntake() {
             </div>
           </div>
         ))}
+
+        {/* Rights summary section */}
+        {result.identified_issues.length > 0 && (
+          <div className="rounded-lg border border-border bg-surface-raised p-5 space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-text-primary">
+                Your Rights Summary
+              </h2>
+              <p className="mt-1 text-sm text-text-tertiary">
+                Personalized overview based on your answers
+              </p>
+            </div>
+
+            {summaryStreaming && !summaryText && (
+              <div className="flex items-center gap-2 text-sm text-text-tertiary">
+                <span className="inline-block h-4 w-4 animate-pulse rounded-full bg-accent/40" />
+                Generating your personalized rights summary...
+              </div>
+            )}
+
+            {summaryText && (
+              <AnswerDisplay
+                text={summaryText}
+                isStreaming={summaryStreaming}
+                mode="consumer"
+              />
+            )}
+
+            {!summaryStreaming && summarySources.length > 0 && (
+              <SourceList sources={summarySources} />
+            )}
+
+            {summaryError && (
+              <div className="rounded-lg border border-error-border bg-error-bg p-4 text-sm text-error-text flex items-center justify-between gap-4">
+                <span>Failed to generate summary. {summaryError}</span>
+                <button
+                  onClick={() => {
+                    // Re-trigger by toggling result
+                    const r = result;
+                    setResult(null);
+                    setTimeout(() => setResult(r), 0);
+                  }}
+                  className="shrink-0 rounded-lg border border-error-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-error-bg"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {result.identified_issues.length > 0 && (
           <div className="flex items-center gap-4 flex-wrap">

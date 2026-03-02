@@ -7,6 +7,7 @@ import pytest
 from employee_help.tools.deadlines import ClaimType
 from employee_help.tools.intake import (
     DISCLAIMER,
+    ISSUE_QUERY_CLAUSES,
     ISSUE_TO_CLAIM,
     QUESTIONS,
     SCORE_THRESHOLD,
@@ -14,6 +15,7 @@ from employee_help.tools.intake import (
     AnswerKey,
     IdentifiedIssue,
     IntakeResult,
+    build_intake_query,
     evaluate_intake,
     get_questions,
 )
@@ -316,3 +318,87 @@ def test_medium_confidence_threshold():
     assert wages_issue is not None
     # not_paid (1.0) + pay_na (0) = 1.0 → medium
     assert wages_issue.confidence == "medium"
+
+
+# ── build_intake_query ─────────────────────────────────────────────
+
+
+def test_build_intake_query_returns_non_empty():
+    result = evaluate_intake([
+        "not_paid", "pay_not_received",
+        "retaliation_no", "status_still_employed",
+        "employer_private", "need_none",
+    ])
+    query = build_intake_query(result)
+    assert isinstance(query, str)
+    assert len(query) > 0
+
+
+def test_build_intake_query_contains_california_employee():
+    result = evaluate_intake([
+        "not_paid", "pay_not_received",
+        "retaliation_no", "status_still_employed",
+        "employer_private", "need_none",
+    ])
+    query = build_intake_query(result)
+    assert "California employee" in query
+
+
+@pytest.mark.parametrize(
+    "status_answer, expected_phrase",
+    [
+        ("status_terminated", "recently terminated"),
+        ("status_still_employed", "still employed"),
+        ("status_quit", "recently quit"),
+    ],
+    ids=["terminated", "still_employed", "quit"],
+)
+def test_build_intake_query_employment_status(status_answer: str, expected_phrase: str):
+    result = evaluate_intake([
+        "not_paid", "pay_not_received",
+        "retaliation_no", status_answer,
+        "employer_private", "need_none",
+    ])
+    query = build_intake_query(result)
+    assert expected_phrase in query
+
+
+def test_build_intake_query_government_employee():
+    result = evaluate_intake([
+        "not_paid", "pay_not_received",
+        "retaliation_no", "status_still_employed",
+        "employer_government", "need_none",
+    ])
+    query = build_intake_query(result)
+    assert "government employer" in query
+
+
+def test_build_intake_query_private_employer_no_government_mention():
+    result = evaluate_intake([
+        "not_paid", "pay_not_received",
+        "retaliation_no", "status_still_employed",
+        "employer_private", "need_none",
+    ])
+    query = build_intake_query(result)
+    assert "government" not in query
+
+
+def test_build_intake_query_includes_issue_clauses():
+    result = evaluate_intake([
+        "not_paid", "pay_not_received",
+        "retaliation_no", "status_still_employed",
+        "employer_private", "need_none",
+    ])
+    query = build_intake_query(result)
+    # Should contain the unpaid wages clause
+    assert ISSUE_QUERY_CLAUSES[IssueType.unpaid_wages] in query
+
+
+def test_build_intake_query_ends_with_rights_question():
+    result = evaluate_intake([
+        "not_paid", "pay_not_received",
+        "retaliation_no", "status_still_employed",
+        "employer_private", "need_none",
+    ])
+    query = build_intake_query(result)
+    assert query.endswith("What are my rights under California law and what steps should I take?")

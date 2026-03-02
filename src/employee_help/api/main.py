@@ -60,6 +60,7 @@ ROUTING_RATE_LIMIT_MAX = int(os.environ.get("ROUTING_RATE_LIMIT_MAX", "20"))
 WAGES_RATE_LIMIT_MAX = int(os.environ.get("WAGES_RATE_LIMIT_MAX", "20"))
 INCIDENT_GUIDE_RATE_LIMIT_MAX = int(os.environ.get("INCIDENT_GUIDE_RATE_LIMIT_MAX", "20"))
 INTAKE_RATE_LIMIT_MAX = int(os.environ.get("INTAKE_RATE_LIMIT_MAX", "20"))
+INTAKE_SUMMARY_RATE_LIMIT_MAX = int(os.environ.get("INTAKE_SUMMARY_RATE_LIMIT_MAX", "5"))
 DAILY_QUERY_BUDGET = int(os.environ.get("DAILY_QUERY_BUDGET", "500"))
 
 # --- In-memory rate limit state ---
@@ -71,6 +72,7 @@ _routing_rate_store: dict[str, list[float]] = defaultdict(list)
 _wages_rate_store: dict[str, list[float]] = defaultdict(list)
 _incident_guide_rate_store: dict[str, list[float]] = defaultdict(list)
 _intake_rate_store: dict[str, list[float]] = defaultdict(list)
+_intake_summary_rate_store: dict[str, list[float]] = defaultdict(list)
 _daily_budget: dict[str, int] = {"date": "", "count": 0}  # type: ignore[dict-item]
 
 
@@ -298,6 +300,47 @@ async def rate_limit_middleware(request: Request, call_next):
 
         if len(_intake_rate_store) > 100:
             _prune_stale_entries(_intake_rate_store, 60)
+
+    # --- /api/intake-summary rate limiting (LLM endpoint) ---
+    if request.url.path == "/api/intake-summary" and request.method == "POST":
+        # Check daily budget first
+        budget_ok, budget_remaining = _check_daily_budget()
+        if not budget_ok:
+            return Response(
+                content='{"detail":"Daily query budget exceeded. Please try again tomorrow."}',
+                status_code=429,
+                media_type="application/json",
+                headers={"Retry-After": "3600"},
+            )
+
+        _intake_summary_rate_store[client_ip] = [
+            t for t in _intake_summary_rate_store[client_ip] if now - t < RATE_LIMIT_WINDOW
+        ]
+        count = len(_intake_summary_rate_store[client_ip])
+        remaining = INTAKE_SUMMARY_RATE_LIMIT_MAX - count
+        reset_at = now + RATE_LIMIT_WINDOW
+
+        if count >= INTAKE_SUMMARY_RATE_LIMIT_MAX:
+            oldest = _intake_summary_rate_store[client_ip][0]
+            reset_at = oldest + RATE_LIMIT_WINDOW
+            return Response(
+                content='{"detail":"Rate limit exceeded. Please wait before requesting another summary."}',
+                status_code=429,
+                media_type="application/json",
+                headers=_rate_limit_headers(INTAKE_SUMMARY_RATE_LIMIT_MAX, 0, reset_at),
+            )
+
+        _intake_summary_rate_store[client_ip].append(now)
+        _increment_daily_budget()
+        remaining -= 1
+
+        if len(_intake_summary_rate_store) > 100:
+            _prune_stale_entries(_intake_summary_rate_store, RATE_LIMIT_WINDOW)
+
+        response = await call_next(request)
+        for k, v in _rate_limit_headers(INTAKE_SUMMARY_RATE_LIMIT_MAX, remaining, reset_at).items():
+            response.headers[k] = v
+        return response
 
     # --- /api/feedback rate limiting ---
     if request.url.path == "/api/feedback" and request.method == "POST":

@@ -14,6 +14,24 @@ from enum import Enum
 from employee_help.tools.deadlines import ClaimType
 from employee_help.tools.routing import ISSUE_TYPE_LABELS, IssueType
 
+# ── Issue → natural-language clause for RAG query ────────────────────
+
+ISSUE_QUERY_CLAUSES: dict[IssueType, str] = {
+    IssueType.unpaid_wages: "my employer has not paid me wages that I am owed",
+    IssueType.discrimination: "I have been discriminated against based on a protected characteristic",
+    IssueType.harassment: "I have experienced workplace harassment",
+    IssueType.wrongful_termination: "I believe my termination was wrongful or illegal",
+    IssueType.retaliation: "I was retaliated against after reporting a problem or exercising a legal right",
+    IssueType.meal_rest_breaks: "my employer has denied me required meal or rest breaks",
+    IssueType.misclassification: "I may have been misclassified as an independent contractor",
+    IssueType.family_medical_leave: "I was denied family or medical leave that I am entitled to",
+    IssueType.workplace_safety: "my workplace has unsafe conditions",
+    IssueType.whistleblower: "I reported illegal activity and faced consequences",
+    IssueType.unemployment_benefits: "I need to apply for unemployment benefits",
+    IssueType.disability_insurance: "I need to apply for disability insurance benefits",
+    IssueType.paid_family_leave: "I need to apply for paid family leave benefits",
+}
+
 
 # ── Answer keys ─────────────────────────────────────────────────────
 
@@ -461,6 +479,46 @@ DISCLAIMER = (
 def get_questions() -> list[IntakeQuestion]:
     """Return the full questionnaire."""
     return list(QUESTIONS)
+
+
+def build_intake_query(result: IntakeResult) -> str:
+    """Convert IntakeResult into a natural-language query for RAG retrieval.
+
+    Produces a first-person query describing the user's situation, employment
+    status, and identified issues — optimised for the consumer RAG pipeline.
+    """
+    parts: list[str] = ["I am a California employee"]
+
+    # Employment status
+    if result.employment_status == "terminated":
+        parts.append("who was recently terminated")
+    elif result.employment_status == "quit":
+        parts.append("who recently quit")
+    else:
+        parts.append("who is still employed")
+
+    # Government employer
+    if result.is_government_employee:
+        parts.append("working for a government employer")
+
+    # Issue clauses (sorted by confidence desc — high before medium)
+    confidence_order = {"high": 0, "medium": 1}
+    sorted_issues = sorted(
+        result.identified_issues,
+        key=lambda i: confidence_order.get(i.confidence, 2),
+    )
+    clauses = [
+        ISSUE_QUERY_CLAUSES[issue.issue_type]
+        for issue in sorted_issues
+        if issue.issue_type in ISSUE_QUERY_CLAUSES
+    ]
+
+    if clauses:
+        parts.append(". Specifically, " + "; ".join(clauses))
+
+    query = " ".join(parts)
+    query += ". What are my rights under California law and what steps should I take?"
+    return query
 
 
 def evaluate_intake(answers: list[str]) -> IntakeResult:

@@ -463,6 +463,103 @@ export async function evaluateIntake(
   return response.json();
 }
 
+// ── Intake summary (streaming) ────────────────────────────────────────
+
+/**
+ * Stream a personalised rights summary from intake answers via SSE.
+ * Returns an AbortController so the caller can cancel the request.
+ */
+export function streamIntakeSummary(
+  answers: string[],
+  callbacks: {
+    onSources: (sources: SourceInfo[]) => void;
+    onToken: (token: string) => void;
+    onDone: (metadata: AskMetadata) => void;
+    onError: (error: string) => void;
+  }
+): AbortController {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const response = await fetch("/api/intake-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        const message =
+          errorBody?.detail || `Request failed with status ${response.status}`;
+        callbacks.onError(message);
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        callbacks.onError("No response body");
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let eventType = "";
+        let dataLines: string[] = [];
+
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith("data: ")) {
+            dataLines.push(line.slice(6));
+          } else if (line === "" && eventType && dataLines.length > 0) {
+            const dataStr = dataLines.join("\n");
+            try {
+              const data = JSON.parse(dataStr);
+              switch (eventType) {
+                case "sources":
+                  callbacks.onSources(data.sources || []);
+                  break;
+                case "token":
+                  callbacks.onToken(data.text || "");
+                  break;
+                case "done":
+                  callbacks.onDone(data as AskMetadata);
+                  break;
+                case "error":
+                  callbacks.onError(data.message || "Unknown error");
+                  break;
+              }
+            } catch {
+              // Skip malformed JSON
+            }
+            eventType = "";
+            dataLines = [];
+          }
+        }
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      callbacks.onError(
+        err instanceof Error ? err.message : "Connection failed"
+      );
+    }
+  })();
+
+  return controller;
+}
+
 /**
  * Submit thumbs up/down feedback for a query.
  * Returns true on success, false on failure.

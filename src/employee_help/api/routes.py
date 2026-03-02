@@ -38,6 +38,7 @@ from employee_help.api.schemas import (
     IntakeQuestionInfo,
     IntakeRequest,
     IntakeResponse,
+    IntakeSummaryRequest,
     SourceInfo,
     ToolRecommendationInfo,
     UnpaidWagesRequest,
@@ -598,6 +599,137 @@ async def intake_endpoint(request: IntakeRequest):
         employment_status=result.employment_status,
         summary=result.summary,
         disclaimer=DISCLAIMER,
+    )
+
+
+@router.post("/intake-summary")
+async def intake_summary(request: IntakeSummaryRequest):
+    """Stream a personalised rights summary based on intake answers.
+
+    Evaluates the intake answers, converts the result into a natural-language
+    query, and streams the consumer-mode RAG response via SSE.
+    """
+    from employee_help.tools.intake import build_intake_query, evaluate_intake
+
+    start_time = time.monotonic()
+    query_id = str(uuid.uuid4())
+
+    try:
+        answer_service = get_answer_service()
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+    # Evaluate intake and build query
+    try:
+        intake_result = evaluate_intake(request.answers)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+    if not intake_result.identified_issues:
+        def no_issues_sse():
+            yield _sse_event("done", {
+                "query_id": query_id,
+                "model": "",
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cost_estimate": 0.0,
+                "duration_ms": 0,
+                "warnings": ["No issues identified from intake answers."],
+            })
+        return StreamingResponse(
+            no_issues_sse(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+    query = build_intake_query(intake_result)
+
+    def generate_sse():
+        source_count = 0
+        try:
+            stream, retrieval_results, stream_metadata = (
+                answer_service.generate_stream(query=query, mode="consumer")
+            )
+
+            source_count = len(retrieval_results)
+
+            # Emit sources
+            sources = [
+                SourceInfo(
+                    chunk_id=r.chunk_id,
+                    content_category=r.content_category,
+                    citation=r.citation,
+                    source_url=r.source_url,
+                    heading_path=r.heading_path,
+                    relevance_score=r.relevance_score,
+                ).model_dump()
+                for r in retrieval_results
+            ]
+            yield _sse_event("sources", {"sources": sources})
+
+            # Stream LLM tokens
+            for chunk in stream:
+                yield _sse_event("token", {"text": chunk})
+
+            # Emit final metadata
+            duration_ms = int((time.monotonic() - start_time) * 1000)
+            meta = stream_metadata[0] if stream_metadata else {}
+            model = meta.get("model", "")
+            input_tokens = meta.get("input_tokens", 0)
+            output_tokens = meta.get("output_tokens", 0)
+
+            cost = 0.0
+            if model:
+                usage = TokenUsage(
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    model=model,
+                )
+                cost = usage.cost_estimate
+
+            yield _sse_event("done", {
+                "query_id": query_id,
+                "model": model,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost_estimate": round(cost, 6),
+                "duration_ms": duration_ms,
+                "warnings": [],
+            })
+
+            _log_query(
+                query_id=query_id,
+                query=query,
+                mode="consumer",
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost=cost,
+                duration_ms=duration_ms,
+                source_count=source_count,
+            )
+
+        except Exception as e:
+            logger.error("intake_summary_stream_error", error=str(e), exc_info=True)
+            yield _sse_event("error", {"message": str(e)})
+
+            duration_ms = int((time.monotonic() - start_time) * 1000)
+            _log_query(
+                query_id=query_id,
+                query=query,
+                mode="consumer",
+                duration_ms=duration_ms,
+                source_count=source_count,
+                error=str(e),
+            )
+
+    return StreamingResponse(
+        generate_sse(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
