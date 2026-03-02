@@ -229,7 +229,12 @@ export default function QuestionPanel() {
                   onSubmit={handleSubmit}
                   onStop={handleStop}
                   isStreaming={conversation.isStreaming}
-                  placeholder="Ask a question about California employment law..."
+                  placeholder={
+                    mode === "consumer"
+                      ? "What's happening at your workplace?"
+                      : "Search California employment statutes..."
+                  }
+                  maxHeight={mode === "attorney" ? 320 : 200}
                 />
               </div>
 
@@ -400,7 +405,12 @@ export default function QuestionPanel() {
                     onSubmit={handleSubmit}
                     onStop={handleStop}
                     isStreaming={conversation.isStreaming}
-                    placeholder="Ask a follow-up..."
+                    placeholder={
+                      mode === "consumer"
+                        ? "Ask a follow-up..."
+                        : "Follow-up or new question..."
+                    }
+                    maxHeight={mode === "attorney" ? 320 : 200}
                   />
                 </div>
               </div>
