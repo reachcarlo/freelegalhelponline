@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 const tools = [
   {
     href: "/tools/guided-intake",
-    title: "Guided Intake",
+    title: "Guided Intake & Rights Summary",
     description:
-      "Not sure where to start? Answer a few simple questions to identify your employment issue and find the right tools.",
+      "Not sure where to start? Answer a few simple questions to identify your employment issue, get a personalized AI-generated summary of your rights, and find the right tools.",
   },
   {
     href: "/tools/deadline-calculator",

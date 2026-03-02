@@ -5,11 +5,11 @@ import GuidedIntake from "@/components/guided-intake";
 export const metadata: Metadata = {
   title: "Not Sure Where to Start? — California Employment Rights",
   description:
-    "Answer a few simple questions about your workplace situation to identify your employment law issue and find the right tools. Free guided intake questionnaire for California workers.",
+    "Answer a few simple questions about your workplace situation to identify your employment law issue, get a personalized AI-generated rights summary, and find the right tools. Free guided intake questionnaire for California workers.",
   openGraph: {
-    title: "Guided Intake — California Employment Rights",
+    title: "Guided Intake & Rights Summary — California Employment Rights",
     description:
-      "Answer a few simple questions to identify your employment issue and find the right tools.",
+      "Answer a few simple questions to identify your employment issue, get a personalized rights summary, and find the right tools.",
     type: "website",
   },
 };
@@ -36,8 +36,8 @@ export default function GuidedIntakePage() {
         </h1>
         <p className="mt-4 text-lg text-text-secondary">
           Answer a few simple questions about your workplace situation. We will
-          help you identify your employment law issue and recommend the right
-          tools.
+          help you identify your employment law issue, generate a personalized
+          summary of your rights, and recommend the right tools.
         </p>
 
         <div className="mt-8">

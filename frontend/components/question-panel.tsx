@@ -260,7 +260,7 @@ export default function QuestionPanel() {
                     href="/tools/guided-intake"
                     className="rounded-full border border-accent bg-accent-surface px-4 py-2 text-sm text-accent transition-colors hover:bg-accent hover:text-white"
                   >
-                    Not sure where to start?
+                    Get Your Rights Summary
                   </Link>
                   <Link
                     href="/tools/deadline-calculator"
