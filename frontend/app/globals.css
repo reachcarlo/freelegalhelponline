@@ -140,6 +140,18 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Intake question slide transitions ── */
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in-right { animation: slide-in-right 0.25s ease-out; }
+.animate-slide-in-left { animation: slide-in-left 0.25s ease-out; }
+
 /* ── dvh fallback for older browsers ── */
 @supports not (height: 1dvh) {
   .h-dvh { height: 100vh; }

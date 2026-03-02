@@ -62,12 +62,21 @@ export default function ToolsIndex() {
         </p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {tools.map((tool) => (
+          {tools.map((tool, i) => (
             <Link
               key={tool.href}
               href={tool.href}
-              className="rounded-lg border border-border p-5 transition-colors hover:border-border-hover hover:bg-accent-surface"
+              className={
+                i === 0
+                  ? "rounded-lg border border-border border-l-4 border-l-accent p-5 transition-colors hover:border-border-hover hover:bg-accent-surface sm:col-span-2"
+                  : "rounded-lg border border-border p-5 transition-colors hover:border-border-hover hover:bg-accent-surface"
+              }
             >
+              {i === 0 && (
+                <p className="text-xs font-medium text-accent mb-1">
+                  Recommended starting point
+                </p>
+              )}
               <h2 className="font-semibold text-text-primary">{tool.title}</h2>
               <p className="mt-2 text-sm text-text-tertiary">
                 {tool.description}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import {
   getIntakeQuestions,
@@ -32,6 +32,10 @@ export default function GuidedIntake() {
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState("");
+  const [slideDirection, setSlideDirection] = useState<"right" | "left">("right");
+  // P1: Auto-advance flag — set true when a single-select option is picked
+  const [pendingAutoAdvance, setPendingAutoAdvance] = useState(false);
+  const submitRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     getIntakeQuestions()
@@ -57,12 +61,33 @@ export default function GuidedIntake() {
   const currentQuestion = visibleQuestions[currentStep] ?? null;
   const isLastStep = currentStep === visibleQuestions.length - 1;
 
+  // Keep submitRef current so the auto-advance effect can call it
+  submitRef.current = () => {
+    handleSubmit();
+  };
+
+  // P1: Auto-advance effect — fires after answer state has settled
+  useEffect(() => {
+    if (!pendingAutoAdvance) return;
+    const timer = setTimeout(() => {
+      setPendingAutoAdvance(false);
+      if (isLastStep) {
+        submitRef.current();
+      } else {
+        setSlideDirection("right");
+        setCurrentStep((s) => s + 1);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [pendingAutoAdvance, isLastStep]);
+
   const handleSelect = useCallback(
     (questionId: string, key: string, allowMultiple: boolean) => {
+      setPendingAutoAdvance(false); // cancel any pending
+
       setAnswers((prev) => {
         const current = prev[questionId] ?? [];
         if (allowMultiple) {
-          // Toggle
           const next = current.includes(key)
             ? current.filter((k) => k !== key)
             : [...current, key];
@@ -70,20 +95,29 @@ export default function GuidedIntake() {
         }
         return { ...prev, [questionId]: [key] };
       });
+
+      // P1: Queue auto-advance for single-select only
+      if (!allowMultiple) {
+        setPendingAutoAdvance(true);
+      }
     },
     []
   );
 
   const handleNext = useCallback(() => {
+    setPendingAutoAdvance(false);
     if (isLastStep) {
       handleSubmit();
     } else {
-      setCurrentStep((s) => Math.min(s + 1, visibleQuestions.length - 1));
+      setSlideDirection("right");
+      setCurrentStep((s) => s + 1);
     }
-  }, [isLastStep, visibleQuestions.length]);
+  }, [isLastStep]);
 
   const handleBack = useCallback(() => {
+    setPendingAutoAdvance(false);
     if (currentStep > 0) {
+      setSlideDirection("left");
       setCurrentStep((s) => s - 1);
       // Clear answers for questions that may become hidden
       setAnswers((prev) => {
@@ -112,6 +146,8 @@ export default function GuidedIntake() {
       const allAnswers = Object.values(answers).flat();
       const data = await evaluateIntake(allAnswers);
       setResult(data);
+      // P4: Scroll to top on results
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -124,6 +160,8 @@ export default function GuidedIntake() {
     setCurrentStep(0);
     setResult(null);
     setError("");
+    setSlideDirection("right");
+    setPendingAutoAdvance(false);
   }
 
   // Loading state
@@ -152,15 +190,27 @@ export default function GuidedIntake() {
           </div>
         )}
 
+        {/* P6: Stronger empty-results CTA */}
         {result.identified_issues.length === 0 && (
-          <div className="rounded-lg border border-border bg-surface-raised p-5 text-sm text-text-secondary">
-            We could not identify a specific employment law issue from your
-            answers. Consider speaking with a California employment attorney for
-            personalized guidance, or try the{" "}
-            <Link href="/" className="text-accent hover:text-accent-hover underline">
-              AI chat
-            </Link>{" "}
-            for more help.
+          <div className="rounded-lg border border-border bg-surface-raised p-5 space-y-4">
+            <p className="text-sm text-text-secondary">
+              We could not match your answers to a specific employment law issue.
+              Your situation may be unique — try describing it in your own words.
+            </p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <Link
+                href="/"
+                className="min-h-[44px] inline-flex items-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+              >
+                Describe Your Situation to AI
+              </Link>
+              <button
+                onClick={handleStartOver}
+                className="min-h-[44px] rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-raised"
+              >
+                Try Again
+              </button>
+            </div>
           </div>
         )}
 
@@ -198,12 +248,17 @@ export default function GuidedIntake() {
                   <p className="mt-1 text-xs text-text-secondary">
                     {tool.description}
                   </p>
+                  {/* P5: Reworded pre-selected label */}
                   {Object.keys(tool.prefill_params).length > 0 && (
-                    <p className="mt-1 text-xs text-accent">
-                      Pre-selected:{" "}
+                    <p className="mt-1 text-xs text-accent italic">
                       {Object.values(tool.prefill_params)
-                        .map((v) => v.replace(/_/g, " "))
-                        .join(", ")}
+                        .map((v) =>
+                          v
+                            .replace(/_/g, " ")
+                            .replace(/\b\w/g, (c) => c.toUpperCase())
+                        )
+                        .join(", ")}{" "}
+                      will be pre-selected for you
                     </p>
                   )}
                 </Link>
@@ -212,20 +267,22 @@ export default function GuidedIntake() {
           </div>
         ))}
 
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleStartOver}
-            className="min-h-[44px] rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-raised"
-          >
-            Start Over
-          </button>
-          <Link
-            href="/"
-            className="min-h-[44px] inline-flex items-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
-          >
-            Ask AI for Personalized Guidance
-          </Link>
-        </div>
+        {result.identified_issues.length > 0 && (
+          <div className="flex items-center gap-4 flex-wrap">
+            <button
+              onClick={handleStartOver}
+              className="min-h-[44px] rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-raised"
+            >
+              Start Over
+            </button>
+            <Link
+              href="/"
+              className="min-h-[44px] inline-flex items-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+            >
+              Ask AI for Personalized Guidance
+            </Link>
+          </div>
+        )}
       </div>
     );
   }
@@ -243,15 +300,19 @@ export default function GuidedIntake() {
 
   return (
     <div className="space-y-6">
-      {/* Progress bar */}
+      {/* P7: Progress — fraction only, no percentage */}
       <div>
-        <div className="flex items-center justify-between text-xs text-text-tertiary mb-2">
-          <span>
-            Question {currentStep + 1} of {visibleQuestions.length}
-          </span>
-          <span>{Math.round(progress)}%</span>
-        </div>
-        <div className="h-2 w-full rounded-full bg-badge-bg overflow-hidden">
+        <p className="text-xs text-text-tertiary mb-2">
+          Question {currentStep + 1} of {visibleQuestions.length}
+        </p>
+        {/* P8: ARIA progressbar */}
+        <div
+          role="progressbar"
+          aria-valuenow={currentStep + 1}
+          aria-valuemax={visibleQuestions.length}
+          aria-label="Questionnaire progress"
+          className="h-2 w-full rounded-full bg-badge-bg overflow-hidden"
+        >
           <div
             className="h-full rounded-full bg-accent transition-all duration-300"
             style={{ width: `${progress}%` }}
@@ -259,93 +320,109 @@ export default function GuidedIntake() {
         </div>
       </div>
 
-      {/* Question */}
-      <div>
-        <h2 className="text-lg font-semibold text-text-primary">
-          {currentQuestion.question_text}
-        </h2>
-        {currentQuestion.help_text && (
-          <p className="mt-1 text-sm text-text-tertiary">
-            {currentQuestion.help_text}
-          </p>
-        )}
-      </div>
+      {/* P2: Animated question transition via key remount */}
+      <div
+        key={currentQuestion.question_id}
+        className={
+          slideDirection === "right"
+            ? "animate-slide-in-right"
+            : "animate-slide-in-left"
+        }
+      >
+        {/* Question */}
+        <div>
+          <h2 className="text-lg font-semibold text-text-primary">
+            {currentQuestion.question_text}
+          </h2>
+          {currentQuestion.help_text && (
+            <p className="mt-1 text-sm text-text-tertiary">
+              {currentQuestion.help_text}
+            </p>
+          )}
+        </div>
 
-      {/* Options */}
-      <div className="space-y-2">
-        {currentQuestion.options.map((opt) => {
-          const isSelected = selectedKeys.includes(opt.key);
-          return (
-            <button
-              key={opt.key}
-              type="button"
-              onClick={() =>
-                handleSelect(
-                  currentQuestion.question_id,
-                  opt.key,
-                  currentQuestion.allow_multiple
-                )
-              }
-              className={`w-full min-h-[44px] text-left rounded-lg border p-3 transition-colors ${
-                isSelected
-                  ? "border-accent bg-accent-surface"
-                  : "border-border bg-surface-raised hover:border-border-hover"
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 flex-shrink-0">
-                  {currentQuestion.allow_multiple ? (
-                    <div
-                      className={`h-5 w-5 rounded border-2 flex items-center justify-center ${
-                        isSelected
-                          ? "border-accent bg-accent"
-                          : "border-border"
-                      }`}
-                    >
-                      {isSelected && (
-                        <svg
-                          className="h-3 w-3 text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={3}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                  ) : (
-                    <div
-                      className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${
-                        isSelected
-                          ? "border-accent"
-                          : "border-border"
-                      }`}
-                    >
-                      {isSelected && (
-                        <div className="h-2.5 w-2.5 rounded-full bg-accent" />
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <p className="font-medium text-text-primary text-sm">
-                    {opt.label}
-                  </p>
-                  {opt.help_text && (
-                    <p className="mt-0.5 text-xs text-text-tertiary">
-                      {opt.help_text}
+        {/* P8: ARIA role group for options */}
+        <div
+          className="mt-6 space-y-2"
+          role={currentQuestion.allow_multiple ? "group" : "radiogroup"}
+          aria-label={currentQuestion.question_text}
+        >
+          {currentQuestion.options.map((opt) => {
+            const isSelected = selectedKeys.includes(opt.key);
+            return (
+              <button
+                key={opt.key}
+                type="button"
+                role={currentQuestion.allow_multiple ? "checkbox" : "radio"}
+                aria-checked={isSelected}
+                onClick={() =>
+                  handleSelect(
+                    currentQuestion.question_id,
+                    opt.key,
+                    currentQuestion.allow_multiple
+                  )
+                }
+                className={`w-full min-h-[44px] text-left rounded-lg border p-3 transition-colors ${
+                  isSelected
+                    ? "border-accent bg-accent-surface"
+                    : "border-border bg-surface-raised hover:border-border-hover"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex-shrink-0" aria-hidden="true">
+                    {currentQuestion.allow_multiple ? (
+                      <div
+                        className={`h-5 w-5 rounded border-2 flex items-center justify-center ${
+                          isSelected
+                            ? "border-accent bg-accent"
+                            : "border-border"
+                        }`}
+                      >
+                        {isSelected && (
+                          <svg
+                            className="h-3 w-3 text-white"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={3}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    ) : (
+                      <div
+                        className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${
+                          isSelected
+                            ? "border-accent"
+                            : "border-border"
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="h-2.5 w-2.5 rounded-full bg-accent" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium text-text-primary text-sm">
+                      {opt.label}
                     </p>
-                  )}
+                    {opt.help_text && (
+                      <p className="mt-0.5 text-xs text-text-tertiary">
+                        {opt.help_text}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </button>
-          );
-        })}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {error && (
