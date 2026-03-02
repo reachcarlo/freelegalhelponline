@@ -31,3 +31,18 @@ class FeedbackEntry:
     query_id: str
     rating: int  # +1 (thumbs up) or -1 (thumbs down)
     created_at: str = field(default_factory=lambda: datetime.now(tz=UTC).isoformat())
+
+
+@dataclass
+class CitationAuditEntry:
+    """A single citation verification result logged for audit."""
+
+    query_id: str
+    citation_text: str
+    citation_type: str  # 'case' | 'statute'
+    verification_status: str  # e.g. 'verified', 'not_found', 'wrong_jurisdiction'
+    confidence: str  # 'verified' | 'unverified' | 'suspicious'
+    detail: str | None = None
+    model_used: str = ""
+    session_id: str | None = None
+    created_at: str = field(default_factory=lambda: datetime.now(tz=UTC).isoformat())

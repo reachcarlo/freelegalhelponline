@@ -17,6 +17,14 @@ export interface ConversationTurn {
   content: string;
 }
 
+export interface CitationVerification {
+  citation_text: string;
+  citation_type: "case" | "statute";
+  confidence: "verified" | "unverified" | "suspicious";
+  verification_status: string;
+  detail: string | null;
+}
+
 export interface AskMetadata {
   query_id: string;
   model: string;
@@ -25,6 +33,7 @@ export interface AskMetadata {
   cost_estimate: number;
   duration_ms: number;
   warnings: string[];
+  citation_verifications?: CitationVerification[];
   session_id?: string;
   turn_number?: number;
   max_turns?: number;

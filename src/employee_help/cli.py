@@ -356,6 +356,44 @@ def main() -> int:
         help="Feedback database path (default: data/feedback.db).",
     )
 
+    # Citation audit command
+    audit_parser = subparsers.add_parser(
+        "citation-audit",
+        help="Show citation verification audit report.",
+    )
+    audit_parser.add_argument(
+        "--days",
+        type=int,
+        default=30,
+        help="Number of days to look back (default: 30).",
+    )
+    audit_parser.add_argument(
+        "--session",
+        type=str,
+        default=None,
+        help="Show citations for a specific session ID.",
+    )
+    audit_parser.add_argument(
+        "--confidence",
+        type=str,
+        choices=["verified", "unverified", "suspicious"],
+        default=None,
+        help="Filter by confidence level.",
+    )
+    audit_parser.add_argument(
+        "--csv",
+        type=str,
+        default=None,
+        metavar="FILE",
+        help="Export audit data to CSV file.",
+    )
+    audit_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/feedback.db",
+        help="Feedback database path (default: data/feedback.db).",
+    )
+
     # Ingest-caselaw command
     caselaw_parser = subparsers.add_parser(
         "ingest-caselaw",
@@ -436,6 +474,8 @@ def main() -> int:
             return _handle_evaluate_answers(args)
         elif args.command == "feedback":
             return _handle_feedback(args)
+        elif args.command == "citation-audit":
+            return _handle_citation_audit(args)
         elif args.command == "ingest-caselaw":
             return _handle_ingest_caselaw(args)
         elif args.command == "spot-check-caselaw":
@@ -1089,11 +1129,28 @@ def _handle_ask(args) -> int:
         rag_config=rag_config,
     )
 
+    # Optionally create citation verifiers for attorney-mode verification
+    from employee_help.generation.citation_verifier import (
+        CaseCitationVerifier,
+        StatuteCitationVerifier,
+    )
+
+    case_verifier = CaseCitationVerifier()  # Uses COURTLISTENER_API_TOKEN env var
+    statute_verifier = None
+    try:
+        from employee_help.storage.storage import Storage as _Storage
+
+        statute_verifier = StatuteCitationVerifier(_Storage())
+    except Exception:
+        pass
+
     answer_service = AnswerService(
         retrieval_service=retrieval_service,
         llm_client=llm_client,
         prompt_builder=prompt_builder,
         citation_validation=gen_cfg.get("citation_validation", "strict"),
+        case_verifier=case_verifier,
+        statute_verifier=statute_verifier,
     )
 
     if not args.no_stream and not args.json_output:
@@ -1357,6 +1414,115 @@ def _handle_feedback(args) -> int:
             print(f"\nTop repeated query hashes:")
             for r in repeated[:10]:
                 print(f"  {r['query_hash'][:12]}...  {r['mode']:>8}  x{r['count']}")
+
+        print(f"{'=' * 60}\n")
+        return 0
+
+    finally:
+        store.close()
+
+
+def _handle_citation_audit(args) -> int:
+    """Display citation verification audit report."""
+    import csv as csv_module
+
+    from employee_help.feedback.store import FeedbackStore
+
+    db_path = Path(args.db)
+    if not db_path.exists():
+        print(f"No feedback database found at {db_path}")
+        return 0
+
+    store = FeedbackStore(db_path)
+
+    try:
+        # Session-specific view
+        if args.session:
+            rows = store.get_citation_audit_by_session(args.session)
+            if not rows:
+                print(f"No citations found for session {args.session}")
+                return 0
+
+            print(f"\n{'=' * 70}")
+            print(f"CITATION AUDIT — Session {args.session[:12]}...")
+            print(f"{'=' * 70}")
+            for row in rows:
+                conf = row["confidence"].upper()
+                print(
+                    f"  [{conf:>10}]  {row['citation_type']:>7}  {row['citation_text']}"
+                )
+                if row["detail"]:
+                    print(f"               {row['detail']}")
+            print(f"{'=' * 70}\n")
+            return 0
+
+        # CSV export
+        if args.csv:
+            rows = store.get_citation_audit_rows(
+                days=args.days, confidence=args.confidence
+            )
+            if not rows:
+                print(f"No citation audit data in the last {args.days} days.")
+                return 0
+
+            csv_path = Path(args.csv)
+            csv_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(csv_path, "w", newline="") as f:
+                writer = csv_module.DictWriter(
+                    f,
+                    fieldnames=[
+                        "query_id",
+                        "citation_text",
+                        "citation_type",
+                        "verification_status",
+                        "confidence",
+                        "detail",
+                        "model_used",
+                        "session_id",
+                        "created_at",
+                    ],
+                )
+                writer.writeheader()
+                writer.writerows(rows)
+            print(f"Exported {len(rows)} rows to {csv_path}")
+            return 0
+
+        # Summary report (default)
+        days = args.days
+        stats = store.get_citation_audit_stats(days=days)
+
+        if stats["total"] == 0:
+            print(f"No citation audit data in the last {days} days.")
+            return 0
+
+        print(f"\n{'=' * 60}")
+        print(f"CITATION AUDIT REPORT  (last {days} days)")
+        print(f"{'=' * 60}")
+
+        total = stats["total"]
+        print(f"Total citations verified: {total}")
+        print(
+            f"  Verified:    {stats['verified']:>5}  "
+            f"({stats['verified'] / total:.0%})"
+        )
+        print(
+            f"  Unverified:  {stats['unverified']:>5}  "
+            f"({stats['unverified'] / total:.0%})"
+        )
+        print(
+            f"  Suspicious:  {stats['suspicious']:>5}  "
+            f"({stats['suspicious'] / total:.0%})"
+        )
+
+        # Breakdown by type
+        by_type = store.get_citation_audit_by_type(days=days)
+        if by_type:
+            print(f"\nBy citation type:")
+            for row in by_type:
+                print(
+                    f"  {row['citation_type']:>7} / {row['confidence']:<12}  "
+                    f"{row['count']}"
+                )
 
         print(f"{'=' * 60}\n")
         return 0

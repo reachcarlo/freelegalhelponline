@@ -13,6 +13,11 @@ from typing import Any, Iterator
 
 import structlog
 
+from employee_help.generation.citation_verifier import (
+    CaseCitationVerifier,
+    StatuteCitationVerifier,
+    score_all_citations,
+)
 from employee_help.generation.llm import LLMClient, StreamChunk
 from employee_help.generation.models import Answer, AnswerCitation, TokenUsage
 from employee_help.generation.prompts import PromptBuilder
@@ -41,11 +46,15 @@ class AnswerService:
         prompt_builder: PromptBuilder,
         *,
         citation_validation: str = "strict",
+        case_verifier: CaseCitationVerifier | None = None,
+        statute_verifier: StatuteCitationVerifier | None = None,
     ) -> None:
         self.retrieval_service = retrieval_service
         self.llm_client = llm_client
         self.prompt_builder = prompt_builder
         self.citation_validation = citation_validation
+        self.case_verifier = case_verifier
+        self.statute_verifier = statute_verifier
         self.logger = structlog.get_logger(__name__)
 
     def generate(self, query: str, mode: str = "consumer") -> Answer:
@@ -118,6 +127,13 @@ class AnswerService:
         if not citations:
             citations = self._build_citations_from_context(prompt.context_chunks)
 
+        # 5. Verify citations and assign confidence scores (attorney mode)
+        citation_verifications = []
+        if mode == "attorney":
+            citation_verifications = score_all_citations(
+                answer_text, self.case_verifier, self.statute_verifier
+            )
+
         duration_ms = int((time.monotonic() - start_time) * 1000)
 
         return Answer(
@@ -130,6 +146,7 @@ class AnswerService:
             token_usage=response.token_usage,
             duration_ms=duration_ms,
             warnings=warnings,
+            citation_verifications=citation_verifications,
         )
 
     def generate_stream(
@@ -411,6 +428,19 @@ class AnswerService:
             )
             for chunk in context_chunks
         ]
+
+    def verify_answer_citations(self, text: str) -> list:
+        """Run citation verification on answer text.
+
+        Used by the streaming path to verify citations after the full
+        response has been assembled.
+
+        Returns:
+            List of ScoredCitation objects.
+        """
+        if not (self.case_verifier or self.statute_verifier):
+            return []
+        return score_all_citations(text, self.case_verifier, self.statute_verifier)
 
     def _no_results_message(self, mode: str) -> str:
         """Generate a message when no relevant content is found."""

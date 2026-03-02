@@ -162,8 +162,10 @@ async def ask_question(request: AskRequest):
             ]
             yield _sse_event("sources", {"sources": sources})
 
-            # Stream LLM tokens
+            # Stream LLM tokens (accumulate text for post-stream verification)
+            full_text_parts: list[str] = []
             for chunk in stream:
+                full_text_parts.append(chunk)
                 yield _sse_event("token", {"text": chunk})
 
             # Emit final metadata
@@ -182,6 +184,25 @@ async def ask_question(request: AskRequest):
                 )
                 cost = usage.cost_estimate
 
+            # Run citation verification for attorney mode
+            citation_verifications: list[dict] = []
+            if request.mode == "attorney":
+                full_text = "".join(full_text_parts)
+                try:
+                    scored = answer_service.verify_answer_citations(full_text)
+                    citation_verifications = [
+                        {
+                            "citation_text": s.citation_text,
+                            "citation_type": s.citation_type,
+                            "confidence": s.confidence.value,
+                            "verification_status": s.verification_status,
+                            "detail": s.detail,
+                        }
+                        for s in scored
+                    ]
+                except Exception:
+                    logger.warning("citation_verification_failed", exc_info=True)
+
             done_data: dict = {
                 "query_id": query_id,
                 "model": model,
@@ -190,6 +211,7 @@ async def ask_question(request: AskRequest):
                 "cost_estimate": round(cost, 6),
                 "duration_ms": duration_ms,
                 "warnings": [],
+                "citation_verifications": citation_verifications,
             }
 
             # Include conversation metadata when in multi-turn mode
@@ -214,6 +236,15 @@ async def ask_question(request: AskRequest):
                 source_count=source_count,
                 session_id=session_id,
             )
+
+            # Best-effort citation audit logging
+            if citation_verifications:
+                _log_citation_audit(
+                    query_id=query_id,
+                    verifications=citation_verifications,
+                    model=model,
+                    session_id=session_id,
+                )
 
             # Best-effort session tracking
             if is_multiturn and session_id:
@@ -295,6 +326,38 @@ def _log_session(session_id: str, mode: str, turn_number: int) -> None:
         store.create_or_update_session(session_id, mode, turn_number)
     except Exception:
         logger.warning("session_log_failed", session_id=session_id, exc_info=True)
+
+
+def _log_citation_audit(
+    *,
+    query_id: str,
+    verifications: list[dict],
+    model: str = "",
+    session_id: str | None = None,
+) -> None:
+    """Best-effort log citation verifications to the audit table."""
+    try:
+        store = get_feedback_store()
+        if store is None:
+            return
+        from employee_help.feedback.models import CitationAuditEntry
+
+        entries = [
+            CitationAuditEntry(
+                query_id=query_id,
+                citation_text=v["citation_text"],
+                citation_type=v["citation_type"],
+                verification_status=v["verification_status"],
+                confidence=v["confidence"],
+                detail=v.get("detail"),
+                model_used=model,
+                session_id=session_id,
+            )
+            for v in verifications
+        ]
+        store.log_citation_audit(entries)
+    except Exception:
+        logger.warning("citation_audit_log_failed", query_id=query_id, exc_info=True)
 
 
 @router.post("/feedback", response_model=FeedbackResponse)

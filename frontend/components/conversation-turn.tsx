@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import type { AskMetadata, SourceInfo } from "@/lib/api";
 import AnswerDisplay from "./answer-display";
+import CitationBadges from "./citation-badges";
 import FeedbackButtons from "./feedback-buttons";
 import SourceList from "./source-list";
 
@@ -126,6 +127,15 @@ export default function ConversationTurnView({
             : "This information is for educational purposes only and is not legal advice. For guidance about your specific situation, consult a licensed California employment attorney."}
         </p>
       )}
+
+      {/* Citation verification badges — attorney mode only */}
+      {answer &&
+        !isStreaming &&
+        mode === "attorney" &&
+        metadata?.citation_verifications &&
+        metadata.citation_verifications.length > 0 && (
+          <CitationBadges verifications={metadata.citation_verifications} />
+        )}
 
       {/* Metadata and feedback — only on the latest completed turn */}
       {isLatest && metadata && !isStreaming && (

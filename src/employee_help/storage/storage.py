@@ -469,6 +469,56 @@ class Storage:
             ).fetchall()
         return [self._row_to_chunk(row) for row in rows]
 
+    def lookup_statute_chunk(
+        self, section_number: str, code_type: str | None = None
+    ) -> dict | None:
+        """Look up a statute chunk by section number and optional code type.
+
+        Searches the ``citation`` column of the chunks table for a match
+        like ``§ {section_number}``.  When *code_type* is given (e.g.
+        ``"Lab"``, ``"Gov"``), the match is narrowed to that code.
+
+        Returns a dict with keys ``chunk_id``, ``citation``, ``is_active``,
+        ``content_category``, ``retrieved_at`` (from the parent document),
+        or ``None`` if no matching chunk is found.
+        """
+        if code_type:
+            row = self._conn.execute(
+                """SELECT c.id AS chunk_id, c.citation, c.is_active,
+                          c.content_category, d.retrieved_at
+                   FROM chunks c
+                   JOIN documents d ON c.document_id = d.id
+                   WHERE c.citation IS NOT NULL
+                     AND c.citation LIKE '%' || ? || '%'
+                     AND c.citation LIKE '%§ ' || ? || '%'
+                   ORDER BY c.is_active DESC, c.id
+                   LIMIT 1""",
+                (code_type, section_number),
+            ).fetchone()
+        else:
+            row = self._conn.execute(
+                """SELECT c.id AS chunk_id, c.citation, c.is_active,
+                          c.content_category, d.retrieved_at
+                   FROM chunks c
+                   JOIN documents d ON c.document_id = d.id
+                   WHERE c.citation IS NOT NULL
+                     AND c.citation LIKE '%§ ' || ? || '%'
+                   ORDER BY c.is_active DESC, c.id
+                   LIMIT 1""",
+                (section_number,),
+            ).fetchone()
+
+        if not row:
+            return None
+
+        return {
+            "chunk_id": row["chunk_id"],
+            "citation": row["citation"],
+            "is_active": bool(row["is_active"]),
+            "content_category": row["content_category"],
+            "retrieved_at": row["retrieved_at"],
+        }
+
     # ── Citation Links ─────────────────────────────────────────
 
     def insert_citation_links(self, links: list[CitationLink]) -> int:

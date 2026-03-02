@@ -6,7 +6,7 @@ import sqlite3
 import threading
 from pathlib import Path
 
-from employee_help.feedback.models import FeedbackEntry, QueryLogEntry
+from employee_help.feedback.models import CitationAuditEntry, FeedbackEntry, QueryLogEntry
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS query_log (
@@ -41,11 +41,27 @@ CREATE TABLE IF NOT EXISTS conversation_session (
     last_active_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS citation_audit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    query_id TEXT NOT NULL,
+    citation_text TEXT NOT NULL,
+    citation_type TEXT NOT NULL,
+    verification_status TEXT NOT NULL,
+    confidence TEXT NOT NULL,
+    detail TEXT,
+    model_used TEXT NOT NULL DEFAULT '',
+    session_id TEXT,
+    created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_query_log_created ON query_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_query_log_mode ON query_log(mode);
 CREATE INDEX IF NOT EXISTS idx_query_log_session ON query_log(session_id);
 CREATE INDEX IF NOT EXISTS idx_feedback_query_id ON feedback(query_id);
 CREATE INDEX IF NOT EXISTS idx_session_created ON conversation_session(created_at);
+CREATE INDEX IF NOT EXISTS idx_citation_audit_created ON citation_audit(created_at);
+CREATE INDEX IF NOT EXISTS idx_citation_audit_query ON citation_audit(query_id);
+CREATE INDEX IF NOT EXISTS idx_citation_audit_confidence ON citation_audit(confidence);
 """
 
 _MIGRATIONS = [
@@ -70,6 +86,34 @@ _MIGRATIONS = [
     (
         "idx_session_created",
         "CREATE INDEX IF NOT EXISTS idx_session_created ON conversation_session(created_at)",
+    ),
+    # Citation audit table
+    (
+        "citation_audit_table",
+        """CREATE TABLE IF NOT EXISTS citation_audit (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            query_id TEXT NOT NULL,
+            citation_text TEXT NOT NULL,
+            citation_type TEXT NOT NULL,
+            verification_status TEXT NOT NULL,
+            confidence TEXT NOT NULL,
+            detail TEXT,
+            model_used TEXT NOT NULL DEFAULT '',
+            session_id TEXT,
+            created_at TEXT NOT NULL
+        )""",
+    ),
+    (
+        "idx_citation_audit_created",
+        "CREATE INDEX IF NOT EXISTS idx_citation_audit_created ON citation_audit(created_at)",
+    ),
+    (
+        "idx_citation_audit_query",
+        "CREATE INDEX IF NOT EXISTS idx_citation_audit_query ON citation_audit(query_id)",
+    ),
+    (
+        "idx_citation_audit_confidence",
+        "CREATE INDEX IF NOT EXISTS idx_citation_audit_confidence ON citation_audit(confidence)",
     ),
 ]
 
@@ -280,6 +324,108 @@ class FeedbackStore:
                 (session_id, mode, turn_count, now, now),
             )
             self._conn.commit()
+
+    def log_citation_audit(self, entries: list[CitationAuditEntry]) -> None:
+        """Insert citation audit entries (batch)."""
+        if not entries:
+            return
+        with self._lock:
+            self._conn.executemany(
+                """INSERT INTO citation_audit
+                   (query_id, citation_text, citation_type, verification_status,
+                    confidence, detail, model_used, session_id, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                [
+                    (
+                        e.query_id,
+                        e.citation_text,
+                        e.citation_type,
+                        e.verification_status,
+                        e.confidence,
+                        e.detail,
+                        e.model_used,
+                        e.session_id,
+                        e.created_at,
+                    )
+                    for e in entries
+                ],
+            )
+            self._conn.commit()
+
+    def get_citation_audit_stats(self, days: int = 30) -> dict:
+        """Citation audit summary for the last N days."""
+        row = self._conn.execute(
+            """SELECT
+                 COUNT(*) as total,
+                 SUM(CASE WHEN confidence = 'verified' THEN 1 ELSE 0 END) as verified,
+                 SUM(CASE WHEN confidence = 'unverified' THEN 1 ELSE 0 END) as unverified,
+                 SUM(CASE WHEN confidence = 'suspicious' THEN 1 ELSE 0 END) as suspicious
+               FROM citation_audit
+               WHERE created_at >= DATE('now', ?)""",
+            (f"-{days} days",),
+        ).fetchone()
+        total = row["total"] or 0
+        return {
+            "total": total,
+            "verified": row["verified"] or 0,
+            "unverified": row["unverified"] or 0,
+            "suspicious": row["suspicious"] or 0,
+        }
+
+    def get_citation_audit_by_type(self, days: int = 30) -> list[dict]:
+        """Citation audit breakdown by citation_type and confidence."""
+        rows = self._conn.execute(
+            """SELECT citation_type, confidence, COUNT(*) as cnt
+               FROM citation_audit
+               WHERE created_at >= DATE('now', ?)
+               GROUP BY citation_type, confidence
+               ORDER BY citation_type, confidence""",
+            (f"-{days} days",),
+        ).fetchall()
+        return [
+            {
+                "citation_type": row["citation_type"],
+                "confidence": row["confidence"],
+                "count": row["cnt"],
+            }
+            for row in rows
+        ]
+
+    def get_citation_audit_by_session(self, session_id: str) -> list[dict]:
+        """All citation audit entries for a specific session."""
+        rows = self._conn.execute(
+            """SELECT query_id, citation_text, citation_type, verification_status,
+                      confidence, detail, model_used, created_at
+               FROM citation_audit
+               WHERE session_id = ?
+               ORDER BY created_at""",
+            (session_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_citation_audit_rows(
+        self, days: int = 30, confidence: str | None = None
+    ) -> list[dict]:
+        """Raw citation audit rows for CSV export."""
+        if confidence:
+            rows = self._conn.execute(
+                """SELECT query_id, citation_text, citation_type, verification_status,
+                          confidence, detail, model_used, session_id, created_at
+                   FROM citation_audit
+                   WHERE created_at >= DATE('now', ?) AND confidence = ?
+                   ORDER BY created_at DESC""",
+                (f"-{days} days", confidence),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                """SELECT query_id, citation_text, citation_type, verification_status,
+                          confidence, detail, model_used, session_id, created_at
+                   FROM citation_audit
+                   WHERE created_at >= DATE('now', ?)
+                   ORDER BY created_at DESC""",
+                (f"-{days} days",),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def get_session(self, session_id: str) -> dict | None:
         """Get a conversation session by ID."""

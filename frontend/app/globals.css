@@ -28,6 +28,15 @@
   --feedback-hover-down: rgba(239, 68, 68, 0.1);
   --feedback-text-up: #4ade80;
   --feedback-text-down: #f87171;
+  --verified-bg: rgba(34, 197, 94, 0.15);
+  --verified-text: #4ade80;
+  --verified-border: rgba(34, 197, 94, 0.3);
+  --unverified-bg: rgba(245, 158, 11, 0.15);
+  --unverified-text: #fcd34d;
+  --unverified-border: rgba(245, 158, 11, 0.3);
+  --suspicious-bg: rgba(239, 68, 68, 0.15);
+  --suspicious-text: #f87171;
+  --suspicious-border: rgba(239, 68, 68, 0.3);
 }
 
 /* ── Attorney mode (light) ── */
@@ -58,6 +67,15 @@
   --feedback-hover-down: #fef2f2;
   --feedback-text-up: #15803d;
   --feedback-text-down: #b91c1c;
+  --verified-bg: #f0fdf4;
+  --verified-text: #15803d;
+  --verified-border: #bbf7d0;
+  --unverified-bg: #fffbeb;
+  --unverified-text: #92400e;
+  --unverified-border: #fde68a;
+  --suspicious-bg: #fef2f2;
+  --suspicious-text: #b91c1c;
+  --suspicious-border: #fecaca;
 }
 
 /* ── Register tokens for Tailwind ── */
@@ -88,6 +106,15 @@
   --color-feedback-hover-down: var(--feedback-hover-down);
   --color-feedback-text-up: var(--feedback-text-up);
   --color-feedback-text-down: var(--feedback-text-down);
+  --color-verified-bg: var(--verified-bg);
+  --color-verified-text: var(--verified-text);
+  --color-verified-border: var(--verified-border);
+  --color-unverified-bg: var(--unverified-bg);
+  --color-unverified-text: var(--unverified-text);
+  --color-unverified-border: var(--unverified-border);
+  --color-suspicious-bg: var(--suspicious-bg);
+  --color-suspicious-text: var(--suspicious-text);
+  --color-suspicious-border: var(--suspicious-border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --animate-blink: blink 0.8s step-end infinite;

@@ -6,7 +6,7 @@ import uuid
 
 import pytest
 
-from employee_help.feedback.models import FeedbackEntry, QueryLogEntry
+from employee_help.feedback.models import CitationAuditEntry, FeedbackEntry, QueryLogEntry
 from employee_help.feedback.store import FeedbackStore
 
 
@@ -170,6 +170,101 @@ class TestTopRepeatedQueries:
 
         repeated = store.get_top_repeated_queries(limit=3)
         assert len(repeated) == 3
+
+
+class TestCitationAudit:
+    """Tests for the citation_audit table operations."""
+
+    def _make_audit(self, **kwargs) -> CitationAuditEntry:
+        defaults = {
+            "query_id": str(uuid.uuid4()),
+            "citation_text": "Cal. Lab. Code § 1102.5",
+            "citation_type": "statute",
+            "verification_status": "verified",
+            "confidence": "verified",
+            "detail": "Verified in knowledge base",
+            "model_used": "claude-sonnet-4-6",
+        }
+        defaults.update(kwargs)
+        return CitationAuditEntry(**defaults)
+
+    def test_log_and_stats(self, store):
+        entries = [
+            self._make_audit(confidence="verified"),
+            self._make_audit(confidence="verified"),
+            self._make_audit(confidence="unverified"),
+            self._make_audit(confidence="suspicious"),
+        ]
+        store.log_citation_audit(entries)
+
+        stats = store.get_citation_audit_stats()
+        assert stats["total"] == 4
+        assert stats["verified"] == 2
+        assert stats["unverified"] == 1
+        assert stats["suspicious"] == 1
+
+    def test_empty_store_stats(self, store):
+        stats = store.get_citation_audit_stats()
+        assert stats["total"] == 0
+        assert stats["verified"] == 0
+
+    def test_log_empty_list(self, store):
+        store.log_citation_audit([])  # Should not raise
+        assert store.get_citation_audit_stats()["total"] == 0
+
+    def test_by_type(self, store):
+        entries = [
+            self._make_audit(citation_type="case", confidence="verified"),
+            self._make_audit(citation_type="case", confidence="suspicious"),
+            self._make_audit(citation_type="statute", confidence="verified"),
+        ]
+        store.log_citation_audit(entries)
+
+        by_type = store.get_citation_audit_by_type()
+        assert len(by_type) == 3  # case/verified, case/suspicious, statute/verified
+        types = {(r["citation_type"], r["confidence"]) for r in by_type}
+        assert ("case", "verified") in types
+        assert ("case", "suspicious") in types
+        assert ("statute", "verified") in types
+
+    def test_by_session(self, store):
+        sid = "session-123"
+        entries = [
+            self._make_audit(session_id=sid),
+            self._make_audit(session_id=sid),
+            self._make_audit(session_id="other"),
+        ]
+        store.log_citation_audit(entries)
+
+        rows = store.get_citation_audit_by_session(sid)
+        assert len(rows) == 2
+
+    def test_by_session_empty(self, store):
+        rows = store.get_citation_audit_by_session("nonexistent")
+        assert rows == []
+
+    def test_rows_for_csv(self, store):
+        entries = [
+            self._make_audit(confidence="verified"),
+            self._make_audit(confidence="suspicious"),
+        ]
+        store.log_citation_audit(entries)
+
+        rows = store.get_citation_audit_rows()
+        assert len(rows) == 2
+        assert "query_id" in rows[0]
+        assert "citation_text" in rows[0]
+
+    def test_rows_filtered_by_confidence(self, store):
+        entries = [
+            self._make_audit(confidence="verified"),
+            self._make_audit(confidence="suspicious"),
+        ]
+        store.log_citation_audit(entries)
+
+        rows = store.get_citation_audit_rows(confidence="suspicious")
+        assert len(rows) == 1
+        assert rows[0]["confidence"] == "suspicious"
 
 
 class TestContextManager:

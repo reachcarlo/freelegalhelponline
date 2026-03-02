@@ -67,3 +67,4 @@ class Answer:
     token_usage: TokenUsage = field(default_factory=TokenUsage)
     duration_ms: int = 0
     warnings: list[str] = field(default_factory=list)
+    citation_verifications: list = field(default_factory=list)  # list[ScoredCitation]

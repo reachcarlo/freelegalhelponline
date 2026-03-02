@@ -94,11 +94,28 @@ def init_services() -> None:
         rag_config=rag_config,
     )
 
+    # Optionally create citation verifiers for attorney-mode verification
+    from employee_help.generation.citation_verifier import (
+        CaseCitationVerifier,
+        StatuteCitationVerifier,
+    )
+    from employee_help.storage.storage import Storage
+
+    case_verifier = CaseCitationVerifier()  # Uses COURTLISTENER_API_TOKEN env var
+    statute_verifier = None
+    try:
+        storage = Storage()
+        statute_verifier = StatuteCitationVerifier(storage)
+    except Exception:
+        logger.warning("statute_verifier_init_failed", exc_info=True)
+
     _answer_service = AnswerService(
         retrieval_service=_retrieval_service,
         llm_client=llm_client,
         prompt_builder=prompt_builder,
         citation_validation=gen_cfg.get("citation_validation", "strict"),
+        case_verifier=case_verifier,
+        statute_verifier=statute_verifier,
     )
 
     # Initialize feedback store

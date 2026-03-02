@@ -6,6 +6,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from employee_help.generation.citation_verifier import (
+    CaseCitationVerifier,
+    CitationConfidence,
+    ScoredCitation,
+    StatuteCitationVerifier,
+)
 from employee_help.generation.llm import LLMClient, LLMResponse
 from employee_help.generation.models import Answer, AnswerCitation, TokenUsage
 from employee_help.generation.prompts import PromptBuilder, PromptBundle
@@ -182,3 +188,123 @@ class TestNoResultsMessage:
         mock_retrieval.retrieve.return_value = []
         answer = answer_service.generate("test", mode="attorney")
         assert "knowledge base" in answer.text.lower()
+
+
+class TestCitationVerificationWiring:
+    """Tests for citation verification integrated into AnswerService."""
+
+    @pytest.fixture
+    def mock_case_verifier(self):
+        verifier = MagicMock(spec=CaseCitationVerifier)
+        verifier.verify_citations.return_value = []
+        return verifier
+
+    @pytest.fixture
+    def mock_statute_verifier(self):
+        verifier = MagicMock(spec=StatuteCitationVerifier)
+        verifier.verify_citations.return_value = []
+        return verifier
+
+    @pytest.fixture
+    def service_with_verifiers(
+        self, mock_retrieval, mock_llm, mock_prompt_builder,
+        mock_case_verifier, mock_statute_verifier,
+    ):
+        return AnswerService(
+            retrieval_service=mock_retrieval,
+            llm_client=mock_llm,
+            prompt_builder=mock_prompt_builder,
+            citation_validation="strict",
+            case_verifier=mock_case_verifier,
+            statute_verifier=mock_statute_verifier,
+        )
+
+    def test_attorney_mode_runs_verification(
+        self, service_with_verifiers, mock_case_verifier, mock_statute_verifier,
+    ):
+        answer = service_with_verifiers.generate("test", mode="attorney")
+        # Both verifiers should have been called
+        mock_case_verifier.verify_citations.assert_called_once()
+        mock_statute_verifier.verify_citations.assert_called_once()
+
+    def test_consumer_mode_skips_verification(
+        self, service_with_verifiers, mock_case_verifier, mock_statute_verifier,
+    ):
+        answer = service_with_verifiers.generate("test", mode="consumer")
+        # Neither verifier should be called in consumer mode
+        mock_case_verifier.verify_citations.assert_not_called()
+        mock_statute_verifier.verify_citations.assert_not_called()
+        assert answer.citation_verifications == []
+
+    def test_attorney_mode_populates_verifications(
+        self, service_with_verifiers, mock_case_verifier, mock_llm,
+    ):
+        from employee_help.generation.citation_verifier import (
+            CaseVerificationResult,
+            VerificationStatus,
+        )
+
+        mock_llm.generate.return_value = LLMResponse(
+            text="See 45 Cal.App.5th 123 (2020) for details.",
+            model="test",
+            input_tokens=100,
+            output_tokens=50,
+        )
+        mock_case_verifier.verify_citations.return_value = [
+            CaseVerificationResult(
+                citation_text="45 Cal.App.5th 123",
+                status=VerificationStatus.VERIFIED,
+                reporter="Cal.App.5th",
+                volume="45",
+                page="123",
+                year_cited="2020",
+                year_filed="2020",
+                case_name="Smith v. Jones",
+                cluster_id=12345,
+            ),
+        ]
+
+        answer = service_with_verifiers.generate("test", mode="attorney")
+        assert len(answer.citation_verifications) >= 1
+        # Should have a ScoredCitation with VERIFIED confidence
+        verified = [
+            v for v in answer.citation_verifications
+            if v.confidence == CitationConfidence.VERIFIED
+        ]
+        assert len(verified) >= 1
+
+    def test_no_verifiers_returns_empty_list(
+        self, mock_retrieval, mock_llm, mock_prompt_builder,
+    ):
+        service = AnswerService(
+            retrieval_service=mock_retrieval,
+            llm_client=mock_llm,
+            prompt_builder=mock_prompt_builder,
+        )
+        answer = service.generate("test", mode="attorney")
+        assert answer.citation_verifications == []
+
+    def test_verify_answer_citations_method(
+        self, service_with_verifiers, mock_case_verifier, mock_statute_verifier,
+    ):
+        """Test the convenience method used by streaming path."""
+        result = service_with_verifiers.verify_answer_citations("Some text")
+        mock_case_verifier.verify_citations.assert_called_once_with("Some text")
+        mock_statute_verifier.verify_citations.assert_called_once_with("Some text")
+
+    def test_verify_answer_citations_no_verifiers(
+        self, mock_retrieval, mock_llm, mock_prompt_builder,
+    ):
+        service = AnswerService(
+            retrieval_service=mock_retrieval,
+            llm_client=mock_llm,
+            prompt_builder=mock_prompt_builder,
+        )
+        result = service.verify_answer_citations("Some text")
+        assert result == []
+
+    def test_citation_verifications_field_on_answer(self, answer_service):
+        """Verify the field exists and defaults to empty list."""
+        answer = answer_service.generate("test", mode="consumer")
+        assert hasattr(answer, "citation_verifications")
+        assert answer.citation_verifications == []
