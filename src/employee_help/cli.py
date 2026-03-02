@@ -984,7 +984,13 @@ def _embed_source(slug, storage, embedding_service, vector_store) -> int:
         doc_language_map=doc_language_map,
     )
 
-    vector_store.upsert_embeddings(embeddings)
+    # Batch upserts to avoid OOM on large sources (e.g. 14K+ case law chunks)
+    batch_size = 2000
+    for i in range(0, len(embeddings), batch_size):
+        batch = embeddings[i : i + batch_size]
+        vector_store.upsert_embeddings(batch)
+        print(f"  Upserted batch {i // batch_size + 1} ({len(batch)} embeddings)")
+
     print(f"Embedded {len(embeddings)} chunks for '{slug}'.")
     return 0
 

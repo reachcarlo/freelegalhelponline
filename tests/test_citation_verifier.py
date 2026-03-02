@@ -250,8 +250,9 @@ class TestCaseCitationVerifier:
         assert len(results) >= 1
         assert results[0].status == VerificationStatus.ERROR
 
-    def test_no_api_token(self):
+    def test_no_api_token(self, monkeypatch):
         """Verifier without API token should return empty list."""
+        monkeypatch.delenv("COURTLISTENER_API_TOKEN", raising=False)
         verifier = CaseCitationVerifier(client=None, api_token=None)
         results = verifier.verify_citations(CA_CASE_TEXT)
         assert results == []
