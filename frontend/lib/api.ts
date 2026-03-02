@@ -158,6 +158,54 @@ export function askQuestion(
   return controller;
 }
 
+// ── Deadline calculator ─────────────────────────────────────────────
+
+export interface DeadlineInfo {
+  name: string;
+  description: string;
+  deadline_date: string;
+  days_remaining: number;
+  urgency: "expired" | "critical" | "urgent" | "normal";
+  filing_entity: string;
+  portal_url: string;
+  legal_citation: string;
+  notes: string;
+}
+
+export interface DeadlineResponse {
+  claim_type: string;
+  claim_type_label: string;
+  incident_date: string;
+  deadlines: DeadlineInfo[];
+  disclaimer: string;
+}
+
+/**
+ * Calculate statute of limitations deadlines.
+ */
+export async function calculateDeadlines(
+  claimType: string,
+  incidentDate: string
+): Promise<DeadlineResponse> {
+  const response = await fetch("/api/deadlines", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      claim_type: claimType,
+      incident_date: incidentDate,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(
+      errorBody?.detail || `Request failed with status ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
 /**
  * Submit thumbs up/down feedback for a query.
  * Returns true on success, false on failure.

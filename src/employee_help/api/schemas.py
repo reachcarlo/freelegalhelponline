@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
 from employee_help.api.sanitize import detect_prompt_injection, sanitize_text
+from employee_help.tools.deadlines import ClaimType
 
 
 class ConversationTurn(BaseModel):
@@ -97,3 +99,46 @@ class HealthResponse(BaseModel):
     status: str = "ok"
     embedding_model_loaded: bool = False
     vector_store_connected: bool = False
+
+
+# ── Deadline calculator schemas ──────────────────────────────────────
+
+
+class DeadlineRequest(BaseModel):
+    """Request body for POST /api/deadlines."""
+
+    claim_type: ClaimType
+    incident_date: date
+
+    @field_validator("incident_date")
+    @classmethod
+    def validate_incident_date(cls, v: date) -> date:
+        if v > date.today():
+            raise ValueError("Incident date cannot be in the future.")
+        if v.year < 1970:
+            raise ValueError("Incident date must be after 1970.")
+        return v
+
+
+class DeadlineInfo(BaseModel):
+    """A single computed deadline."""
+
+    name: str
+    description: str
+    deadline_date: str  # ISO format
+    days_remaining: int
+    urgency: str
+    filing_entity: str
+    portal_url: str
+    legal_citation: str
+    notes: str
+
+
+class DeadlineResponse(BaseModel):
+    """Response body for POST /api/deadlines."""
+
+    claim_type: str
+    claim_type_label: str
+    incident_date: str  # ISO format
+    deadlines: list[DeadlineInfo]
+    disclaimer: str

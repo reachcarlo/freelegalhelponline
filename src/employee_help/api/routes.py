@@ -19,6 +19,9 @@ from employee_help.api.deps import (
 )
 from employee_help.api.schemas import (
     AskRequest,
+    DeadlineInfo,
+    DeadlineRequest,
+    DeadlineResponse,
     FeedbackRequest,
     FeedbackResponse,
     HealthResponse,
@@ -358,6 +361,39 @@ def _log_citation_audit(
         store.log_citation_audit(entries)
     except Exception:
         logger.warning("citation_audit_log_failed", query_id=query_id, exc_info=True)
+
+
+@router.post("/deadlines", response_model=DeadlineResponse)
+async def calculate_deadlines_endpoint(request: DeadlineRequest):
+    """Calculate statute of limitations deadlines for a claim type."""
+    from employee_help.tools.deadlines import (
+        CLAIM_TYPE_LABELS,
+        DISCLAIMER,
+        calculate_deadlines,
+    )
+
+    results = calculate_deadlines(request.claim_type, request.incident_date)
+
+    return DeadlineResponse(
+        claim_type=request.claim_type.value,
+        claim_type_label=CLAIM_TYPE_LABELS[request.claim_type],
+        incident_date=request.incident_date.isoformat(),
+        deadlines=[
+            DeadlineInfo(
+                name=r.name,
+                description=r.description,
+                deadline_date=r.deadline_date.isoformat(),
+                days_remaining=r.days_remaining,
+                urgency=r.urgency.value,
+                filing_entity=r.filing_entity,
+                portal_url=r.portal_url,
+                legal_citation=r.legal_citation,
+                notes=r.notes,
+            )
+            for r in results
+        ],
+        disclaimer=DISCLAIMER,
+    )
 
 
 @router.post("/feedback", response_model=FeedbackResponse)

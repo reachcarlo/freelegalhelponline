@@ -55,12 +55,14 @@ CORS_ORIGINS = os.environ.get(
 RATE_LIMIT_MAX = int(os.environ.get("RATE_LIMIT_MAX", "5"))
 RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))
 FEEDBACK_RATE_LIMIT_MAX = int(os.environ.get("FEEDBACK_RATE_LIMIT_MAX", "10"))
+DEADLINE_RATE_LIMIT_MAX = int(os.environ.get("DEADLINE_RATE_LIMIT_MAX", "20"))
 DAILY_QUERY_BUDGET = int(os.environ.get("DAILY_QUERY_BUDGET", "500"))
 
 # --- In-memory rate limit state ---
 
 _rate_limit_store: dict[str, list[float]] = defaultdict(list)
 _feedback_rate_store: dict[str, list[float]] = defaultdict(list)
+_deadline_rate_store: dict[str, list[float]] = defaultdict(list)
 _daily_budget: dict[str, int] = {"date": "", "count": 0}  # type: ignore[dict-item]
 
 
@@ -183,6 +185,27 @@ async def rate_limit_middleware(request: Request, call_next):
         for k, v in _rate_limit_headers(RATE_LIMIT_MAX, remaining, reset_at).items():
             response.headers[k] = v
         return response
+
+    # --- /api/deadlines rate limiting ---
+    if request.url.path == "/api/deadlines" and request.method == "POST":
+        _deadline_rate_store[client_ip] = [
+            t for t in _deadline_rate_store[client_ip] if now - t < 60
+        ]
+        count = len(_deadline_rate_store[client_ip])
+
+        if count >= DEADLINE_RATE_LIMIT_MAX:
+            oldest = _deadline_rate_store[client_ip][0]
+            return Response(
+                content='{"detail":"Rate limit exceeded. Please wait before making another calculation."}',
+                status_code=429,
+                media_type="application/json",
+                headers=_rate_limit_headers(DEADLINE_RATE_LIMIT_MAX, 0, oldest + 60),
+            )
+
+        _deadline_rate_store[client_ip].append(now)
+
+        if len(_deadline_rate_store) > 100:
+            _prune_stale_entries(_deadline_rate_store, 60)
 
     # --- /api/feedback rate limiting ---
     if request.url.path == "/api/feedback" and request.method == "POST":
