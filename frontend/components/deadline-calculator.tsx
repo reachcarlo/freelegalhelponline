@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   calculateDeadlines,
   type DeadlineInfo,
@@ -233,6 +234,28 @@ export default function DeadlineCalculator() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Cross-links */}
+          <div className="flex flex-wrap gap-4 text-sm">
+            <Link
+              href="/tools/agency-routing"
+              className="min-h-[44px] inline-flex items-center text-accent hover:text-accent-hover"
+            >
+              Find where to file &rarr;
+            </Link>
+            <Link
+              href="/tools/incident-docs"
+              className="min-h-[44px] inline-flex items-center text-accent hover:text-accent-hover"
+            >
+              Document what happened &rarr;
+            </Link>
+            <Link
+              href="/tools/unpaid-wages-calculator"
+              className="min-h-[44px] inline-flex items-center text-accent hover:text-accent-hover"
+            >
+              Calculate unpaid wages &rarr;
+            </Link>
           </div>
         </div>
       )}

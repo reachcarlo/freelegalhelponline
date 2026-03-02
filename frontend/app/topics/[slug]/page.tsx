@@ -3,6 +3,56 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAllTopicSlugs, getTopicBySlug, topics } from "@/lib/topics";
 
+// ── Topic → relevant tools mapping ─────────────────────────────────
+
+interface RelatedTool {
+  href: string;
+  title: string;
+  description: string;
+}
+
+const ALL_TOOLS: Record<string, RelatedTool> = {
+  "guided-intake": {
+    href: "/tools/guided-intake",
+    title: "Guided Intake",
+    description: "Not sure about your issue? Answer a few questions to get personalized tool recommendations.",
+  },
+  "deadline-calculator": {
+    href: "/tools/deadline-calculator",
+    title: "Deadline Calculator",
+    description: "Check your statute of limitations and filing deadlines.",
+  },
+  "agency-routing": {
+    href: "/tools/agency-routing",
+    title: "Agency Routing Guide",
+    description: "Find which government agency handles your complaint.",
+  },
+  "unpaid-wages-calculator": {
+    href: "/tools/unpaid-wages-calculator",
+    title: "Unpaid Wages Calculator",
+    description: "Estimate how much you may be owed including penalties.",
+  },
+  "incident-docs": {
+    href: "/tools/incident-docs",
+    title: "Incident Documentation",
+    description: "Document what happened while details are fresh.",
+  },
+};
+
+const TOPIC_TOOLS: Record<string, string[]> = {
+  "wages-and-compensation": ["unpaid-wages-calculator", "deadline-calculator", "agency-routing", "incident-docs"],
+  "discrimination-and-harassment": ["deadline-calculator", "agency-routing", "incident-docs"],
+  "retaliation-and-whistleblower": ["deadline-calculator", "agency-routing", "incident-docs"],
+  "leave-and-time-off": ["deadline-calculator", "agency-routing"],
+  "workplace-safety": ["agency-routing", "incident-docs"],
+  "workers-compensation": ["agency-routing"],
+  "unemployment-benefits": ["agency-routing"],
+  "employment-contracts": ["guided-intake"],
+  "public-sector-employment": ["agency-routing"],
+  "unfair-business-practices": ["deadline-calculator", "agency-routing"],
+  "complaint-and-claims-process": ["deadline-calculator", "agency-routing", "guided-intake"],
+};
+
 interface TopicPageProps {
   params: Promise<{ slug: string }>;
 }
@@ -121,6 +171,41 @@ export default async function TopicPage({ params }: TopicPageProps) {
             ))}
           </div>
         </section>
+
+        {/* Related Tools */}
+        {(() => {
+          const toolKeys = TOPIC_TOOLS[slug] ?? [];
+          const toolList = toolKeys
+            .map((k) => ALL_TOOLS[k])
+            .filter(Boolean);
+          if (toolList.length === 0) return null;
+          return (
+            <section className="mt-10">
+              <h2 className="text-lg font-semibold text-text-primary">
+                Related Tools
+              </h2>
+              <p className="mt-2 text-sm text-text-tertiary">
+                Free interactive tools for this topic — no AI needed.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {toolList.map((tool) => (
+                  <Link
+                    key={tool.href}
+                    href={tool.href}
+                    className="rounded-lg border border-border p-4 transition-colors hover:border-border-hover hover:bg-accent-surface"
+                  >
+                    <span className="font-medium text-text-primary">
+                      {tool.title}
+                    </span>
+                    <p className="mt-1 text-sm text-text-tertiary">
+                      {tool.description}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          );
+        })()}
 
         {/* CTA */}
         <section className="mt-10 rounded-lg bg-accent-surface p-6 text-center">
