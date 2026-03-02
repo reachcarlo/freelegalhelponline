@@ -255,6 +255,56 @@ export default function QuestionPanel() {
                   ))}
                 </div>
               </section>
+
+              {/* Free Tools */}
+              <section className="mt-8">
+                <h2 className="text-center text-lg font-semibold text-text-primary">
+                  Free Legal Tools
+                </h2>
+                <p className="mt-2 text-center text-sm text-text-tertiary">
+                  Interactive calculators and guides — no AI needed.
+                </p>
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <Link
+                    href="/tools/guided-intake"
+                    className="rounded-full border border-accent bg-accent-surface px-4 py-2 text-sm text-accent transition-colors hover:bg-accent hover:text-white"
+                  >
+                    Not sure where to start?
+                  </Link>
+                  <Link
+                    href="/tools/deadline-calculator"
+                    className="rounded-full border border-border px-4 py-2 text-sm text-text-secondary transition-colors hover:border-border-hover hover:bg-accent-surface hover:text-accent"
+                  >
+                    Deadline Calculator
+                  </Link>
+                  <Link
+                    href="/tools/agency-routing"
+                    className="rounded-full border border-border px-4 py-2 text-sm text-text-secondary transition-colors hover:border-border-hover hover:bg-accent-surface hover:text-accent"
+                  >
+                    Agency Routing
+                  </Link>
+                  <Link
+                    href="/tools/unpaid-wages-calculator"
+                    className="rounded-full border border-border px-4 py-2 text-sm text-text-secondary transition-colors hover:border-border-hover hover:bg-accent-surface hover:text-accent"
+                  >
+                    Unpaid Wages Calculator
+                  </Link>
+                  <Link
+                    href="/tools/incident-docs"
+                    className="rounded-full border border-border px-4 py-2 text-sm text-text-secondary transition-colors hover:border-border-hover hover:bg-accent-surface hover:text-accent"
+                  >
+                    Incident Docs
+                  </Link>
+                </div>
+                <div className="mt-3 text-center">
+                  <Link
+                    href="/tools"
+                    className="text-sm text-accent hover:text-accent-hover underline"
+                  >
+                    View all tools
+                  </Link>
+                </div>
+              </section>
             </div>
           </div>
         ) : (
@@ -282,6 +332,14 @@ export default function QuestionPanel() {
                   >
                     New Chat
                   </button>
+                  <Link
+                    href="/tools"
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium
+                               text-text-secondary transition-colors hover:bg-surface-raised
+                               focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    Tools
+                  </Link>
                 </div>
                 <p className="mt-2 text-center text-sm text-text-tertiary">
                   {mode === "consumer"
