@@ -6,7 +6,7 @@ import {
   calculateUnpaidWages,
   type WageBreakdownInfo,
   type UnpaidWagesResponse,
-} from "@/lib/api";
+} from "@/lib/calculators/unpaid-wages";
 
 const EMPLOYMENT_STATUSES = [
   { value: "still_employed", label: "Still Employed" },
@@ -39,21 +39,19 @@ export default function UnpaidWagesCalculator() {
   const [missedRestBreaks, setMissedRestBreaks] = useState("0");
   const [unpaidSince, setUnpaidSince] = useState("");
   const [result, setResult] = useState<UnpaidWagesResponse | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const showTerminationFields = employmentStatus !== "still_employed";
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!hourlyRate || !unpaidHours) return;
 
-    setLoading(true);
     setError("");
     setResult(null);
 
     try {
-      const data = await calculateUnpaidWages(
+      const data = calculateUnpaidWages(
         parseFloat(hourlyRate),
         parseFloat(unpaidHours),
         employmentStatus,
@@ -68,8 +66,6 @@ export default function UnpaidWagesCalculator() {
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -251,10 +247,10 @@ export default function UnpaidWagesCalculator() {
 
         <button
           type="submit"
-          disabled={loading || !hourlyRate || !unpaidHours}
+          disabled={!hourlyRate || !unpaidHours}
           className="min-h-[44px] w-full rounded-lg bg-accent px-4 py-2 font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? "Calculating..." : "Calculate Damages"}
+          Calculate Damages
         </button>
       </form>
 

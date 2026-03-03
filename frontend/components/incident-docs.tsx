@@ -7,7 +7,7 @@ import {
   type DocumentationFieldInfo,
   type EvidenceItemInfo,
   type IncidentDocResponse,
-} from "@/lib/api";
+} from "@/lib/calculators/incident-docs";
 
 const INCIDENT_TYPES = [
   { value: "unpaid_wages", label: "Unpaid Wages" },
@@ -184,7 +184,6 @@ export default function IncidentDocs() {
   const [step, setStep] = useState<Step>("select");
   const [incidentType, setIncidentType] = useState("");
   const [guide, setGuide] = useState<IncidentDocResponse | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [checkedEvidence, setCheckedEvidence] = useState<Set<string>>(
@@ -201,14 +200,13 @@ export default function IncidentDocs() {
     setFieldValues((prev) => ({ ...prev, [name]: val }));
   }, []);
 
-  async function handleStart() {
+  function handleStart() {
     if (!incidentType) return;
 
-    setLoading(true);
     setError("");
 
     try {
-      const data = await getIncidentGuide(incidentType);
+      const data = getIncidentGuide(incidentType);
       setGuide(data);
       setFieldValues({});
       setCheckedEvidence(new Set());
@@ -216,8 +214,6 @@ export default function IncidentDocs() {
       setStep("form");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -270,20 +266,15 @@ export default function IncidentDocs() {
     setIncidentType(incident.incident_type);
     setEditingId(incident.id);
 
-    (async () => {
-      setLoading(true);
-      try {
-        const data = await getIncidentGuide(incident.incident_type);
-        setGuide(data);
-        setFieldValues({ ...incident.fields });
-        setCheckedEvidence(new Set(incident.evidence_checked));
-        setStep("form");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Something went wrong.");
-      } finally {
-        setLoading(false);
-      }
-    })();
+    try {
+      const data = getIncidentGuide(incident.incident_type);
+      setGuide(data);
+      setFieldValues({ ...incident.fields });
+      setCheckedEvidence(new Set(incident.evidence_checked));
+      setStep("form");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    }
   }
 
   function handleDelete(id: string) {
@@ -388,10 +379,10 @@ export default function IncidentDocs() {
 
           <button
             onClick={handleStart}
-            disabled={loading || !incidentType}
+            disabled={!incidentType}
             className="min-h-[44px] w-full rounded-lg bg-accent px-4 py-2 font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Loading guide..." : "Start Documenting"}
+            Start Documenting
           </button>
 
           {savedIncidents.length > 0 && (

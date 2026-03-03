@@ -6,7 +6,7 @@ import {
   getAgencyRouting,
   type AgencyRecommendationInfo,
   type AgencyRoutingResponse,
-} from "@/lib/api";
+} from "@/lib/calculators/agency-routing";
 
 const ISSUE_TYPES = [
   { value: "unpaid_wages", label: "Unpaid Wages / Wage Theft" },
@@ -68,24 +68,20 @@ export default function AgencyRouting() {
   const [issueType, setIssueType] = useState("");
   const [isGovEmployee, setIsGovEmployee] = useState(false);
   const [result, setResult] = useState<AgencyRoutingResponse | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!issueType) return;
 
-    setLoading(true);
     setError("");
     setResult(null);
 
     try {
-      const data = await getAgencyRouting(issueType, isGovEmployee);
+      const data = getAgencyRouting(issueType, isGovEmployee);
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -133,10 +129,10 @@ export default function AgencyRouting() {
 
         <button
           type="submit"
-          disabled={loading || !issueType}
+          disabled={!issueType}
           className="min-h-[44px] w-full rounded-lg bg-accent px-4 py-2 font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? "Finding agencies..." : "Find the Right Agency"}
+          Find the Right Agency
         </button>
       </form>
 

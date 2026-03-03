@@ -6,7 +6,7 @@ import {
   calculateDeadlines,
   type DeadlineInfo,
   type DeadlineResponse,
-} from "@/lib/api";
+} from "@/lib/calculators/deadlines";
 
 const CLAIM_TYPES = [
   { value: "feha_discrimination", label: "FEHA Discrimination / Harassment" },
@@ -80,26 +80,22 @@ export default function DeadlineCalculator() {
   const [claimType, setClaimType] = useState("");
   const [incidentDate, setIncidentDate] = useState("");
   const [result, setResult] = useState<DeadlineResponse | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const today = new Date().toISOString().split("T")[0];
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!claimType || !incidentDate) return;
 
-    setLoading(true);
     setError("");
     setResult(null);
 
     try {
-      const data = await calculateDeadlines(claimType, incidentDate);
+      const data = calculateDeadlines(claimType, incidentDate);
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -149,10 +145,10 @@ export default function DeadlineCalculator() {
 
         <button
           type="submit"
-          disabled={loading || !claimType || !incidentDate}
+          disabled={!claimType || !incidentDate}
           className="min-h-[44px] w-full rounded-lg bg-accent px-4 py-2 font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? "Calculating..." : "Calculate Deadlines"}
+          Calculate Deadlines
         </button>
       </form>
 

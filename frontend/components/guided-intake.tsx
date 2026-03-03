@@ -3,17 +3,16 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import {
-  getIntakeQuestions,
+  getQuestions,
   evaluateIntake,
-  streamIntakeSummary,
-  type IntakeQuestionInfo,
-  type IntakeResponse,
-  type SourceInfo,
-} from "@/lib/api";
+  type IntakeQuestion as IntakeQuestionInfo,
+  type IntakeResult as IntakeResponse,
+} from "@/lib/calculators/intake";
+import { streamIntakeSummary, type SourceInfo } from "@/lib/api";
 import AnswerDisplay from "@/components/answer-display";
 import SourceList from "@/components/source-list";
 
-function confidenceBadge(confidence: "high" | "medium") {
+function confidenceBadge(confidence: string) {
   if (confidence === "high") {
     return (
       <span className="inline-flex items-center rounded-full bg-accent-surface border border-accent px-2.5 py-0.5 text-xs font-medium text-accent">
@@ -33,7 +32,6 @@ export default function GuidedIntake() {
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [currentStep, setCurrentStep] = useState(0);
   const [result, setResult] = useState<IntakeResponse | null>(null);
-  const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState("");
   const [slideDirection, setSlideDirection] = useState<"right" | "left">("right");
@@ -49,15 +47,8 @@ export default function GuidedIntake() {
   const summaryAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    getIntakeQuestions()
-      .then((data) => {
-        setQuestions(data.questions);
-        setFetchLoading(false);
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to load questions.");
-        setFetchLoading(false);
-      });
+    setQuestions(getQuestions());
+    setFetchLoading(false);
   }, []);
 
   // Auto-trigger rights summary stream after intake results load
@@ -171,20 +162,17 @@ export default function GuidedIntake() {
     }
   }, [currentStep, questions]);
 
-  async function handleSubmit() {
-    setLoading(true);
+  function handleSubmit() {
     setError("");
 
     try {
       const allAnswers = Object.values(answers).flat();
-      const data = await evaluateIntake(allAnswers);
+      const data = evaluateIntake(allAnswers);
       setResult(data);
       // P4: Scroll to top on results
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -532,14 +520,10 @@ export default function GuidedIntake() {
         <button
           type="button"
           onClick={handleNext}
-          disabled={!hasAnswer || loading}
+          disabled={!hasAnswer}
           className="min-h-[44px] rounded-lg bg-accent px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading
-            ? "Analyzing..."
-            : isLastStep
-            ? "See Results"
-            : "Next"}
+          {isLastStep ? "See Results" : "Next"}
         </button>
       </div>
     </div>
