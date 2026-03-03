@@ -25,7 +25,7 @@ const tools = [
     format: "PDF",
   },
   {
-    href: "/tools/discovery/srogs",
+    href: "/tools/discovery/special-interrogatories",
     key: "srogs",
     title: "Special Interrogatories (SROGs)",
     description:
@@ -33,7 +33,7 @@ const tools = [
     format: "Word",
   },
   {
-    href: "/tools/discovery/rfpds",
+    href: "/tools/discovery/request-production",
     key: "rfpds",
     title: "Requests for Production of Documents (RFPDs)",
     description:
@@ -41,7 +41,7 @@ const tools = [
     format: "Word",
   },
   {
-    href: "/tools/discovery/rfas",
+    href: "/tools/discovery/request-admission",
     key: "rfas",
     title: "Requests for Admission (RFAs)",
     description:
