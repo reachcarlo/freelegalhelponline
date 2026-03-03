@@ -1,0 +1,43 @@
+# ============================================================
+# Employee Help — Education Code Source Configuration
+# ============================================================
+# California Education Code — Division 4 (Instruction)
+# Contains child labor and work permit statutes (§§ 49110-49145).
+# Added as P2 statutory code (demand-driven expansion E.3).
+# ============================================================
+
+source:
+  name: "Education Code — Child Labor"
+  slug: education_code
+  source_type: statutory_code
+  base_url: "https://leginfo.legislature.ca.gov"
+  enabled: true
+
+crawl:
+  seed_urls: []
+  allowlist_patterns:
+    - "leginfo\\.legislature\\.ca\\.gov"
+  blocklist_patterns: []
+  rate_limit_seconds: 10.0
+  max_pages: 5000
+
+extraction:
+  content_selector: "#content_anchor"
+  boilerplate_patterns: []
+  content_category: statutory_code
+
+chunking:
+  strategy: section_boundary
+  min_tokens: 50
+  max_tokens: 2000
+  overlap_tokens: 0
+
+statutory:
+  code_abbreviation: EDC
+  code_name: "Education Code"
+  citation_prefix: "Cal. Educ. Code"
+  # Division 4: Instruction (Part 27, Ch 7: child labor, work permits)
+  target_divisions: ["4."]
+  method: pubinfo
+
+database_path: "data/employee_help.db"

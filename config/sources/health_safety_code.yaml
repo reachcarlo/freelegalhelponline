@@ -1,0 +1,43 @@
+# ============================================================
+# Employee Help — Health & Safety Code Source Configuration
+# ============================================================
+# California Health & Safety Code — Cal/OSHA (Division 5)
+# Workplace safety statutes (§§ 6300-6719).
+# Added as P2 statutory code (demand-driven expansion E.3).
+# ============================================================
+
+source:
+  name: "Health & Safety Code — Cal/OSHA"
+  slug: health_safety_code
+  source_type: statutory_code
+  base_url: "https://leginfo.legislature.ca.gov"
+  enabled: true
+
+crawl:
+  seed_urls: []
+  allowlist_patterns:
+    - "leginfo\\.legislature\\.ca\\.gov"
+  blocklist_patterns: []
+  rate_limit_seconds: 10.0
+  max_pages: 5000
+
+extraction:
+  content_selector: "#content_anchor"
+  boilerplate_patterns: []
+  content_category: statutory_code
+
+chunking:
+  strategy: section_boundary
+  min_tokens: 50
+  max_tokens: 2000
+  overlap_tokens: 0
+
+statutory:
+  code_abbreviation: HSC
+  code_name: "Health & Safety Code"
+  citation_prefix: "Cal. Health & Safety Code"
+  # Division 5: Safety in Employment (Cal/OSHA core statutes)
+  target_divisions: ["5."]
+  method: pubinfo
+
+database_path: "data/employee_help.db"
