@@ -38,6 +38,12 @@ const tools = [
     description:
       "Document workplace incidents while details are fresh. Guided forms, evidence checklists, and exportable records. Your data stays in your browser.",
   },
+  {
+    href: "/tools/discovery",
+    title: "Discovery Document Generator",
+    description:
+      "Generate employment law discovery documents — Form Interrogatories (DISC-001/002), Special Interrogatories, Requests for Production, and Requests for Admission.",
+  },
 ];
 
 export default function ToolsIndex() {
