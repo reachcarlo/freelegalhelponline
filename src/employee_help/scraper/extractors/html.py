@@ -54,6 +54,7 @@ def extract_html(
     page_html: str,
     source_url: str,
     last_modified: str | None = None,
+    content_selector: str | None = None,
 ) -> HtmlExtractionResult:
     """Extract structured content from a rendered CRD page HTML.
 
@@ -84,8 +85,12 @@ def extract_html(
         for el in soup.select(selector):
             el.decompose()
 
-    # Find the main content area
-    main = soup.select_one("#et-main-area") or soup.select_one("main") or soup.select_one("body")
+    # Find the main content area — config selector is authoritative when set
+    main = None
+    if content_selector:
+        main = soup.select_one(content_selector)
+    if main is None:
+        main = soup.select_one("#et-main-area") or soup.select_one("main") or soup.select_one("body")
     if main is None:
         return HtmlExtractionResult(
             title=title or "Unknown",

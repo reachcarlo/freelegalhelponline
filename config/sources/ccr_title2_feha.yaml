@@ -1,0 +1,51 @@
+# ============================================================
+# Employee Help — CCR Title 2 FEHA Regulations Configuration
+# ============================================================
+# California Code of Regulations, Title 2, Division 4.1,
+# Chapter 5, Subchapter 2 — Fair Employment and Housing Act
+# implementing regulations.
+#
+# Source: Cornell LII (law.cornell.edu). ~80 sections across
+# 11 articles defining reasonable accommodation, undue hardship,
+# interactive process, harassment training, pregnancy disability
+# leave, CFRA, and other FEHA requirements.
+#
+# Content category: REGULATION — included in both consumer and
+# attorney modes (consumers need to understand what employers
+# must actually do).
+# ============================================================
+
+source:
+  name: "CCR Title 2 FEHA Regulations"
+  slug: ccr_title2_feha
+  source_type: statutory_code
+  base_url: "https://www.law.cornell.edu/regulations/california"
+  enabled: true
+
+crawl:
+  seed_urls: []
+  allowlist_patterns:
+    - "law\\.cornell\\.edu"
+  blocklist_patterns: []
+  rate_limit_seconds: 2.0
+  max_pages: 100
+
+extraction:
+  content_selector: ""
+  boilerplate_patterns: []
+  content_category: regulation
+
+chunking:
+  strategy: section_boundary
+  min_tokens: 50
+  max_tokens: 2000
+  overlap_tokens: 100
+
+statutory:
+  code_abbreviation: 2-CCR
+  code_name: "California Code of Regulations Title 2"
+  citation_prefix: "2 CCR"
+  target_divisions: []
+  method: ccr_web
+
+database_path: "data/employee_help.db"

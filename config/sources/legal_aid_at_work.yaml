@@ -1,0 +1,86 @@
+# ============================================================
+# Employee Help — Legal Aid at Work Source Configuration
+# ============================================================
+# Legal Aid at Work (legalaidatwork.org) — nonprofit providing
+# 100+ practical fact sheets on California employment rights.
+# Topics: wages, discrimination, leave, disability, immigration,
+# workplace injury, and more. Plain-language consumer content.
+# ============================================================
+
+source:
+  name: "Legal Aid at Work"
+  slug: legal_aid_at_work
+  source_type: agency
+  base_url: "https://legalaidatwork.org"
+  enabled: true
+
+crawl:
+  seed_urls:
+    # Main fact sheet archive (paginated index)
+    - "https://legalaidatwork.org/factsheet/"
+    # Key topic category pages for link discovery
+    - "https://legalaidatwork.org/facttopic/discrimination/"
+    - "https://legalaidatwork.org/facttopic/wages-and-hours/"
+    - "https://legalaidatwork.org/facttopic/leave-from-work/"
+    - "https://legalaidatwork.org/facttopic/disability-rights/"
+    - "https://legalaidatwork.org/facttopic/health-and-safety/"
+    - "https://legalaidatwork.org/facttopic/immigration/"
+    - "https://legalaidatwork.org/facttopic/workers-compensation/"
+
+  allowlist_patterns:
+    # Individual fact sheet pages only
+    - "legalaidatwork\\.org/factsheet/.+"
+
+  blocklist_patterns:
+    # Fact sheet archive index (seed page, not content)
+    - "legalaidatwork\\.org/factsheet/$"
+    # Topic category pages (navigation, not content)
+    - "legalaidatwork\\.org/facttopic/"
+    # Guides and sample letters (out of scope)
+    - "legalaidatwork\\.org/guides/"
+    - "legalaidatwork\\.org/sample-letters/"
+    # Organizational pages
+    - "legalaidatwork\\.org/about/"
+    - "legalaidatwork\\.org/contact/"
+    - "legalaidatwork\\.org/donate/"
+    - "legalaidatwork\\.org/get-help/"
+    - "legalaidatwork\\.org/news/"
+    - "legalaidatwork\\.org/events/"
+    - "legalaidatwork\\.org/careers/"
+    - "legalaidatwork\\.org/press/"
+    # WordPress infrastructure
+    - "legalaidatwork\\.org/wp-"
+    - "legalaidatwork\\.org/wp-content/"
+    - "legalaidatwork\\.org/wp-admin/"
+    # Weglot translated pages (non-English)
+    - "legalaidatwork\\.org/es/"
+    - "legalaidatwork\\.org/zh/"
+    - "legalaidatwork\\.org/zh-hant/"
+    - "legalaidatwork\\.org/vi/"
+    - "legalaidatwork\\.org/ko/"
+    - "legalaidatwork\\.org/tl/"
+    - "legalaidatwork\\.org/ar/"
+    - "legalaidatwork\\.org/km/"
+    - "legalaidatwork\\.org/hy/"
+
+  rate_limit_seconds: 10.0
+  max_pages: 150
+
+extraction:
+  content_selector: "main"
+  content_category: legal_aid_resource
+  boilerplate_patterns:
+    - "Skip to content"
+    - "Share this"
+    - "Print this page"
+    - "Was this resource helpful"
+    - "Get Legal Help"
+    - "Donate"
+
+chunking:
+  strategy: heading_based
+  min_tokens: 200
+  max_tokens: 1500
+  overlap_tokens: 100
+
+database_path: "data/employee_help.db"

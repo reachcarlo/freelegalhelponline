@@ -27,6 +27,7 @@ from employee_help.api.schemas import (
     DiscoveryGenerateRequest,
     DiscoverySuggestRequest,
     DiscoverySuggestResponse,
+    POSGenerateRequest,
     SuggestedCategoryInfo,
     SuggestedSectionInfo,
 )
@@ -371,6 +372,70 @@ async def generate_discovery(request: DiscoveryGenerateRequest):
             "discovery_generation_failed",
             generation_id=generation_id,
             tool_type=tool,
+            error=str(e),
+            duration_ms=duration_ms,
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ---------------------------------------------------------------------------
+# POST /api/discovery/generate-pos
+# ---------------------------------------------------------------------------
+
+
+@discovery_router.post("/generate-pos")
+async def generate_proof_of_service(request: POSGenerateRequest):
+    """Generate a Proof of Service DOCX and return it as a file download."""
+    start = time.monotonic()
+    generation_id = str(uuid.uuid4())
+
+    case_info = _to_case_info(request.case_info)
+    case_num = _safe_filename(request.case_info.case_number)
+
+    try:
+        from employee_help.discovery.generator.pos_builder import (
+            build_proof_of_service,
+        )
+        from employee_help.discovery.models import ServiceMethod
+
+        file_bytes = build_proof_of_service(
+            case_info,
+            server_name=request.server_name,
+            server_address=request.server_address,
+            served_party_name=request.served_party_name,
+            served_party_address=request.served_party_address,
+            service_method=ServiceMethod(request.service_method),
+            service_date=request.service_date,
+            documents_served=list(request.documents_served),
+        )
+
+        filename = f"POS_{case_num}.docx"
+        duration_ms = int((time.monotonic() - start) * 1000)
+        logger.info(
+            "pos_generated",
+            generation_id=generation_id,
+            file_size=len(file_bytes),
+            duration_ms=duration_ms,
+        )
+
+        return StreamingResponse(
+            io.BytesIO(file_bytes),
+            media_type=_DOCX_CONTENT_TYPE,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Length": str(len(file_bytes)),
+                "X-Generation-Id": generation_id,
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        duration_ms = int((time.monotonic() - start) * 1000)
+        logger.error(
+            "pos_generation_failed",
+            generation_id=generation_id,
             error=str(e),
             duration_ms=duration_ms,
             exc_info=True,

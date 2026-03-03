@@ -1,8 +1,8 @@
 # Discovery Tools — Feature Specification & Implementation Plan
 
-> **Status**: Planning
-> **Date**: 2026-03-02
-> **Scope**: Four California employment law discovery tools (FROGs, SROGs, RFPDs, RFAs)
+> **Status**: Implemented (Phases 5A–5G complete; E2E tested)
+> **Date**: 2026-03-03
+> **Scope**: Five California employment law discovery tools (FROGs, SROGs, RFPDs, RFAs) + Proof of Service
 > **Target users**: Attorneys (attorney mode only — not consumer mode)
 
 ---

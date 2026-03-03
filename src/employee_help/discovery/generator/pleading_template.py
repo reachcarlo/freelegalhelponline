@@ -22,7 +22,7 @@ from pathlib import Path
 
 from docx import Document
 from docx.enum.section import WD_ORIENT
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Emu, Inches, Pt, Twips
@@ -307,8 +307,132 @@ def create_pleading_template(
     sig_for.add_run("                                        Attorney for {{ attorney_for }}")
     _set_paragraph_format(sig_for)
 
+    # ----- Declaration of Necessity (conditional, SROGs/RFAs > 35) -----
+    _add_declaration_section(doc)
+
     doc.save(str(output_path))
     return output_path
+
+
+def _add_declaration_section(doc: Document) -> None:
+    """Add a conditional Declaration of Necessity page.
+
+    Rendered only when the ``declaration`` context dict is provided
+    (i.e., when SROGs > 35 or fact RFAs > 35).
+
+    CCP 2030.050 (SROGs) / CCP 2033.050 (RFAs).
+    """
+    # Conditional open
+    decl_if = doc.add_paragraph()
+    decl_if.add_run("{% if declaration %}")
+    _set_paragraph_format(decl_if)
+
+    # Page break
+    pb = doc.add_paragraph()
+    run_pb = pb.add_run()
+    run_pb.add_break(WD_BREAK.PAGE)
+    _set_paragraph_format(pb)
+
+    # Heading
+    heading = doc.add_paragraph()
+    heading_run = heading.add_run("DECLARATION FOR ADDITIONAL DISCOVERY")
+    heading_run.bold = True
+    heading_run.font.name = FONT_NAME
+    heading_run.font.size = Pt(FONT_SIZE_PT)
+    heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _set_paragraph_format(heading)
+
+    # CCP section subheading
+    sub = doc.add_paragraph()
+    sub_run = sub.add_run(
+        "(Code of Civil Procedure \u00a7 {{ declaration.ccp_section }})"
+    )
+    sub_run.font.name = FONT_NAME
+    sub_run.font.size = Pt(FONT_SIZE_PT)
+    sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _set_paragraph_format(sub)
+
+    doc.add_paragraph()
+
+    # Declarant intro
+    intro = doc.add_paragraph()
+    intro.add_run("I, {{ declaration.declarant_name }}, declare:")
+    _set_paragraph_format(intro)
+
+    doc.add_paragraph()
+
+    # Numbered paragraphs
+    _paras = [
+        (
+            "1.  I am the attorney for {{ declaration.attorney_for }} "
+            "in this action."
+        ),
+        (
+            "2.  This discovery set contains {{ declaration.request_count }} "
+            "{{ declaration.request_type_plural }}, which exceeds the limit of "
+            "35 set forth in CCP \u00a7 {{ declaration.limit_section }}."
+        ),
+        (
+            "3.  I have personally examined each "
+            "{{ declaration.request_type_singular }} in this set."
+        ),
+        (
+            "4.  None of the {{ declaration.request_type_plural }} in this set "
+            "is being propounded for any improper purpose, such as to harass, "
+            "cause unnecessary delay, or needlessly increase the cost of litigation."
+        ),
+        (
+            "5.  None of the {{ declaration.request_type_plural }} is "
+            "unreasonably cumulative or duplicative, or can be obtained from "
+            "some other source that is more convenient, less burdensome, or "
+            "less expensive."
+        ),
+        (
+            "6.  Each {{ declaration.request_type_singular }} in this set is "
+            "warranted because {{ declaration.justification }}."
+        ),
+    ]
+    for text in _paras:
+        p = doc.add_paragraph()
+        p.add_run(text)
+        _set_paragraph_format(p)
+        doc.add_paragraph()
+
+    # Penalty of perjury
+    perjury = doc.add_paragraph()
+    perjury.add_run(
+        "I declare under penalty of perjury under the laws of the State of "
+        "California that the foregoing is true and correct."
+    )
+    _set_paragraph_format(perjury)
+
+    doc.add_paragraph()
+
+    # Date
+    decl_date = doc.add_paragraph()
+    decl_date.add_run("Dated: {{ date }}")
+    _set_paragraph_format(decl_date)
+
+    doc.add_paragraph()
+    doc.add_paragraph()
+
+    # Signature line
+    decl_sig = doc.add_paragraph()
+    decl_sig.add_run(
+        "                                        ____________________________________"
+    )
+    _set_paragraph_format(decl_sig)
+
+    decl_name = doc.add_paragraph()
+    decl_name.add_run(
+        "                                        {{ declaration.declarant_name }}"
+    )
+    _set_paragraph_format(decl_name)
+
+    # Conditional close
+    decl_endif = doc.add_paragraph()
+    decl_endif.add_run("{% endif %}")
+    _set_paragraph_format(decl_endif)
 
 
 def _add_caption_block(doc: Document) -> None:

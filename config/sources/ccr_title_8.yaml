@@ -1,0 +1,44 @@
+# ============================================================
+# Employee Help — CCR Title 8 (Industrial Relations) Source Configuration
+# ============================================================
+# California Code of Regulations, Title 8 — Industrial Relations.
+# Workplace safety, wage/hour, and employment regulations that
+# supplement statutory codes. Sourced from Cornell LII.
+# Included in both consumer and attorney modes.
+# ============================================================
+
+source:
+  name: "CCR Title 8 — Industrial Relations"
+  slug: ccr_title_8
+  source_type: statutory_code
+  base_url: "https://www.law.cornell.edu/regulations/california/title-8"
+  enabled: true
+
+crawl:
+  seed_urls: []
+  allowlist_patterns:
+    - "law\\.cornell\\.edu"
+  blocklist_patterns: []
+  rate_limit_seconds: 2.0
+  max_pages: 1
+
+extraction:
+  content_selector: ""
+  boilerplate_patterns: []
+  content_category: regulation
+
+chunking:
+  strategy: section_boundary
+  min_tokens: 50
+  max_tokens: 1500
+  overlap_tokens: 100
+
+statutory:
+  code_abbreviation: 8-CCR
+  code_name: "California Code of Regulations, Title 8"
+  citation_prefix: "Cal. Code Regs. tit. 8"
+  target_divisions:
+    - "1"
+  method: ccr_title_8
+
+database_path: "data/employee_help.db"

@@ -1,0 +1,91 @@
+# ============================================================
+# Employee Help — EEOC Guidance Source Configuration
+# ============================================================
+# U.S. Equal Employment Opportunity Commission (eeoc.gov)
+# Federal employment discrimination guidance on Title VII,
+# ADA, ADEA, and related statutes. Supplements California
+# FEHA coverage with authoritative federal interpretation.
+# ============================================================
+
+source:
+  name: "U.S. Equal Employment Opportunity Commission"
+  slug: eeoc
+  source_type: agency
+  base_url: "https://www.eeoc.gov"
+  enabled: true
+
+crawl:
+  seed_urls:
+    # Guidance by subject area — links to all topic-specific guidance pages
+    - "https://www.eeoc.gov/guidance-subject-area"
+    # Types of discrimination overview — links to each protected category
+    - "https://www.eeoc.gov/laws/types-discrimination"
+
+  allowlist_patterns:
+    # Formal guidance documents and policy interpretations
+    - "eeoc\\.gov/laws/guidance/"
+    # Policy documents and directives
+    - "eeoc\\.gov/policy/docs/"
+    # Types of discrimination overview pages
+    - "eeoc\\.gov/laws/types-discrimination"
+    # Individual discrimination type pages (linked from types-discrimination)
+    - "eeoc\\.gov/age-discrimination"
+    - "eeoc\\.gov/disability-discrimination"
+    - "eeoc\\.gov/equal-pay-compensation-discrimination"
+    - "eeoc\\.gov/genetic-information-discrimination"
+    - "eeoc\\.gov/harassment"
+    - "eeoc\\.gov/national-origin-discrimination"
+    - "eeoc\\.gov/pregnancy-discrimination"
+    - "eeoc\\.gov/race-color-discrimination"
+    - "eeoc\\.gov/religious-discrimination"
+    - "eeoc\\.gov/retaliation"
+    - "eeoc\\.gov/sex-based-discrimination"
+    - "eeoc\\.gov/sexual-harassment"
+
+  blocklist_patterns:
+    # News and press releases
+    - "eeoc\\.gov/newsroom"
+    # Litigation / case tracking (not guidance)
+    - "eeoc\\.gov/litigation"
+    # Federal sector (not private employment)
+    - "eeoc\\.gov/federal-sector"
+    # Spanish-language pages
+    - "eeoc\\.gov/es/"
+    # PDF downloads (not crawlable via Playwright HTML)
+    - "\\.pdf$"
+    # FOIA pages
+    - "eeoc\\.gov/foia"
+    # Statistics and data
+    - "eeoc\\.gov/statistics"
+    # About / contact / admin pages
+    - "eeoc\\.gov/about-eeoc"
+    - "eeoc\\.gov/contact-eeoc"
+    - "eeoc\\.gov/field-office"
+    - "eeoc\\.gov/meetings"
+    - "eeoc\\.gov/commissioners"
+    # Filing a charge (procedural, not guidance)
+    - "eeoc\\.gov/filing-charge-discrimination"
+    - "eeoc\\.gov/how-file"
+    # Youth and student pages
+    - "eeoc\\.gov/youth"
+    - "eeoc\\.gov/students"
+
+  rate_limit_seconds: 3.0
+  max_pages: 150
+
+extraction:
+  content_selector: "#main-content"
+  content_category: federal_guidance
+  boilerplate_patterns:
+    - "Skip to main content"
+    - "An official website of the United States government"
+    - "Official websites use .gov"
+    - "Secure .gov websites use HTTPS"
+
+chunking:
+  strategy: heading_based
+  min_tokens: 200
+  max_tokens: 1500
+  overlap_tokens: 100
+
+database_path: "data/employee_help.db"

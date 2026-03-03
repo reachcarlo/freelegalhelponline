@@ -302,6 +302,30 @@ class Pipeline:
         loader = DLSEManualLoader(download_dir=Path("data/dlse_manual"))
         return loader.to_statute_sections()
 
+    def _extract_via_ccr_web(self) -> list:
+        """Extract CCR Title 2 FEHA regulations from Cornell LII."""
+        from employee_help.scraper.extractors.ccr import CCRLoader
+
+        loader = CCRLoader(
+            rate_limit=self.config.rate_limit_seconds,
+            cache_dir=Path("data/ccr"),
+        )
+        return loader.to_statute_sections()
+
+    def _extract_via_ccr_title_8(self) -> list:
+        """Extract CCR Title 8 (Industrial Relations) regulations from Cornell LII."""
+        from employee_help.scraper.extractors.ccr_title8 import CCRTitle8Loader
+
+        statutory = self.source_config.statutory
+        target_divs = statutory.target_divisions or None
+
+        loader = CCRTitle8Loader(
+            cache_dir=Path("data/ccr_title8"),
+            rate_limit=self.config.rate_limit_seconds,
+            target_divisions=target_divs,
+        )
+        return loader.to_statute_sections()
+
     def _extract_via_web(self) -> tuple[list, int]:
         """Extract statutory sections using the web scraper. Returns (sections, request_count)."""
         from employee_help.scraper.extractors.statute import StatutoryExtractor
@@ -377,6 +401,12 @@ class Pipeline:
             elif method == "dlse_manual":
                 sections = self._extract_via_dlse_manual()
                 stats.urls_crawled = 0  # Single PDF download
+            elif method == "ccr_web":
+                sections = self._extract_via_ccr_web()
+                stats.urls_crawled = len(sections)
+            elif method == "ccr_title_8":
+                sections = self._extract_via_ccr_title_8()
+                stats.urls_crawled = len(sections)
             else:
                 sections, request_count = self._extract_via_web()
                 stats.urls_crawled = request_count
@@ -733,7 +763,14 @@ class Pipeline:
                 if crawl_result.html:
                     content_type = ContentType.HTML
                     from employee_help.scraper.extractors.html import extract_html
-                    extraction_result = extract_html(crawl_result.html, url)
+                    _content_selector = (
+                        self.source_config.extraction.content_selector
+                        if self.source_config
+                        else None
+                    )
+                    extraction_result = extract_html(
+                        crawl_result.html, url, content_selector=_content_selector
+                    )
                     raw_content = extraction_result.markdown if extraction_result else ""
                 elif crawl_result.pdf_bytes:
                     content_type = ContentType.PDF
@@ -765,7 +802,26 @@ class Pipeline:
                         self.logger.warning("no_chunks_created", url=url)
                         continue
 
-                    content_category = classify_content_category(url, content_type)
+                    # Determine content category — prefer source config override,
+                    # but still allow URL-based FAQ/fact-sheet sub-classification
+                    config_category_str = (
+                        self.source_config.extraction.content_category
+                        if self.source_config
+                        else "agency_guidance"
+                    )
+                    if config_category_str != "agency_guidance":
+                        try:
+                            base_category = ContentCategory(config_category_str)
+                        except ValueError:
+                            base_category = ContentCategory.AGENCY_GUIDANCE
+                        url_category = classify_content_category(url, content_type)
+                        # Let FAQ/fact-sheet heuristic override when matched
+                        if url_category in (ContentCategory.FAQ, ContentCategory.FACT_SHEET):
+                            content_category = url_category
+                        else:
+                            content_category = base_category
+                    else:
+                        content_category = classify_content_category(url, content_type)
 
                     if not dry_run and run_id:
                         document = Document(

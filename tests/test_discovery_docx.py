@@ -22,6 +22,7 @@ from employee_help.discovery.models import (
     PartyRole,
 )
 from employee_help.discovery.generator.docx_builder import (
+    _build_declaration_context,
     build_discovery_docx,
     build_rfas,
     build_rfpds,
@@ -483,3 +484,135 @@ class TestBuildDiscoveryDocx:
             doc_xml = zf.read("word/document.xml").decode("utf-8")
             # Defendant is the propounding party
             assert "DEFENDANT BIGCO INC" in doc_xml
+
+
+# ---------------------------------------------------------------------------
+# Declaration of Necessity tests
+# ---------------------------------------------------------------------------
+
+
+def _make_requests(n: int, prefix: str = "srog") -> list[DiscoveryRequest]:
+    """Create n selected DiscoveryRequest objects."""
+    return [
+        DiscoveryRequest(
+            id=f"{prefix}_{i:03d}",
+            text=f"Request number {i} text.",
+            category="test",
+            is_selected=True,
+            order=i,
+        )
+        for i in range(1, n + 1)
+    ]
+
+
+class TestDeclarationContext:
+    def test_srogs_under_limit_no_declaration(
+        self, sample_case_info: CaseInfo,
+    ):
+        requests = _make_requests(35)
+        result = _build_declaration_context(
+            DiscoveryToolType.SROGS, sample_case_info, requests,
+        )
+        assert result is None
+
+    def test_srogs_over_limit_has_declaration(
+        self, sample_case_info: CaseInfo,
+    ):
+        requests = _make_requests(36)
+        result = _build_declaration_context(
+            DiscoveryToolType.SROGS, sample_case_info, requests,
+        )
+        assert result is not None
+        assert result["ccp_section"] == "2030.050"
+        assert result["limit_section"] == "2030.030"
+        assert result["request_count"] == 36
+        assert result["request_type_plural"] == "specially prepared interrogatories"
+        assert result["declarant_name"] == "Maria Garcia"
+
+    def test_rfas_under_limit_no_declaration(
+        self, sample_case_info: CaseInfo,
+    ):
+        requests = _make_requests(35, prefix="rfa")
+        result = _build_declaration_context(
+            DiscoveryToolType.RFAS, sample_case_info, requests,
+        )
+        assert result is None
+
+    def test_rfas_over_limit_has_declaration(
+        self, sample_case_info: CaseInfo,
+    ):
+        requests = _make_requests(36, prefix="rfa")
+        result = _build_declaration_context(
+            DiscoveryToolType.RFAS, sample_case_info, requests,
+        )
+        assert result is not None
+        assert result["ccp_section"] == "2033.050"
+        assert result["request_count"] == 36
+        assert result["request_type_plural"] == "requests for admission"
+
+    def test_rfpds_never_have_declaration(
+        self, sample_case_info: CaseInfo,
+    ):
+        requests = _make_requests(100, prefix="rfpd")
+        result = _build_declaration_context(
+            DiscoveryToolType.RFPDS, sample_case_info, requests,
+        )
+        assert result is None
+
+
+class TestDeclarationInDocx:
+    def test_srogs_over_limit_includes_declaration_page(
+        self, sample_case_info: CaseInfo,
+    ):
+        requests = _make_requests(36)
+        result = build_srogs(sample_case_info, requests)
+        assert _is_valid_docx(result)
+        with zipfile.ZipFile(io.BytesIO(result)) as zf:
+            doc_xml = zf.read("word/document.xml").decode("utf-8")
+            assert "DECLARATION FOR ADDITIONAL DISCOVERY" in doc_xml
+            assert "2030.050" in doc_xml
+            assert "2030.030" in doc_xml
+            assert "36" in doc_xml
+            assert "specially prepared interrogatories" in doc_xml
+            assert "penalty of perjury" in doc_xml
+
+    def test_srogs_under_limit_no_declaration_page(
+        self, sample_case_info: CaseInfo,
+    ):
+        requests = _make_requests(10)
+        result = build_srogs(sample_case_info, requests)
+        assert _is_valid_docx(result)
+        with zipfile.ZipFile(io.BytesIO(result)) as zf:
+            doc_xml = zf.read("word/document.xml").decode("utf-8")
+            assert "DECLARATION FOR ADDITIONAL DISCOVERY" not in doc_xml
+
+    def test_rfas_over_limit_includes_declaration_page(
+        self, sample_case_info: CaseInfo,
+    ):
+        requests = _make_requests(40, prefix="rfa")
+        result = build_rfas(sample_case_info, requests)
+        assert _is_valid_docx(result)
+        with zipfile.ZipFile(io.BytesIO(result)) as zf:
+            doc_xml = zf.read("word/document.xml").decode("utf-8")
+            assert "DECLARATION FOR ADDITIONAL DISCOVERY" in doc_xml
+            assert "2033.050" in doc_xml
+
+    def test_rfpds_no_declaration_regardless_of_count(
+        self, sample_case_info: CaseInfo,
+    ):
+        requests = _make_requests(100, prefix="rfpd")
+        result = build_rfpds(sample_case_info, requests)
+        assert _is_valid_docx(result)
+        with zipfile.ZipFile(io.BytesIO(result)) as zf:
+            doc_xml = zf.read("word/document.xml").decode("utf-8")
+            assert "DECLARATION FOR ADDITIONAL DISCOVERY" not in doc_xml
+
+    def test_declaration_includes_attorney_name(
+        self, sample_case_info: CaseInfo,
+    ):
+        requests = _make_requests(36)
+        result = build_srogs(sample_case_info, requests)
+        with zipfile.ZipFile(io.BytesIO(result)) as zf:
+            doc_xml = zf.read("word/document.xml").decode("utf-8")
+            # Attorney name should appear in declaration section
+            assert "Maria Garcia" in doc_xml

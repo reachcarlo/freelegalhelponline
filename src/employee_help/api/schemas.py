@@ -610,3 +610,36 @@ class DiscoveryDefinitionsResponse(BaseModel):
 
     definitions: list[DiscoveryDefinitionInfo]
     production_instructions: str
+
+
+# ── Proof of Service schemas ─────────────────────────────────────────
+
+
+class POSGenerateRequest(BaseModel):
+    """Request body for POST /api/discovery/generate-pos."""
+
+    case_info: CaseInfoSchema
+    server_name: str = Field(..., min_length=1, max_length=200)
+    server_address: str = Field(..., min_length=1, max_length=300)
+    served_party_name: str = Field(..., min_length=1, max_length=200)
+    served_party_address: str = Field(..., min_length=1, max_length=500)
+    service_method: str = Field(..., pattern=r"^(personal|mail_in_state|mail_out_of_state|mail_international|electronic|overnight)$")
+    service_date: date
+    documents_served: list[str] = Field(..., min_length=1, max_length=20)
+
+    @field_validator("server_name", "served_party_name", mode="before")
+    @classmethod
+    def sanitize_names(cls, v: str) -> str:
+        if isinstance(v, str):
+            return sanitize_text(v)
+        return v
+
+    @field_validator("documents_served")
+    @classmethod
+    def validate_document_names(cls, v: list[str]) -> list[str]:
+        for name in v:
+            if not name.strip():
+                raise ValueError("Document name cannot be empty")
+            if len(name) > 200:
+                raise ValueError("Document name too long (max 200 chars)")
+        return v

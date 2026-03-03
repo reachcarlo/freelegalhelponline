@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Employee Help — Frontend
+
+Next.js 16 (App Router) + Tailwind CSS + TypeScript frontend for the Employee Help platform.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). The FastAPI backend must also be running on port 8000:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cd .. && uv run uvicorn employee_help.api.main:app --port 8000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## E2E Tests (Playwright)
 
-## Learn More
+49 end-to-end tests covering all 5 discovery tool workflows with PDF/DOCX content validation.
 
-To learn more about Next.js, take a look at the following resources:
+### Setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npx playwright install chromium
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Run
 
-## Deploy on Vercel
+```bash
+# Run all E2E tests (auto-starts both servers if not running)
+npx playwright test
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Run with visible browser
+npx playwright test --headed
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Run a single spec file
+npx playwright test e2e/discovery-srogs.spec.ts
+
+# Run with verbose output
+npx playwright test --reporter=list
+```
+
+### Test Specs
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `discovery-disc001.spec.ts` | 7 | DISC-001 wizard, PDF form field validation |
+| `discovery-disc002.spec.ts` | 4 | DISC-002 employment interrogatories, PDF generation |
+| `discovery-srogs.spec.ts` | 7 | SROGs 35-limit, select/deselect, custom requests, DOCX |
+| `discovery-rfpds.spec.ts` | 5 | RFPDs 7-step wizard, production instructions, DOCX |
+| `discovery-rfas.spec.ts` | 5 | RFAs fact limit, type badges, DOCX validation |
+| `discovery-cross-tool.spec.ts` | 4 | Cross-tool state persistence via sessionStorage |
+| `discovery-limits.spec.ts` | 4 | Declaration of Necessity warnings |
+| `discovery-mobile.spec.ts` | 6 | 375x812 viewport, touch targets, responsive layout |
+| `discovery-index.spec.ts` | 5 | Discovery hub page, navigation, format badges |
+
+### Helpers
+
+- `e2e/helpers/wizard-helpers.ts` — Shared wizard interaction functions (fillCaseInfo, clickNext, selectClaims, interceptGenerateResponse)
+- `e2e/helpers/doc-validator.ts` — PDF form field validation (pdf-lib) and DOCX content validation (jszip)

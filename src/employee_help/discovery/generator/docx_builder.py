@@ -36,6 +36,7 @@ from ..models import (
     DiscoveryRequest,
     DiscoveryToolType,
 )
+from ..models import RFA_FACT_LIMIT, SROG_LIMIT
 from .pleading_template import create_pleading_template
 
 # ---------------------------------------------------------------------------
@@ -124,6 +125,57 @@ TOOL_LABELS: dict[DiscoveryToolType, str] = {
 
 
 # ---------------------------------------------------------------------------
+# Declaration of Necessity
+# ---------------------------------------------------------------------------
+
+
+def _build_declaration_context(
+    tool_type: DiscoveryToolType,
+    case_info: CaseInfo,
+    requests: list[DiscoveryRequest],
+) -> dict[str, str | int] | None:
+    """Build the declaration context dict if requests exceed the statutory limit.
+
+    Returns None when no declaration is required.
+    """
+    attorney_for = (
+        case_info.attorney.attorney_for
+        or propounding_party_name(case_info)
+    )
+    justification = (
+        "the issues in this litigation are complex and the "
+        "information sought is essential to the prosecution of "
+        "this action and cannot be obtained by other means"
+    )
+
+    if tool_type == DiscoveryToolType.SROGS and len(requests) > SROG_LIMIT:
+        return {
+            "ccp_section": "2030.050",
+            "limit_section": "2030.030",
+            "declarant_name": case_info.attorney.name,
+            "attorney_for": attorney_for,
+            "request_count": len(requests),
+            "request_type_plural": "specially prepared interrogatories",
+            "request_type_singular": "interrogatory",
+            "justification": justification,
+        }
+
+    if tool_type == DiscoveryToolType.RFAS and len(requests) > RFA_FACT_LIMIT:
+        return {
+            "ccp_section": "2033.050",
+            "limit_section": "2033.030",
+            "declarant_name": case_info.attorney.name,
+            "attorney_for": attorney_for,
+            "request_count": len(requests),
+            "request_type_plural": "requests for admission",
+            "request_type_singular": "request for admission",
+            "justification": justification,
+        }
+
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -195,6 +247,9 @@ def build_discovery_docx(
     tool_label = TOOL_LABELS[tool_type]
     doc_title = document_title(case_info, tool_label)
 
+    # Build declaration context if needed (CCP 2030.050 / 2033.050)
+    declaration = _build_declaration_context(tool_type, case_info, requests)
+
     # Build template context
     context = {
         # Caption
@@ -228,6 +283,8 @@ def build_discovery_docx(
         "requests": formatted_requests,
         # Signature
         "date": date.today().strftime("%B %d, %Y"),
+        # Declaration of Necessity (None if not needed)
+        "declaration": declaration,
     }
 
     # Render the template
