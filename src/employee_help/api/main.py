@@ -19,6 +19,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from employee_help.api.deps import init_services, shutdown_services
+from employee_help.api.discovery_routes import discovery_router
 from employee_help.api.routes import router
 
 logger = structlog.get_logger(__name__)
@@ -61,6 +62,7 @@ WAGES_RATE_LIMIT_MAX = int(os.environ.get("WAGES_RATE_LIMIT_MAX", "20"))
 INCIDENT_GUIDE_RATE_LIMIT_MAX = int(os.environ.get("INCIDENT_GUIDE_RATE_LIMIT_MAX", "20"))
 INTAKE_RATE_LIMIT_MAX = int(os.environ.get("INTAKE_RATE_LIMIT_MAX", "20"))
 INTAKE_SUMMARY_RATE_LIMIT_MAX = int(os.environ.get("INTAKE_SUMMARY_RATE_LIMIT_MAX", "5"))
+DISCOVERY_RATE_LIMIT_MAX = int(os.environ.get("DISCOVERY_RATE_LIMIT_MAX", "20"))
 DAILY_QUERY_BUDGET = int(os.environ.get("DAILY_QUERY_BUDGET", "500"))
 
 # --- In-memory rate limit state ---
@@ -73,6 +75,7 @@ _wages_rate_store: dict[str, list[float]] = defaultdict(list)
 _incident_guide_rate_store: dict[str, list[float]] = defaultdict(list)
 _intake_rate_store: dict[str, list[float]] = defaultdict(list)
 _intake_summary_rate_store: dict[str, list[float]] = defaultdict(list)
+_discovery_rate_store: dict[str, list[float]] = defaultdict(list)
 _daily_budget: dict[str, int] = {"date": "", "count": 0}  # type: ignore[dict-item]
 
 
@@ -342,6 +345,27 @@ async def rate_limit_middleware(request: Request, call_next):
             response.headers[k] = v
         return response
 
+    # --- /api/discovery/* rate limiting ---
+    if request.url.path.startswith("/api/discovery/") and request.method == "POST":
+        _discovery_rate_store[client_ip] = [
+            t for t in _discovery_rate_store[client_ip] if now - t < 60
+        ]
+        count = len(_discovery_rate_store[client_ip])
+
+        if count >= DISCOVERY_RATE_LIMIT_MAX:
+            oldest = _discovery_rate_store[client_ip][0]
+            return Response(
+                content='{"detail":"Rate limit exceeded. Please wait before generating another document."}',
+                status_code=429,
+                media_type="application/json",
+                headers=_rate_limit_headers(DISCOVERY_RATE_LIMIT_MAX, 0, oldest + 60),
+            )
+
+        _discovery_rate_store[client_ip].append(now)
+
+        if len(_discovery_rate_store) > 100:
+            _prune_stale_entries(_discovery_rate_store, 60)
+
     # --- /api/feedback rate limiting ---
     if request.url.path == "/api/feedback" and request.method == "POST":
         _feedback_rate_store[client_ip] = [
@@ -384,3 +408,4 @@ async def log_requests(request: Request, call_next):
 
 
 app.include_router(router)
+app.include_router(discovery_router)

@@ -393,3 +393,220 @@ class UnpaidWagesResponse(BaseModel):
     hourly_rate: str
     unpaid_hours: str
     disclaimer: str
+
+
+# ── Discovery tool schemas ──────────────────────────────────────────
+
+
+class PartyInfoSchema(BaseModel):
+    """A named party in the case."""
+
+    name: str = Field(..., min_length=1, max_length=200)
+    is_entity: bool = False
+    entity_type: str | None = Field(default=None, max_length=50)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def sanitize_name(cls, v: str) -> str:
+        if isinstance(v, str):
+            return sanitize_text(v)
+        return v
+
+
+class AttorneyInfoSchema(BaseModel):
+    """Attorney or self-represented party contact information."""
+
+    name: str = Field(..., min_length=1, max_length=200)
+    sbn: str = Field(..., max_length=20)
+    address: str = Field(..., min_length=1, max_length=300)
+    city_state_zip: str = Field(..., min_length=1, max_length=200)
+    phone: str = Field(..., min_length=1, max_length=30)
+    email: str = Field(..., min_length=1, max_length=200)
+    firm_name: str | None = Field(default=None, max_length=200)
+    fax: str | None = Field(default=None, max_length=30)
+    is_pro_per: bool = False
+    attorney_for: str = Field(default="", max_length=200)
+
+    @field_validator("name", "address", "city_state_zip", "email", mode="before")
+    @classmethod
+    def sanitize_fields(cls, v: str) -> str:
+        if isinstance(v, str):
+            return sanitize_text(v)
+        return v
+
+
+class CaseInfoSchema(BaseModel):
+    """Case-level information for discovery document generation."""
+
+    case_number: str = Field(..., min_length=1, max_length=50)
+    court_county: str = Field(..., min_length=1, max_length=100)
+    party_role: str = Field(..., pattern=r"^(plaintiff|defendant)$")
+    plaintiffs: list[PartyInfoSchema] = Field(..., min_length=1, max_length=20)
+    defendants: list[PartyInfoSchema] = Field(..., min_length=1, max_length=20)
+    attorney: AttorneyInfoSchema
+
+    court_name: str = Field(default="Superior Court of California", max_length=200)
+    court_branch: str | None = Field(default=None, max_length=200)
+    court_address: str | None = Field(default=None, max_length=300)
+    court_city_zip: str | None = Field(default=None, max_length=200)
+    judge_name: str | None = Field(default=None, max_length=200)
+    department: str | None = Field(default=None, max_length=50)
+
+    complaint_filed_date: date | None = None
+    trial_date: date | None = None
+    does_included: bool = True
+    set_number: int = Field(default=1, ge=1, le=10)
+
+    @field_validator("case_number", "court_county", mode="before")
+    @classmethod
+    def sanitize_case_fields(cls, v: str) -> str:
+        if isinstance(v, str):
+            return sanitize_text(v)
+        return v
+
+
+class DiscoveryRequestSchema(BaseModel):
+    """A single discovery request item (SROG, RFPD, or RFA)."""
+
+    id: str
+    text: str
+    category: str
+    is_selected: bool = True
+    is_custom: bool = False
+    order: int = 0
+    notes: str | None = None
+    rfa_type: str | None = None  # "fact" or "genuineness" (RFAs only)
+
+
+class DiscoverySuggestRequest(BaseModel):
+    """Request body for POST /api/discovery/suggest."""
+
+    claim_types: list[str] = Field(..., min_length=1, max_length=10)
+    party_role: str = Field(..., pattern=r"^(plaintiff|defendant)$")
+    tool_type: str = Field(...)
+    has_rfas: bool = False
+    responding_is_entity: bool = False
+
+    @field_validator("tool_type")
+    @classmethod
+    def validate_tool_type(cls, v: str) -> str:
+        valid = {"frogs_general", "frogs_employment", "srogs", "rfpds", "rfas"}
+        if v not in valid:
+            raise ValueError(f"Invalid tool_type: {v!r}. Must be one of {sorted(valid)}")
+        return v
+
+    @field_validator("claim_types")
+    @classmethod
+    def validate_claim_types(cls, v: list[str]) -> list[str]:
+        from employee_help.discovery.models import ClaimType
+
+        valid = {ct.value for ct in ClaimType}
+        for ct in v:
+            if ct not in valid:
+                raise ValueError(f"Invalid claim_type: {ct!r}")
+        return v
+
+
+class SuggestedSectionInfo(BaseModel):
+    """A suggested DISC-001 or DISC-002 section."""
+
+    section_number: str
+    title: str = ""
+    description: str = ""
+
+
+class SuggestedCategoryInfo(BaseModel):
+    """A suggested category for SROG/RFPD/RFA banks."""
+
+    category: str
+    label: str
+    request_count: int = 0
+
+
+class DiscoverySuggestResponse(BaseModel):
+    """Response body for POST /api/discovery/suggest."""
+
+    tool_type: str
+    party_role: str
+    suggested_sections: list[SuggestedSectionInfo] = []
+    suggested_categories: list[SuggestedCategoryInfo] = []
+    total_suggested: int = 0
+
+
+class DiscoveryGenerateRequest(BaseModel):
+    """Request body for POST /api/discovery/generate."""
+
+    tool_type: str = Field(...)
+    case_info: CaseInfoSchema
+    selected_sections: list[str] = Field(default_factory=list, max_length=200)
+    selected_requests: list[DiscoveryRequestSchema] = Field(
+        default_factory=list, max_length=200
+    )
+    adverse_actions: list[str] = Field(default_factory=list, max_length=20)
+    custom_definitions: dict[str, str] | None = None
+    include_definitions: bool = True
+
+    @field_validator("tool_type")
+    @classmethod
+    def validate_tool_type(cls, v: str) -> str:
+        valid = {"frogs_general", "frogs_employment", "srogs", "rfpds", "rfas"}
+        if v not in valid:
+            raise ValueError(f"Invalid tool_type: {v!r}. Must be one of {sorted(valid)}")
+        return v
+
+    @model_validator(mode="after")
+    def validate_selections(self):
+        """Ensure the right selection fields are populated for the tool type."""
+        if self.tool_type in ("frogs_general", "frogs_employment"):
+            if not self.selected_sections:
+                raise ValueError(
+                    f"selected_sections is required for {self.tool_type}"
+                )
+        elif self.tool_type in ("srogs", "rfpds", "rfas"):
+            if not self.selected_requests:
+                raise ValueError(
+                    f"selected_requests is required for {self.tool_type}"
+                )
+        return self
+
+
+class DiscoveryBankItemInfo(BaseModel):
+    """A single item in a discovery request bank."""
+
+    id: str
+    text: str
+    category: str
+    order: int
+    rfa_type: str | None = None
+
+
+class DiscoveryBankCategoryInfo(BaseModel):
+    """A category in a discovery request bank."""
+
+    key: str
+    label: str
+    count: int
+
+
+class DiscoveryBankResponse(BaseModel):
+    """Response body for GET /api/discovery/banks/{tool}."""
+
+    tool_type: str
+    categories: list[DiscoveryBankCategoryInfo]
+    items: list[DiscoveryBankItemInfo]
+    total_items: int
+    limit: int | None = None  # 35 for SROGs/RFAs, None for RFPDs
+
+
+class DiscoveryDefinitionInfo(BaseModel):
+    """A single legal definition."""
+
+    term: str
+    definition: str
+
+
+class DiscoveryDefinitionsResponse(BaseModel):
+    """Response body for GET /api/discovery/definitions."""
+
+    definitions: list[DiscoveryDefinitionInfo]
+    production_instructions: str

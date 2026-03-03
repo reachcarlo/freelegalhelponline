@@ -62,6 +62,33 @@ CREATE INDEX IF NOT EXISTS idx_session_created ON conversation_session(created_a
 CREATE INDEX IF NOT EXISTS idx_citation_audit_created ON citation_audit(created_at);
 CREATE INDEX IF NOT EXISTS idx_citation_audit_query ON citation_audit(query_id);
 CREATE INDEX IF NOT EXISTS idx_citation_audit_confidence ON citation_audit(confidence);
+
+CREATE TABLE IF NOT EXISTS discovery_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL UNIQUE,
+    mode TEXT NOT NULL DEFAULT 'attorney',
+    created_at TEXT NOT NULL,
+    last_updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS discovery_generations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    generation_id TEXT NOT NULL UNIQUE,
+    session_id TEXT,
+    tool_type TEXT NOT NULL,
+    case_number TEXT NOT NULL DEFAULT '',
+    file_format TEXT NOT NULL DEFAULT '',
+    file_size_bytes INTEGER,
+    duration_ms INTEGER,
+    status TEXT NOT NULL DEFAULT 'success',
+    error_message TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES discovery_sessions(session_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_discovery_sessions_created ON discovery_sessions(created_at);
+CREATE INDEX IF NOT EXISTS idx_discovery_generations_created ON discovery_generations(created_at);
+CREATE INDEX IF NOT EXISTS idx_discovery_generations_tool ON discovery_generations(tool_type);
 """
 
 _MIGRATIONS = [
@@ -114,6 +141,46 @@ _MIGRATIONS = [
     (
         "idx_citation_audit_confidence",
         "CREATE INDEX IF NOT EXISTS idx_citation_audit_confidence ON citation_audit(confidence)",
+    ),
+    # Discovery session/generation tables
+    (
+        "discovery_sessions_table",
+        """CREATE TABLE IF NOT EXISTS discovery_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL UNIQUE,
+            mode TEXT NOT NULL DEFAULT 'attorney',
+            created_at TEXT NOT NULL,
+            last_updated_at TEXT NOT NULL
+        )""",
+    ),
+    (
+        "discovery_generations_table",
+        """CREATE TABLE IF NOT EXISTS discovery_generations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            generation_id TEXT NOT NULL UNIQUE,
+            session_id TEXT,
+            tool_type TEXT NOT NULL,
+            case_number TEXT NOT NULL DEFAULT '',
+            file_format TEXT NOT NULL DEFAULT '',
+            file_size_bytes INTEGER,
+            duration_ms INTEGER,
+            status TEXT NOT NULL DEFAULT 'success',
+            error_message TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (session_id) REFERENCES discovery_sessions(session_id)
+        )""",
+    ),
+    (
+        "idx_discovery_sessions_created",
+        "CREATE INDEX IF NOT EXISTS idx_discovery_sessions_created ON discovery_sessions(created_at)",
+    ),
+    (
+        "idx_discovery_generations_created",
+        "CREATE INDEX IF NOT EXISTS idx_discovery_generations_created ON discovery_generations(created_at)",
+    ),
+    (
+        "idx_discovery_generations_tool",
+        "CREATE INDEX IF NOT EXISTS idx_discovery_generations_tool ON discovery_generations(tool_type)",
     ),
 ]
 
