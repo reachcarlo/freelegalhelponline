@@ -285,6 +285,23 @@ class Pipeline:
         loader = CACILoader(pdf_path)
         return loader.to_statute_sections()
 
+    def _extract_via_dlse_opinions(self) -> list:
+        """Extract DLSE opinion letters from dir.ca.gov."""
+        from employee_help.scraper.extractors.dlse_opinions import DLSEOpinionLoader
+
+        loader = DLSEOpinionLoader(
+            download_dir=Path("data/dlse_opinions"),
+            rate_limit=self.config.rate_limit_seconds,
+        )
+        return loader.to_statute_sections()
+
+    def _extract_via_dlse_manual(self) -> list:
+        """Extract DLSE Enforcement Manual chapters from the official PDF."""
+        from employee_help.scraper.extractors.dlse_manual import DLSEManualLoader
+
+        loader = DLSEManualLoader(download_dir=Path("data/dlse_manual"))
+        return loader.to_statute_sections()
+
     def _extract_via_web(self) -> tuple[list, int]:
         """Extract statutory sections using the web scraper. Returns (sections, request_count)."""
         from employee_help.scraper.extractors.statute import StatutoryExtractor
@@ -354,6 +371,12 @@ class Pipeline:
             elif method == "caci_pdf":
                 sections = self._extract_via_caci_pdf()
                 stats.urls_crawled = 0  # No HTTP requests for PDF
+            elif method == "dlse_opinions":
+                sections = self._extract_via_dlse_opinions()
+                stats.urls_crawled = len(sections)
+            elif method == "dlse_manual":
+                sections = self._extract_via_dlse_manual()
+                stats.urls_crawled = 0  # Single PDF download
             else:
                 sections, request_count = self._extract_via_web()
                 stats.urls_crawled = request_count

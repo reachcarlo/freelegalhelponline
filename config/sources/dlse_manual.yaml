@@ -1,0 +1,42 @@
+# ============================================================
+# Employee Help — DLSE Enforcement Manual Source Configuration
+# ============================================================
+# DLSE Enforcement Policies and Interpretations Manual (2002, revised 2019)
+# Comprehensive policy guidance from the CA Labor Commissioner.
+# Included in both consumer and attorney modes.
+# ============================================================
+
+source:
+  name: "DLSE Enforcement Manual"
+  slug: dlse_manual
+  source_type: statutory_code
+  base_url: "https://www.dir.ca.gov/dlse/DLSEManual/dlse_enfcmanual.pdf"
+  enabled: true
+
+crawl:
+  seed_urls: []
+  allowlist_patterns:
+    - "dir\\.ca\\.gov"
+  blocklist_patterns: []
+  rate_limit_seconds: 2.0
+  max_pages: 1
+
+extraction:
+  content_selector: ""
+  boilerplate_patterns: []
+  content_category: enforcement_manual
+
+chunking:
+  strategy: section_boundary
+  min_tokens: 50
+  max_tokens: 1500
+  overlap_tokens: 100
+
+statutory:
+  code_abbreviation: DLSE-Manual
+  code_name: "DLSE Enforcement Manual"
+  citation_prefix: "DLSE Enforcement Manual"
+  target_divisions: []
+  method: dlse_manual
+
+database_path: "data/employee_help.db"

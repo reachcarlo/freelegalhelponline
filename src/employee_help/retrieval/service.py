@@ -18,7 +18,7 @@ from employee_help.retrieval.vector_store import VectorStore
 logger = structlog.get_logger()
 
 # Content categories for consumer mode filtering
-CONSUMER_CATEGORIES = {"agency_guidance", "fact_sheet", "faq"}
+CONSUMER_CATEGORIES = {"agency_guidance", "fact_sheet", "faq", "opinion_letter", "enforcement_manual"}
 
 
 @dataclass
@@ -226,6 +226,14 @@ class RetrievalService:
             # Case law boost in attorney mode
             if candidate.content_category == "case_law":
                 candidate.relevance_score *= 1.25
+
+            # Opinion letter boost in attorney mode
+            if candidate.content_category == "opinion_letter":
+                candidate.relevance_score *= 1.15
+
+            # Enforcement manual boost in attorney mode
+            if candidate.content_category == "enforcement_manual":
+                candidate.relevance_score *= 1.1
 
             # Citation match boost — strong boost for exact section match
             if (
