@@ -20,6 +20,8 @@ interface RequestBuilderProps {
   limitType?: "fact" | null;
   /** Label for the limit (e.g. "interrogatories", "requests") */
   limitLabel?: string;
+  /** Tool label for Declaration of Necessity CCP references */
+  toolLabel?: string;
 }
 
 // ── Limit counter ────────────────────────────────────────────────────
@@ -28,10 +30,12 @@ function LimitCounter({
   count,
   limit,
   label,
+  toolLabel,
 }: {
   count: number;
   limit: number;
   label: string;
+  toolLabel?: string;
 }) {
   const ratio = count / limit;
   const color =
@@ -41,13 +45,21 @@ function LimitCounter({
         ? "text-warning-text border-warning-border bg-warning-bg"
         : "text-accent border-accent/30 bg-accent-surface";
 
+  // CCP references differ by tool type
+  const ccpRef = toolLabel === "RFAs" ? "CCP \u00A7 2033.050" : "CCP \u00A7 2030.050";
+
   return (
     <div className={`rounded-lg border px-3 py-2 text-sm font-medium ${color}`}>
       <span className="font-mono">{count}</span>/{limit} {label}
       {count > limit && (
-        <p className="mt-1 text-xs font-normal">
-          Exceeds limit — a Declaration of Necessity (CCP 2030.050) is required.
-        </p>
+        <div className="mt-1 text-xs font-normal">
+          <p className="font-semibold">Declaration of Necessity required</p>
+          <p className="mt-0.5">
+            Exceeds the {limit}-question limit. You must file a Declaration of
+            Necessity per {ccpRef} stating each additional question is warranted
+            by the complexity or quantity of existing and potential issues.
+          </p>
+        </div>
       )}
       {count === limit && (
         <p className="mt-1 text-xs font-normal">At limit.</p>
@@ -97,7 +109,8 @@ function RequestRow({
           type="checkbox"
           checked={request.is_selected}
           onChange={onToggle}
-          className="mt-1 rounded border-border shrink-0"
+          aria-label={`Select request ${index + 1}`}
+          className="mt-1 rounded border-border shrink-0 focus:ring-2 focus:ring-accent/40"
         />
         <div className="flex-1 min-w-0">
           {isEditing ? (
@@ -262,6 +275,7 @@ export default function RequestBuilder({
   limit,
   limitType,
   limitLabel = "requests",
+  toolLabel,
 }: RequestBuilderProps) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -377,6 +391,7 @@ export default function RequestBuilder({
           count={selectedCount}
           limit={limit}
           label={limitLabel}
+          toolLabel={toolLabel}
         />
       )}
 

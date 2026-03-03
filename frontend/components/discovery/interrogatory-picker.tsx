@@ -149,6 +149,7 @@ export default function InterrogatoryPicker({
                 {/* Group checkbox */}
                 <span
                   role="checkbox"
+                  aria-label={`Select all in ${cat.label}`}
                   aria-checked={
                     allGroupSelected
                       ? "true"
@@ -168,7 +169,7 @@ export default function InterrogatoryPicker({
                     }
                   }}
                   tabIndex={0}
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors cursor-pointer ${
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent/40 ${
                     allGroupSelected
                       ? "border-accent bg-accent text-white"
                       : someGroupSelected

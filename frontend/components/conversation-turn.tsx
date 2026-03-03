@@ -1,11 +1,152 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import type { AskMetadata, SourceInfo } from "@/lib/api";
 import AnswerDisplay from "./answer-display";
 import CitationBadges from "./citation-badges";
 import FeedbackButtons from "./feedback-buttons";
 import SourceList from "./source-list";
+
+// ── Discovery tool suggestions ──────────────────────────────────────
+
+const DISCOVERY_HINTS: {
+  patterns: RegExp[];
+  href: string;
+  label: string;
+  description: string;
+}[] = [
+  {
+    patterns: [
+      /\bform interrogator/i,
+      /\bDISC-001\b/,
+      /\bgeneral interrogator/i,
+    ],
+    href: "/tools/discovery/frogs-general",
+    label: "Form Interrogatories — General (DISC-001)",
+    description: "Generate Judicial Council Form DISC-001",
+  },
+  {
+    patterns: [
+      /\bemployment interrogator/i,
+      /\bDISC-002\b/,
+      /\bform interrogatories.*employment/i,
+    ],
+    href: "/tools/discovery/frogs-employment",
+    label: "Form Interrogatories — Employment (DISC-002)",
+    description: "Generate Judicial Council Form DISC-002",
+  },
+  {
+    patterns: [
+      /\bspecial interrogator/i,
+      /\bSROGs?\b/,
+      /\bcustom interrogator/i,
+    ],
+    href: "/tools/discovery/special-interrogatories",
+    label: "Special Interrogatories",
+    description: "Build custom interrogatories from curated question banks",
+  },
+  {
+    patterns: [
+      /\brequest.{0,10}production/i,
+      /\bRFPDs?\b/,
+      /\bdocument.{0,10}production/i,
+      /\bdocument.{0,10}request/i,
+    ],
+    href: "/tools/discovery/request-production",
+    label: "Requests for Production",
+    description: "Generate document production requests",
+  },
+  {
+    patterns: [
+      /\brequest.{0,10}admission/i,
+      /\bRFAs?\b/,
+    ],
+    href: "/tools/discovery/request-admission",
+    label: "Requests for Admission",
+    description: "Draft requests for admission",
+  },
+  {
+    patterns: [
+      /\bdiscovery\b/i,
+      /\bwritten discovery\b/i,
+      /\bpropound/i,
+    ],
+    href: "/tools/discovery",
+    label: "Discovery Document Generator",
+    description: "Generate employment law discovery documents",
+  },
+];
+
+function getDiscoverySuggestions(text: string): typeof DISCOVERY_HINTS {
+  const seen = new Set<string>();
+  const matches: typeof DISCOVERY_HINTS = [];
+  for (const hint of DISCOVERY_HINTS) {
+    if (hint.patterns.some((p) => p.test(text)) && !seen.has(hint.href)) {
+      seen.add(hint.href);
+      matches.push(hint);
+      if (matches.length >= 2) break;
+    }
+  }
+  return matches;
+}
+
+function DiscoverySuggestions({ text, query }: { text: string; query: string }) {
+  const suggestions = useMemo(
+    () => getDiscoverySuggestions(text + " " + query),
+    [text, query]
+  );
+
+  if (suggestions.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {suggestions.map((s) => (
+        <Link
+          key={s.href}
+          href={s.href}
+          className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent-surface/50 px-3 py-2 text-xs transition-colors hover:border-accent hover:bg-accent-surface"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 16 16"
+            fill="none"
+            className="text-accent shrink-0"
+          >
+            <path
+              d="M4 2h8a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M5 6h6M5 8.5h6M5 11h3"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="text-text-primary font-medium">{s.label}</span>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 16 16"
+            fill="none"
+            className="text-text-tertiary shrink-0"
+          >
+            <path
+              d="M6 4l4 4-4 4"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 interface ConversationTurnProps {
   query: string;
@@ -139,6 +280,11 @@ export default function ConversationTurnView({
         metadata.citation_verifications.length > 0 && (
           <CitationBadges verifications={metadata.citation_verifications} />
         )}
+
+      {/* Discovery tool suggestions — attorney mode, after streaming */}
+      {answer && !isStreaming && mode === "attorney" && (
+        <DiscoverySuggestions text={answer} query={query} />
+      )}
 
       {/* Feedback — only on the latest completed turn */}
       {isLatest && metadata && !isStreaming && metadata.query_id && (

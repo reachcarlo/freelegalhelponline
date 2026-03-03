@@ -55,7 +55,7 @@ export default function DefinitionEditor({
             type="checkbox"
             checked={includeDefinitions}
             onChange={(e) => onIncludeChange(e.target.checked)}
-            className="rounded border-border"
+            className="rounded border-border focus:ring-2 focus:ring-accent/40"
           />
           Include in document
         </label>

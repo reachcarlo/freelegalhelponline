@@ -37,7 +37,7 @@ export default function PartyRoleSelector({
               key={role.value}
               type="button"
               onClick={() => onChange(role.value)}
-              className={`min-h-[44px] rounded-lg border p-3 text-left transition-colors ${
+              className={`min-h-[44px] rounded-lg border p-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 ${
                 selected
                   ? "border-accent bg-accent-surface"
                   : "border-border hover:border-border-hover"

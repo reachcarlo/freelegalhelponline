@@ -32,9 +32,9 @@ interface PreviewPanelProps {
 function SectionRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
-    <div className="flex gap-2 text-sm">
-      <span className="text-text-tertiary shrink-0 w-36">{label}</span>
-      <span className="text-text-primary">{value}</span>
+    <div className="flex flex-col gap-0.5 text-sm sm:flex-row sm:gap-2">
+      <span className="text-text-tertiary shrink-0 text-xs sm:text-sm sm:w-36">{label}</span>
+      <span className="text-text-primary break-words">{value}</span>
     </div>
   );
 }

@@ -33,7 +33,7 @@ export default function WizardNavigation({
         type="button"
         onClick={onBack}
         disabled={isFirst}
-        className={`min-h-[44px] min-w-[44px] rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+        className={`min-h-[44px] min-w-[44px] rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 ${
           isFirst
             ? "cursor-not-allowed text-text-tertiary"
             : "text-text-secondary hover:bg-accent-surface hover:text-accent"
@@ -53,7 +53,7 @@ export default function WizardNavigation({
           type="button"
           onClick={onGenerate}
           disabled={generateDisabled || generating}
-          className={`min-h-[44px] min-w-[44px] rounded-lg px-5 py-2 text-sm font-semibold transition-colors ${
+          className={`min-h-[44px] min-w-[44px] rounded-lg px-5 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 ${
             generateDisabled || generating
               ? "cursor-not-allowed bg-accent/30 text-text-tertiary"
               : "bg-accent text-white hover:bg-accent-hover"
@@ -91,7 +91,7 @@ export default function WizardNavigation({
           type="button"
           onClick={onNext}
           disabled={nextDisabled}
-          className={`min-h-[44px] min-w-[44px] rounded-lg px-5 py-2 text-sm font-semibold transition-colors ${
+          className={`min-h-[44px] min-w-[44px] rounded-lg px-5 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 ${
             nextDisabled
               ? "cursor-not-allowed bg-accent/30 text-text-tertiary"
               : "bg-accent text-white hover:bg-accent-hover"

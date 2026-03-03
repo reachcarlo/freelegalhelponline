@@ -112,11 +112,12 @@ export default function DocxWizard({
     return map;
   }, [steps]);
 
-  // Init tool type on mount
+  // Init tool type on mount — preserve case info + claims, reset tool-specific state
   useEffect(() => {
     if (state.toolType !== toolType) {
       setToolType(toolType);
       setStep(0);
+      setSelectedRequests([]);
     }
   }, [toolType]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -317,6 +318,7 @@ export default function DocxWizard({
                   limit={limit}
                   limitType={limitType}
                   limitLabel={limitLabel}
+                  toolLabel={toolLabel}
                 />
               )}
             </div>
@@ -370,21 +372,36 @@ export default function DocxWizard({
           )}
 
           {/* Generate */}
-          {currentStepLabel === "Generate" && (
+          {currentStepLabel === "Generate" && (() => {
+            const selectedReqs = state.selectedRequests.filter((r) => r.is_selected);
+            const limitedCount = limitType === "fact"
+              ? selectedReqs.filter((r) => r.rfa_type === "fact").length
+              : selectedReqs.length;
+            const needsDeclaration = limit !== null && limitedCount > limit;
+
+            return (
             <div className="animate-fade-in space-y-4">
+              {needsDeclaration && (
+                <div className="rounded-lg border border-warning-border bg-warning-bg px-4 py-3 text-sm text-warning-text">
+                  <p className="font-semibold">Declaration of Necessity Required</p>
+                  <p className="mt-1 text-xs">
+                    You have {limitedCount} {limitLabel} selected, exceeding the
+                    {" "}{limit}-question limit. Per{" "}
+                    {toolLabel === "RFAs" ? "CCP \u00A7 2033.050" : "CCP \u00A7 2030.050"},
+                    you must file a separate Declaration of Necessity stating that
+                    each additional question is warranted by the complexity or
+                    quantity of existing and potential issues in the case.
+                  </p>
+                </div>
+              )}
               <div className="rounded-lg border border-border p-6 text-center">
                 <h3 className="text-lg font-semibold text-text-primary mb-2">
                   Ready to Generate
                 </h3>
                 <p className="text-sm text-text-secondary mb-6">
                   Your {toolLabel} will be generated as an editable Word document
-                  with{" "}
-                  {state.selectedRequests.filter((r) => r.is_selected).length}{" "}
-                  request
-                  {state.selectedRequests.filter((r) => r.is_selected).length !== 1
-                    ? "s"
-                    : ""}{" "}
-                  selected.
+                  with {selectedReqs.length} request
+                  {selectedReqs.length !== 1 ? "s" : ""} selected.
                 </p>
 
                 <button
@@ -450,7 +467,8 @@ export default function DocxWizard({
                 before filing.
               </p>
             </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 

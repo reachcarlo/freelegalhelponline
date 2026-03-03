@@ -80,7 +80,7 @@ export default function DiscoveryToolsIndex() {
             <Link
               key={tool.key}
               href={tool.href}
-              className="block rounded-lg border border-border p-5 transition-colors hover:border-border-hover hover:bg-accent-surface"
+              className="block rounded-lg border border-border p-5 transition-colors hover:border-border-hover hover:bg-accent-surface focus:outline-none focus:ring-2 focus:ring-accent/40"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">

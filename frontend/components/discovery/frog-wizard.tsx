@@ -78,11 +78,12 @@ export default function FrogWizard({
   const [genError, setGenError] = useState<string | null>(null);
   const [genSuccess, setGenSuccess] = useState(false);
 
-  // Init tool type on mount
+  // Init tool type on mount — preserve case info + claims, reset tool-specific state
   useEffect(() => {
     if (state.toolType !== toolType) {
       setToolType(toolType);
       setStep(0);
+      setSelectedSections([]);
     }
   }, [toolType]); // eslint-disable-line react-hooks/exhaustive-deps
 

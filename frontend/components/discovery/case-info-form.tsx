@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import type { AttorneyInfo, CaseInfo, PartyInfo } from "@/lib/discovery-api";
 
 // ── California counties ─────────────────────────────────────────────
@@ -110,13 +110,14 @@ function PartyListEditor({
                 className={inputCls}
                 required
               />
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <label className="flex items-center gap-1.5 text-xs text-text-tertiary cursor-pointer">
                   <input
                     type="checkbox"
                     checked={party.is_entity}
                     onChange={(e) => updateParty(i, "is_entity", e.target.checked)}
-                    className="rounded border-border"
+                    aria-label={`${label} ${i + 1} is an entity`}
+                    className="rounded border-border focus:ring-2 focus:ring-accent/40"
                   />
                   Entity
                 </label>
@@ -146,6 +147,123 @@ function PartyListEditor({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── Discovery cutoff calculator ──────────────────────────────────────
+
+function computeDiscoveryCutoff(trialDateStr: string): {
+  cutoff: string;
+  daysUntil: number;
+  serviceDeadlines: { method: string; date: string; extension: string }[];
+} | null {
+  const trial = new Date(trialDateStr + "T00:00:00");
+  if (isNaN(trial.getTime())) return null;
+
+  // CCP § 2024.020: discovery cutoff is 30 days before trial
+  const cutoff = new Date(trial);
+  cutoff.setDate(cutoff.getDate() - 30);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysUntil = Math.ceil(
+    (cutoff.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
+  // Service method extensions (CCP §§ 1013, 1010.6, 2024.060)
+  // Must serve discovery early enough so responses are due before cutoff
+  // Responses due 30 days after service + extension for service method
+  const serviceDeadlines: { method: string; date: string; extension: string }[] = [];
+
+  // Personal service: response due 30 days after service
+  const personal = new Date(cutoff);
+  personal.setDate(personal.getDate() - 30);
+  serviceDeadlines.push({
+    method: "Personal service",
+    date: fmt(personal),
+    extension: "no extension",
+  });
+
+  // Electronic service (CCP § 1010.6): +2 court days
+  const electronic = new Date(cutoff);
+  electronic.setDate(electronic.getDate() - 32);
+  serviceDeadlines.push({
+    method: "Electronic service",
+    date: fmt(electronic),
+    extension: "+2 court days",
+  });
+
+  // Mail (CCP § 1013): +5 calendar days (within CA)
+  const mail = new Date(cutoff);
+  mail.setDate(mail.getDate() - 35);
+  serviceDeadlines.push({
+    method: "Mail (within CA)",
+    date: fmt(mail),
+    extension: "+5 calendar days",
+  });
+
+  // Overnight delivery (CCP § 1013): +2 calendar days
+  const overnight = new Date(cutoff);
+  overnight.setDate(overnight.getDate() - 32);
+  serviceDeadlines.push({
+    method: "Overnight delivery",
+    date: fmt(overnight),
+    extension: "+2 calendar days",
+  });
+
+  return { cutoff: fmt(cutoff), daysUntil, serviceDeadlines };
+}
+
+function DiscoveryCutoffDisplay({ trialDate }: { trialDate: string | null }) {
+  const result = useMemo(
+    () => (trialDate ? computeDiscoveryCutoff(trialDate) : null),
+    [trialDate]
+  );
+
+  if (!result) return null;
+
+  const urgencyColor =
+    result.daysUntil <= 0
+      ? "border-error-border bg-error-bg text-error-text"
+      : result.daysUntil <= 30
+        ? "border-warning-border bg-warning-bg text-warning-text"
+        : "border-accent/30 bg-accent-surface text-accent";
+
+  return (
+    <div className={`mt-3 rounded-lg border p-3 text-xs sm:col-span-2 ${urgencyColor}`}>
+      <p className="font-semibold">
+        Discovery Cutoff: {result.cutoff}
+        {result.daysUntil <= 0
+          ? " (PASSED)"
+          : ` (${result.daysUntil} days away)`}
+      </p>
+      <p className="mt-1 opacity-80">
+        CCP 2024.020 — Discovery must be completed 30 days before trial.
+      </p>
+      <details className="mt-2">
+        <summary className="cursor-pointer select-none font-medium hover:opacity-80">
+          Service deadlines by method
+        </summary>
+        <div className="mt-1.5 space-y-1">
+          {result.serviceDeadlines.map((sd) => (
+            <div key={sd.method} className="flex justify-between gap-2">
+              <span>{sd.method}</span>
+              <span className="font-mono">
+                {sd.date}{" "}
+                <span className="opacity-60">({sd.extension})</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </details>
     </div>
   );
 }
@@ -288,6 +406,8 @@ export default function CaseInfoForm({
               Include Does 1-50
             </label>
           </div>
+
+          <DiscoveryCutoffDisplay trialDate={caseInfo.trial_date} />
         </div>
       </section>
 

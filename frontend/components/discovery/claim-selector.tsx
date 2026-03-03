@@ -45,7 +45,7 @@ export default function ClaimSelector({
                     type="button"
                     onClick={() => onToggle(ct.value)}
                     aria-pressed={isSelected}
-                    className={`min-h-[36px] rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    className={`min-h-[36px] rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 ${
                       isSelected
                         ? "border-accent bg-accent-surface text-accent"
                         : "border-border text-text-secondary hover:border-border-hover hover:text-text-primary"
