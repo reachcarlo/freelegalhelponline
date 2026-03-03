@@ -40,6 +40,11 @@ web = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.34",
 ]
+discovery = [
+    "pypdf>=6.7,<7.0",
+    "PyPDFForm>=4.7,<5.0",
+    "docxtpl>=0.20,<1.0",
+]
 
 [project.scripts]
 employee-help = "employee_help.cli:main"
