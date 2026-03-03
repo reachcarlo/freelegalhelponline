@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAllTopicSlugs, getTopicBySlug, topics } from "@/lib/topics";
+import { getClaimsForTopic } from "@/lib/claims";
 
 // ── Topic → relevant tools mapping ─────────────────────────────────
 
@@ -87,6 +88,8 @@ export default async function TopicPage({ params }: TopicPageProps) {
   const related = topic.relatedTopics
     .map((s) => topics.find((t) => t.slug === s))
     .filter(Boolean);
+
+  const relatedClaims = getClaimsForTopic(slug);
 
   // Schema.org FAQPage structured data
   const faqSchema = {
@@ -247,6 +250,31 @@ export default async function TopicPage({ params }: TopicPageProps) {
                     </Link>
                   )
               )}
+            </div>
+          </section>
+        )}
+
+        {/* Related claims */}
+        {relatedClaims.length > 0 && (
+          <section className="mt-10">
+            <h2 className="text-lg font-semibold text-text-primary">
+              Related Claims
+            </h2>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {relatedClaims.map((rc) => (
+                <Link
+                  key={rc.slug}
+                  href={`/claims/${rc.slug}`}
+                  className="rounded-lg border border-border p-4 transition-colors hover:border-border-hover hover:bg-accent-surface"
+                >
+                  <span className="font-medium text-text-primary">
+                    {rc.shortTitle}
+                  </span>
+                  <p className="mt-1 text-sm text-text-tertiary">
+                    {rc.description}
+                  </p>
+                </Link>
+              ))}
             </div>
           </section>
         )}

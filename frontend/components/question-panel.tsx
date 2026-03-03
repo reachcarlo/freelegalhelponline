@@ -7,6 +7,7 @@ import { useConsent } from "@/lib/consent-context";
 import { useMode } from "@/lib/mode-context";
 import { useConversation } from "@/lib/use-conversation";
 import { topics } from "@/lib/topics";
+import { claims } from "@/lib/claims";
 import ConsentModal from "./consent-modal";
 import ConversationEnded from "./conversation-ended";
 import ConversationTurnView from "./conversation-turn";
@@ -242,6 +243,24 @@ export default function QuestionPanel() {
                       className="rounded-full border border-border px-4 py-2 text-sm text-text-secondary transition-colors hover:border-border-hover hover:bg-accent-surface hover:text-accent"
                     >
                       {topic.shortTitle}
+                    </Link>
+                  ))}
+                </div>
+              </section>
+
+              {/* Browse by Claim Type */}
+              <section className="mt-6">
+                <h2 className="text-center text-lg font-semibold text-text-primary">
+                  Browse by Claim Type
+                </h2>
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  {claims.map((claim) => (
+                    <Link
+                      key={claim.slug}
+                      href={`/claims/${claim.slug}`}
+                      className="rounded-full border border-border px-4 py-2 text-sm text-text-secondary transition-colors hover:border-border-hover hover:bg-accent-surface hover:text-accent"
+                    >
+                      {claim.shortTitle}
                     </Link>
                   ))}
                 </div>
