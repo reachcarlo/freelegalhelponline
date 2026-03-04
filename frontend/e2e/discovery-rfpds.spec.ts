@@ -9,7 +9,11 @@ import {
   interceptGenerateResponse,
   TEST_CASE_INFO,
 } from "./helpers/wizard-helpers";
-import { isDocx, validateDocxContent } from "./helpers/doc-validator";
+import {
+  isDocx,
+  validateDocxContent,
+  getDocxPlainText,
+} from "./helpers/doc-validator";
 
 test.describe("Requests for Production of Documents (RFPDs)", () => {
   test.beforeEach(async ({ page }) => {
@@ -87,6 +91,14 @@ test.describe("Requests for Production of Documents (RFPDs)", () => {
         TEST_CASE_INFO.attorneyName,
       ],
     });
+
+    // Enhanced: verify plain text content
+    const text = await getDocxPlainText(buffer);
+    expect(text).toContain(TEST_CASE_INFO.plaintiffName);
+    expect(text).toContain(TEST_CASE_INFO.defendantName);
+    // Production-specific content
+    expect(text).toMatch(/PRODUCTION INSTRUCTIONS|PRELIMINARY STATEMENT/);
+    expect(text).toContain("REQUEST FOR PRODUCTION NO. 1");
   });
 
   test("DOCX includes production instructions", async ({ page }) => {

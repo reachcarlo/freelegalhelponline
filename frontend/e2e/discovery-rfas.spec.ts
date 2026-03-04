@@ -9,7 +9,11 @@ import {
   interceptGenerateResponse,
   TEST_CASE_INFO,
 } from "./helpers/wizard-helpers";
-import { isDocx, validateDocxContent } from "./helpers/doc-validator";
+import {
+  isDocx,
+  validateDocxContent,
+  getDocxPlainText,
+} from "./helpers/doc-validator";
 
 test.describe("Requests for Admission (RFAs)", () => {
   test.beforeEach(async ({ page }) => {
@@ -98,6 +102,13 @@ test.describe("Requests for Admission (RFAs)", () => {
         TEST_CASE_INFO.caseNumber,
       ],
     });
+
+    // Enhanced: verify plain text content
+    const text = await getDocxPlainText(buffer);
+    expect(text).toContain(TEST_CASE_INFO.plaintiffName);
+    expect(text).toContain(TEST_CASE_INFO.defendantName);
+    expect(text).toContain("DEFINITIONS");
+    expect(text).toContain("REQUEST FOR ADMISSION NO. 1");
   });
 
   test("custom RFA has fact/genuineness radio", async ({ page }) => {

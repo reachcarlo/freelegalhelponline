@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   suggestDiscovery,
   getRequestBank,
@@ -63,6 +64,7 @@ export default function FrogWizard({
     setAttorney,
     setSelectedSections,
     setRespondingIsEntity,
+    resetState,
     buildCaseInfo,
   } = useDiscovery();
 
@@ -78,12 +80,11 @@ export default function FrogWizard({
   const [genError, setGenError] = useState<string | null>(null);
   const [genSuccess, setGenSuccess] = useState(false);
 
-  // Init tool type on mount — preserve case info + claims, reset tool-specific state
+  // Full reset on tool switch — each tool starts fresh
   useEffect(() => {
     if (state.toolType !== toolType) {
+      resetState();
       setToolType(toolType);
-      setStep(0);
-      setSelectedSections([]);
     }
   }, [toolType]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -176,7 +177,14 @@ export default function FrogWizard({
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="border-b border-border bg-surface px-4 py-4 sm:px-6">
-        <h1 className="text-lg font-bold text-text-primary">{title}</h1>
+        <Link
+          href="/tools/discovery"
+          className="inline-flex items-center gap-1 text-xs text-text-tertiary hover:text-accent"
+          data-testid="breadcrumb-discovery"
+        >
+          &larr; Discovery Tools
+        </Link>
+        <h1 className="text-lg font-bold text-text-primary mt-1">{title}</h1>
         <p className="text-xs text-text-tertiary mt-1">{formLabel}</p>
         <div className="mt-3">
           <WizardStepper steps={STEPS} currentStep={state.currentStep} />
@@ -328,10 +336,23 @@ export default function FrogWizard({
                 )}
 
                 {genSuccess && (
-                  <p className="mt-4 text-sm text-verified-text">
-                    Your PDF has been downloaded. You can open it in any PDF
-                    editor to make further changes.
-                  </p>
+                  <>
+                    <p className="mt-4 text-sm text-verified-text">
+                      Your PDF has been downloaded. You can open it in any PDF
+                      editor to make further changes.
+                    </p>
+                    <button
+                      type="button"
+                      data-testid="start-over"
+                      onClick={() => {
+                        resetState();
+                        setToolType(toolType);
+                      }}
+                      className="mt-4 rounded-lg border border-border px-6 py-2 text-sm font-medium text-text-secondary hover:bg-surface transition-colors"
+                    >
+                      Start Over
+                    </button>
+                  </>
                 )}
               </div>
 

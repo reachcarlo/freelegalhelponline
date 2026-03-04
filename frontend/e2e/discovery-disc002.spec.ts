@@ -8,7 +8,12 @@ import {
   interceptGenerateResponse,
   TEST_CASE_INFO,
 } from "./helpers/wizard-helpers";
-import { isPdf, validatePdfContent } from "./helpers/doc-validator";
+import {
+  isPdf,
+  validatePdfContent,
+  getPdfFieldMap,
+  getPdfCheckboxes,
+} from "./helpers/doc-validator";
 
 test.describe("DISC-002 (Form Interrogatories - Employment)", () => {
   test.beforeEach(async ({ page }) => {
@@ -78,5 +83,43 @@ test.describe("DISC-002 (Form Interrogatories - Employment)", () => {
     await validatePdfContent(buffer, {
       containsText: [TEST_CASE_INFO.caseNumber],
     });
+  });
+
+  test("PDF contains all case info in correct fields", async ({ page }) => {
+    await fillCaseInfo(page);
+    await clickNext(page);
+    await selectClaims(page, ["Wrongful Termination"]);
+    await clickNext(page);
+    await waitForSectionsLoaded(page);
+    await expect(page.getByText(/[1-9]\d* of \d+ selected/)).toBeVisible({
+      timeout: 10_000,
+    });
+    await waitForNextEnabled(page);
+    await clickNext(page);
+    await clickNext(page);
+
+    const buffer = await interceptGenerateResponse(page, async () => {
+      await page
+        .getByRole("button", { name: /Generate & Download PDF/i })
+        .click();
+    });
+
+    const fields = await getPdfFieldMap(buffer);
+
+    // Case number
+    expect(fields["TextField1[0]"]).toBe(TEST_CASE_INFO.caseNumber);
+    // Attorney block (multi-line)
+    expect(fields["AttyCity_ft[0]"]).toContain(TEST_CASE_INFO.attorneyName);
+    expect(fields["AttyCity_ft[0]"]).toContain(TEST_CASE_INFO.sbn);
+    expect(fields["AttyCity_ft[0]"]).toContain(TEST_CASE_INFO.address);
+    // Phone + email
+    expect(fields["Phone_ft[0]"]).toBe(TEST_CASE_INFO.phone);
+    expect(fields["Email_ft[0]"]).toBe(TEST_CASE_INFO.email);
+    // Answering party
+    expect(fields["TextField2[0]"]).toBe(TEST_CASE_INFO.defendantName);
+
+    // At least one section checkbox should be checked
+    const checked = await getPdfCheckboxes(buffer);
+    expect(checked.length).toBeGreaterThan(0);
   });
 });

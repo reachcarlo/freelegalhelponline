@@ -8,7 +8,12 @@ import {
   interceptGenerateResponse,
   TEST_CASE_INFO,
 } from "./helpers/wizard-helpers";
-import { isPdf, validatePdfContent } from "./helpers/doc-validator";
+import {
+  isPdf,
+  validatePdfContent,
+  getPdfFieldMap,
+  getPdfCheckboxes,
+} from "./helpers/doc-validator";
 
 test.describe("DISC-001 (Form Interrogatories - General)", () => {
   test.beforeEach(async ({ page }) => {
@@ -130,5 +135,53 @@ test.describe("DISC-001 (Form Interrogatories - General)", () => {
 
     // Should show success
     await expect(page.getByText("Downloaded!")).toBeVisible();
+  });
+
+  test("PDF contains all case info in correct fields", async ({ page }) => {
+    // Full workflow to generate
+    await fillCaseInfo(page);
+    await clickNext(page);
+    await selectClaims(page, ["FEHA Discrimination"]);
+    await clickNext(page);
+    await waitForSectionsLoaded(page);
+    await expect(page.getByText(/[1-9]\d* of \d+ selected/)).toBeVisible({
+      timeout: 10_000,
+    });
+    await waitForNextEnabled(page);
+    await clickNext(page);
+    await clickNext(page);
+
+    const buffer = await interceptGenerateResponse(page, async () => {
+      await page
+        .getByRole("button", { name: /Generate & Download PDF/i })
+        .click();
+    });
+
+    const fields = await getPdfFieldMap(buffer);
+
+    // Attorney info
+    expect(fields["Name[0]"]).toBe(TEST_CASE_INFO.attorneyName);
+    expect(fields["AttyBarNo[0]"]).toBe(TEST_CASE_INFO.sbn);
+    expect(fields["Street[0]"]).toBe(TEST_CASE_INFO.address);
+    expect(fields["City[0]"]).toContain("Los Angeles");
+    expect(fields["State[0]"]).toBe("CA");
+    expect(fields["Zip[0]"]).toBe("90001");
+    expect(fields["Phone[0]"]).toBe(TEST_CASE_INFO.phone);
+    expect(fields["Email[0]"]).toBe(TEST_CASE_INFO.email);
+
+    // Case info
+    expect(fields["CaseNumber[0]"]).toBe(TEST_CASE_INFO.caseNumber);
+    // Court county
+    expect(fields["TextField4[0]"]).toContain("Los Angeles");
+    // Asking party (plaintiff)
+    expect(fields["TextField5[0]"]).toBe(TEST_CASE_INFO.plaintiffName);
+    // Answering party (defendant)
+    expect(fields["TextField6[0]"]).toBe(TEST_CASE_INFO.defendantName);
+    // Short title (vs.)
+    expect(fields["TextField8[0]"]).toContain("vs.");
+
+    // At least one section checkbox should be checked
+    const checked = await getPdfCheckboxes(buffer);
+    expect(checked.length).toBeGreaterThan(0);
   });
 });

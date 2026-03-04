@@ -1,0 +1,109 @@
+import { test, expect } from "@playwright/test";
+import {
+  fillCaseInfo,
+  clickNext,
+  clickBack,
+  selectClaims,
+  waitForSectionsLoaded,
+  waitForNextEnabled,
+  interceptGenerateResponse,
+  TEST_CASE_INFO,
+} from "./helpers/wizard-helpers";
+
+test.describe("Discovery navigation", () => {
+  test("breadcrumb visible in FROG wizard", async ({ page }) => {
+    await page.goto("/tools/discovery/frogs-general");
+    await expect(page.getByTestId("breadcrumb-discovery")).toBeVisible();
+  });
+
+  test("breadcrumb visible in DOCX wizard", async ({ page }) => {
+    await page.goto("/tools/discovery/special-interrogatories");
+    await expect(page.getByTestId("breadcrumb-discovery")).toBeVisible();
+  });
+
+  test("breadcrumb navigates to hub", async ({ page }) => {
+    await page.goto("/tools/discovery/frogs-general");
+    await page.getByTestId("breadcrumb-discovery").click();
+
+    await expect(page).toHaveURL(/\/tools\/discovery\/?$/);
+    await expect(
+      page.getByRole("heading", { name: "Discovery Document Generator" })
+    ).toBeVisible();
+  });
+
+  test("back button preserves data within wizard", async ({ page }) => {
+    await page.goto("/tools/discovery/frogs-general");
+    await fillCaseInfo(page);
+    await clickNext(page);
+
+    // Should be on Claims
+    await expect(page.getByText("Claim Types")).toBeVisible();
+
+    // Go back
+    await clickBack(page);
+
+    // Case info should still be filled
+    await expect(page.locator("#case_number")).toHaveValue(
+      TEST_CASE_INFO.caseNumber
+    );
+    await expect(page.locator("#atty_name")).toHaveValue(
+      TEST_CASE_INFO.attorneyName
+    );
+  });
+
+  test("back button disabled on first step", async ({ page }) => {
+    await page.goto("/tools/discovery/frogs-general");
+    const backBtn = page.getByRole("button", { name: "Back" });
+    await expect(backBtn).toBeDisabled();
+  });
+
+  test("Start Over resets wizard after generation", async ({ page }) => {
+    // Full FROG workflow
+    await page.goto("/tools/discovery/frogs-general");
+    await fillCaseInfo(page);
+    await clickNext(page);
+    await selectClaims(page, ["FEHA Discrimination"]);
+    await clickNext(page);
+    await waitForSectionsLoaded(page);
+
+    await expect(page.getByText(/[1-9]\d* of \d+ selected/)).toBeVisible({
+      timeout: 10_000,
+    });
+    await waitForNextEnabled(page);
+    await clickNext(page);
+    await clickNext(page);
+
+    // Generate
+    await expect(page.getByText("Ready to Generate")).toBeVisible();
+    await interceptGenerateResponse(page, async () => {
+      await page
+        .getByRole("button", { name: /Generate & Download PDF/i })
+        .click();
+    });
+
+    await expect(page.getByText("Downloaded!")).toBeVisible();
+
+    // Click Start Over
+    await page.getByTestId("start-over").click();
+
+    // Should be back on Case Info with empty fields
+    await expect(page.locator("#case_number")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("#case_number")).toHaveValue("");
+  });
+
+  test("breadcrumb works from any step", async ({ page }) => {
+    await page.goto("/tools/discovery/frogs-general");
+    await fillCaseInfo(page);
+    await clickNext(page);
+    await selectClaims(page, ["FEHA Discrimination"]);
+    await clickNext(page);
+    await waitForSectionsLoaded(page);
+
+    // We're on step 3 (Sections). Click breadcrumb.
+    await page.getByTestId("breadcrumb-discovery").click();
+    await expect(page).toHaveURL(/\/tools\/discovery\/?$/);
+    await expect(
+      page.getByRole("heading", { name: "Discovery Document Generator" })
+    ).toBeVisible();
+  });
+});

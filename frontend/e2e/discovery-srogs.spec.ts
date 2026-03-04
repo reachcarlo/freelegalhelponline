@@ -9,7 +9,11 @@ import {
   interceptGenerateResponse,
   TEST_CASE_INFO,
 } from "./helpers/wizard-helpers";
-import { isDocx, validateDocxContent } from "./helpers/doc-validator";
+import {
+  isDocx,
+  validateDocxContent,
+  getDocxPlainText,
+} from "./helpers/doc-validator";
 
 test.describe("Special Interrogatories (SROGs)", () => {
   test.beforeEach(async ({ page }) => {
@@ -144,6 +148,16 @@ test.describe("Special Interrogatories (SROGs)", () => {
         TEST_CASE_INFO.attorneyName,
       ],
     });
+
+    // Enhanced: verify plain text content (handles text split across XML tags)
+    const text = await getDocxPlainText(buffer);
+    expect(text).toContain(TEST_CASE_INFO.plaintiffName);
+    expect(text).toContain(TEST_CASE_INFO.defendantName);
+    expect(text).toContain("DEFINITIONS");
+    // At least one interrogatory
+    expect((text.match(/SPECIAL INTERROGATORY NO\./g) || []).length).toBeGreaterThanOrEqual(1);
+    // Signature block
+    expect(text).toContain(TEST_CASE_INFO.attorneyName);
   });
 
   test("DOCX contains court county", async ({ page }) => {

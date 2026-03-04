@@ -7,149 +7,84 @@ import {
   TEST_CASE_INFO,
 } from "./helpers/wizard-helpers";
 
-/**
- * Helper to navigate to a tool and ensure we're on the Case Info step.
- *
- * Resets currentStep in sessionStorage before navigation to avoid race
- * conditions with the wizard's tool-reset useEffect.
- */
-async function navigateToToolAndEnsureCaseInfo(page: import("@playwright/test").Page, path: string): Promise<void> {
-  // Reset currentStep in sessionStorage before navigating
-  await page.evaluate((key) => {
-    const raw = sessionStorage.getItem(key);
-    if (raw) {
-      const state = JSON.parse(raw);
-      state.currentStep = 0;
-      sessionStorage.setItem(key, JSON.stringify(state));
-    }
-  }, "eh-discovery-state");
-
-  await page.goto(path);
-
-  // Wait for Case Info input to be visible after hydration
-  await expect(page.locator("#case_number")).toBeVisible({ timeout: 10_000 });
-}
-
-test.describe("Cross-tool state persistence", () => {
-  test("case info persists across tool navigation via sessionStorage", async ({
+test.describe("Cross-tool state reset", () => {
+  test("navigating to a new tool starts with empty case info", async ({
     page,
   }) => {
     // Fill case info in DISC-001
     await page.goto("/tools/discovery/frogs-general");
     await fillCaseInfo(page);
     await clickNext(page);
-
-    // Select claims
     await selectClaims(page, ["FEHA Discrimination"]);
-
-    // Ensure state is persisted to sessionStorage before navigating
     await waitForStateSaved(page);
 
-    // Navigate to SROGs and ensure we're on Case Info step
-    await navigateToToolAndEnsureCaseInfo(
-      page,
-      "/tools/discovery/special-interrogatories"
-    );
+    // Navigate to SROGs
+    await page.goto("/tools/discovery/special-interrogatories");
+    await expect(page.locator("#case_number")).toBeVisible({ timeout: 10_000 });
 
-    // Case info should be pre-filled from sessionStorage
-    await expect(page.locator("#case_number")).toHaveValue(
-      TEST_CASE_INFO.caseNumber,
-      { timeout: 10_000 }
-    );
-    await expect(page.locator("#atty_name")).toHaveValue(
-      TEST_CASE_INFO.attorneyName
-    );
-    await expect(page.locator("#atty_email")).toHaveValue(
-      TEST_CASE_INFO.email
-    );
+    // Case info should be empty (reset on tool switch)
+    await expect(page.locator("#case_number")).toHaveValue("");
   });
 
-  test("party role persists across tools", async ({ page }) => {
-    // Set up in DISC-001
+  test("party role resets to default on tool switch", async ({ page }) => {
+    // Set up in DISC-001 — default role is "plaintiff"
     await page.goto("/tools/discovery/frogs-general");
     await fillCaseInfo(page);
-
-    // Ensure state is saved
     await waitForStateSaved(page);
 
-    // Navigate to RFPDs and ensure Case Info step
-    await navigateToToolAndEnsureCaseInfo(
-      page,
-      "/tools/discovery/request-production"
-    );
+    // Navigate to RFPDs
+    await page.goto("/tools/discovery/request-production");
+    await expect(page.locator("#case_number")).toBeVisible({ timeout: 10_000 });
 
-    // Wait for hydration
-    await expect(page.locator("#case_number")).toHaveValue(
-      TEST_CASE_INFO.caseNumber,
-      { timeout: 10_000 }
-    );
-
-    // Party role should persist
+    // Party role should be back to default (Plaintiff pressed)
     const plaintiffBtn = page.getByRole("button", { name: "Plaintiff" });
     await expect(plaintiffBtn).toHaveAttribute("aria-pressed", "true");
+
+    // Case number should be empty
+    await expect(page.locator("#case_number")).toHaveValue("");
   });
 
-  test("claim selections persist across tools", async ({ page }) => {
+  test("claim selections reset on tool switch", async ({ page }) => {
     // Select claims in DISC-001
     await page.goto("/tools/discovery/frogs-general");
     await fillCaseInfo(page);
     await clickNext(page);
-
     await selectClaims(page, ["FEHA Discrimination", "FEHA Harassment"]);
     await expect(page.getByText("2 claims selected")).toBeVisible();
-
-    // Ensure state is saved before navigating
     await waitForStateSaved(page);
 
-    // Navigate to RFAs — reset step to 0 first to ensure we land on Case Info
-    await navigateToToolAndEnsureCaseInfo(
-      page,
-      "/tools/discovery/request-admission"
-    );
+    // Navigate to RFAs
+    await page.goto("/tools/discovery/request-admission");
+    await expect(page.locator("#case_number")).toBeVisible({ timeout: 10_000 });
 
-    // Wait for case info to be hydrated
-    await expect(page.locator("#case_number")).toHaveValue(
-      TEST_CASE_INFO.caseNumber,
-      { timeout: 10_000 }
-    );
-
-    // Go to claims step
+    // Fill case info so we can advance to claims step
+    await fillCaseInfo(page);
     await clickNext(page);
 
-    // Claims should be pre-selected
-    await expect(page.getByText("2 claims selected")).toBeVisible({
+    // No claims should be selected — the "X claims selected" text is hidden when 0
+    await expect(page.getByText(/claims? selected/)).toBeHidden({
       timeout: 10_000,
     });
   });
 
-  test("plaintiff/defendant names persist", async ({ page }) => {
+  test("party names reset on tool switch", async ({ page }) => {
     await page.goto("/tools/discovery/frogs-general");
     await fillCaseInfo(page);
-
-    // Ensure state is saved
     await waitForStateSaved(page);
 
     // Navigate to another tool
-    await navigateToToolAndEnsureCaseInfo(
-      page,
-      "/tools/discovery/request-admission"
-    );
+    await page.goto("/tools/discovery/request-admission");
+    await expect(page.locator("#case_number")).toBeVisible({ timeout: 10_000 });
 
-    // Wait for hydration
-    await expect(page.locator("#case_number")).toHaveValue(
-      TEST_CASE_INFO.caseNumber,
-      { timeout: 10_000 }
-    );
-
-    // Plaintiff and defendant names should persist
+    // Plaintiff and defendant names should be empty
     const plaintiffInput = page
       .locator('input[placeholder="Plaintiff name"]')
       .first();
-    await expect(plaintiffInput).toHaveValue(TEST_CASE_INFO.plaintiffName);
+    await expect(plaintiffInput).toHaveValue("");
 
     const defendantInput = page
       .locator('input[placeholder="Defendant name"]')
       .first();
-    await expect(defendantInput).toHaveValue(TEST_CASE_INFO.defendantName);
+    await expect(defendantInput).toHaveValue("");
   });
 });
