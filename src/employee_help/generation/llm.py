@@ -323,6 +323,88 @@ class LLMClient:
             self._handle_api_error(e)
             raise
 
+    def generate_with_tools(
+        self,
+        system_prompt: str,
+        user_message: str,
+        tools: list[dict[str, Any]],
+        *,
+        model: str | None = None,
+        mode: str = "consumer",
+        max_tokens: int = 4096,
+        temperature: float = 0.0,
+        tool_choice: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        """Generate a response using Claude tool_use for structured output.
+
+        Forces the model to call a tool, returning guaranteed valid JSON.
+        Used by the objection analyzer for structured analysis results.
+
+        Args:
+            system_prompt: System prompt text.
+            user_message: User message text.
+            tools: Tool definitions (name, description, input_schema).
+            model: Specific model to use.
+            mode: "consumer" or "attorney" for model selection.
+            max_tokens: Maximum output tokens.
+            temperature: Sampling temperature.
+            tool_choice: Tool choice constraint. Defaults to {"type": "any"}.
+
+        Returns:
+            Dict with keys: tool_name, tool_input, input_tokens, output_tokens,
+            model, duration_ms.
+        """
+        client = self._get_client()
+        selected_model = model or self.model_for_mode(mode)
+
+        if tool_choice is None:
+            tool_choice = {"type": "any"}
+
+        start_time = time.monotonic()
+
+        try:
+            response = client.messages.create(
+                model=selected_model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_message}],
+                tools=tools,
+                tool_choice=tool_choice,
+            )
+        except Exception as e:
+            self._handle_api_error(e)
+            raise
+
+        duration_ms = int((time.monotonic() - start_time) * 1000)
+
+        # Extract tool use block
+        tool_name = ""
+        tool_input: dict[str, Any] = {}
+        for block in response.content:
+            if block.type == "tool_use":
+                tool_name = block.name
+                tool_input = block.input
+                break
+
+        self.logger.info(
+            "llm_tool_response",
+            model=selected_model,
+            tool_name=tool_name,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+            duration_ms=duration_ms,
+        )
+
+        return {
+            "tool_name": tool_name,
+            "tool_input": tool_input,
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+            "model": selected_model,
+            "duration_ms": duration_ms,
+        }
+
     def _build_user_content(
         self,
         user_message: str,

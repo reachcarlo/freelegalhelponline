@@ -23,18 +23,8 @@ export const TEST_CASE_INFO = {
  * Assumes the wizard is on the Case Info step.
  */
 export async function fillCaseInfo(page: Page): Promise<void> {
-  // Wait for React hydration to complete.
-  // DiscoveryProvider loads state from sessionStorage in a useEffect on mount.
-  // If we fill the form before that effect fires, hydration overwrites our values.
-  // The save effect writes to sessionStorage after hydration, so checking
-  // for the key reliably indicates all mount effects have run.
-  await page.waitForFunction(
-    (key) => sessionStorage.getItem(key) !== null,
-    "eh-discovery-state",
-    { timeout: 5_000 }
-  ).catch(() => {
-    // First load with no prior state — fall back to waiting a frame
-  });
+  // Wait for case number field to be visible (React hydration complete)
+  await page.locator("#case_number").waitFor({ state: "visible", timeout: 5_000 });
 
   // Case number
   await page.fill("#case_number", TEST_CASE_INFO.caseNumber);
@@ -142,15 +132,11 @@ export async function selectAllInFirstCategory(page: Page): Promise<void> {
 }
 
 /**
- * Wait for sessionStorage to have the discovery state saved.
- * Useful before navigating away to ensure state persists cross-tool.
+ * Small delay to let React state settle before navigating away.
+ * State no longer persists to sessionStorage — it resets on unmount.
  */
 export async function waitForStateSaved(page: Page): Promise<void> {
-  await page.waitForFunction(
-    (key) => sessionStorage.getItem(key) !== null,
-    "eh-discovery-state",
-    { timeout: 5_000 }
-  );
+  // No-op: state resets on navigation now. Kept for backward compat.
 }
 
 /**

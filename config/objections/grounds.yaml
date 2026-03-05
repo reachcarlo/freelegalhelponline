@@ -1,0 +1,930 @@
+# Discovery Objection Knowledge Base
+# California Civil Discovery Act (CCP §2016.010 et seq.)
+#
+# Each ground is a self-contained record with inline citations.
+# The LLM selects from this knowledge base — it does not generate citations.
+#
+# Refresh cadence: Monthly automated detection + manual legal review
+# Last full review: 2026-03-01
+
+grounds:
+
+  # =========================================================================
+  # FORM OBJECTIONS (defects in how the request is drafted)
+  # =========================================================================
+
+  - ground_id: vague_ambiguous
+    label: "Vague and Ambiguous"
+    category: form
+    description: >-
+      The request uses undefined terms or phrasing susceptible to multiple
+      reasonable interpretations, making it impossible to determine what
+      information is sought.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2030.060(d)"
+        description: "Interrogatories must be full and complete in themselves"
+      - code: "CCP"
+        section: "§2030.240(a)"
+        description: "Non-objectionable portion must still be answered"
+    case_citations:
+      - name: "Cembrook v. Superior Court"
+        year: 1961
+        citation: "(1961) 56 Cal.2d 423, 430"
+        reporter_key: "56 Cal.2d 423"
+        holding: "Objection valid only when request is 'really unintelligible'"
+        use: "Standard for vague/ambiguous — high bar"
+      - name: "Deyo v. Kilbourne"
+        year: 1978
+        citation: "(1978) 84 Cal.App.3d 771, 783"
+        reporter_key: "84 Cal.App.3d 771"
+        holding: "Party may not deliberately misconstrue a question to supply an evasive answer"
+        use: "Counter-cite — duty to respond if nature of information sought is apparent"
+    applies_to:
+      - interrogatories
+      - rfps
+      - rfas
+    sample_language:
+      short: "vague and ambiguous as to the term '{TERM}'"
+      medium: >-
+        vague and ambiguous as to the term '{TERM},' which is undefined and
+        susceptible to multiple reasonable interpretations, making it impossible
+        to determine what information is sought
+      long: >-
+        vague and ambiguous as to the term '{TERM},' which is undefined and
+        susceptible to multiple reasonable interpretations. Without a clear
+        definition, Responding Party cannot determine the scope of information
+        sought and thus cannot provide a complete and accurate response. The
+        nature of the information sought is not apparent from the request itself.
+        (CCP §2030.060(d); Cembrook v. Superior Court (1961) 56 Cal.2d 423, 430.)
+    strength_signals:
+      - "uses undefined terms not found in definitions section"
+      - "term has multiple common meanings in legal context"
+      - "request references undefined acronyms or abbreviations"
+
+  - ground_id: compound
+    label: "Compound, Conjunctive, or Disjunctive"
+    category: form
+    description: >-
+      The request contains subparts or asks multiple distinct questions joined
+      by "and" or "or," circumventing the statutory interrogatory limit.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2030.060(f)"
+        description: "Interrogatories may not contain subparts or compound questions"
+      - code: "CCP"
+        section: "§2030.030"
+        description: "35-interrogatory limit for specially prepared interrogatories"
+      - code: "CCP"
+        section: "§2033.060"
+        description: "Analogous prohibition for RFAs"
+    case_citations: []
+    applies_to:
+      - interrogatories
+      - rfas
+    sample_language:
+      short: "compound, conjunctive, and disjunctive in violation of CCP §2030.060(f)"
+      medium: >-
+        compound, conjunctive, and disjunctive in that it contains multiple
+        distinct questions joined by conjunctive or disjunctive phrasing,
+        in violation of CCP §2030.060(f)
+      long: >-
+        compound, conjunctive, and disjunctive in violation of CCP §2030.060(f).
+        This request effectively asks multiple distinct questions, each of which
+        constitutes a separate interrogatory for purposes of the 35-interrogatory
+        limit under CCP §2030.030. Propounding party may not circumvent the
+        statutory limit through compound phrasing.
+    strength_signals:
+      - "contains multiple 'and' or 'or' joining distinct questions"
+      - "asks to 'identify and describe' multiple distinct items"
+      - "contains lettered sub-parts (a), (b), (c)"
+
+  - ground_id: assumes_facts
+    label: "Assumes Facts Not in Evidence"
+    category: form
+    description: >-
+      The request presupposes the existence of facts not established in the
+      record, embedding disputed assumptions in the question.
+    last_verified: "2026-03-01"
+    statutory_citations: []
+    case_citations:
+      - name: "West Pico Furniture Co. v. Superior Court"
+        year: 1961
+        citation: "(1961) 56 Cal.2d 407"
+        reporter_key: "56 Cal.2d 407"
+        holding: "Trial-type objections generally not valid for written interrogatories"
+        use: "Counter-cite — this objection is primarily valid at depositions, not written discovery"
+    applies_to:
+      - interrogatories
+      - rfas
+    sample_language:
+      short: "assumes facts not in evidence"
+      medium: >-
+        assumes facts not in evidence by presupposing that {ASSUMED_FACT},
+        which has not been established
+      long: >-
+        assumes facts not in evidence. This request presupposes that
+        {ASSUMED_FACT}, a factual premise that has not been established and
+        is disputed. The question cannot be fairly answered without accepting
+        the embedded assumption. Without waiving this objection, Responding
+        Party denies the assumed fact and responds as follows.
+    strength_signals:
+      - "contains phrases like 'after you' or 'when you' presupposing conduct"
+      - "references events as established when they are disputed"
+      - "embeds a disputed characterization in the question"
+
+  - ground_id: calls_for_speculation
+    label: "Calls for Speculation"
+    category: form
+    description: >-
+      The request asks for information beyond the responding party's personal
+      knowledge, requiring guesswork or conjecture.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2030.220"
+        description: "Duty to make reasonable and good faith effort to obtain information"
+    case_citations: []
+    applies_to:
+      - interrogatories
+    sample_language:
+      short: "calls for speculation"
+      medium: >-
+        calls for speculation in that it asks Responding Party to conjecture
+        about matters beyond personal knowledge
+      long: >-
+        calls for speculation. This request asks Responding Party to speculate
+        about matters beyond personal knowledge. While CCP §2030.220 requires
+        a reasonable and good faith effort to obtain information by inquiry,
+        this request seeks information that cannot be obtained through reasonable
+        inquiry and would require pure conjecture.
+    strength_signals:
+      - "asks about future events or hypothetical scenarios"
+      - "asks about the internal mental state or motivations of third parties"
+      - "asks to predict outcomes or consequences"
+
+  - ground_id: legal_conclusion
+    label: "Calls for a Legal Conclusion"
+    category: form
+    description: >-
+      The request asks the responding party to state a legal conclusion or
+      apply law to facts in a manner that goes beyond contention interrogatory
+      scope.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2030.010(b)"
+        description: "Contention interrogatories (opinion/law-to-fact) expressly permitted"
+    case_citations:
+      - name: "Cembrook v. Superior Court"
+        year: 1961
+        citation: "(1961) 56 Cal.2d 423, 429"
+        reporter_key: "56 Cal.2d 423"
+        holding: "RFAs calling for opinion or involving complex facts are proper"
+        use: "Counter-cite — this objection is generally improper for written discovery"
+      - name: "Rifkind v. Superior Court"
+        year: 1994
+        citation: "(1994) 22 Cal.App.4th 1255"
+        reporter_key: "22 Cal.App.4th 1255"
+        holding: "Legal contention questions at depositions better served as interrogatories"
+        use: "Supports objection at depositions"
+    applies_to:
+      - interrogatories
+      - rfas
+    sample_language:
+      short: "calls for a legal conclusion"
+      medium: >-
+        calls for a legal conclusion that goes beyond the scope of permissible
+        contention interrogatories under CCP §2030.010(b)
+      long: >-
+        calls for a legal conclusion. While CCP §2030.010(b) permits contention
+        interrogatories involving opinions or the application of law to fact,
+        this request asks Responding Party to render a pure legal opinion that
+        is not properly the subject of discovery. The question does not seek
+        facts or the application of law to fact but rather a legal conclusion
+        that is the province of the trier of fact or law.
+    strength_signals:
+      - "asks to 'state the legal basis' without factual grounding"
+      - "asks to characterize conduct using legal terms of art"
+      - "asks for a pure legal opinion without connection to facts"
+
+  - ground_id: overbroad
+    label: "Overbroad as to Time and Scope"
+    category: form
+    description: >-
+      The request lacks reasonable temporal or subject-matter limits, sweeping
+      in irrelevant material far beyond the claims and defenses at issue.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2017.010"
+        description: "Scope of discovery — relevant to subject matter"
+      - code: "CCP"
+        section: "§2017.020"
+        description: "Court authority to limit discovery"
+      - code: "CCP"
+        section: "§2030.240(a)"
+        description: "Non-objectionable portion must still be answered"
+    case_citations:
+      - name: "Calcor Space Facility, Inc. v. Superior Court"
+        year: 1997
+        citation: "(1997) 53 Cal.App.4th 216"
+        reporter_key: "53 Cal.App.4th 216"
+        holding: "Document categories must be reasonably particularized"
+        use: "Standard for overbreadth in document requests"
+    applies_to:
+      - interrogatories
+      - rfps
+      - rfas
+    sample_language:
+      short: "overbroad as to time and scope"
+      medium: >-
+        overbroad as to time and scope in that it is not limited to the relevant
+        time period or subject matter at issue in this action, and sweeps in
+        information having no connection to any claim or defense
+      long: >-
+        overbroad as to time and scope. This request is not limited to the
+        relevant time period or subject matter at issue in this action and
+        sweeps in vast quantities of information having no conceivable
+        connection to any claim or defense. The request fails to reasonably
+        particularize the information sought. (CCP §2017.020; Calcor Space
+        Facility, Inc. v. Superior Court (1997) 53 Cal.App.4th 216.) Without
+        waiving this objection, Responding Party limits its response to the
+        period of {TIME_PERIOD} and to information directly related to the
+        claims at issue.
+    strength_signals:
+      - "uses 'ALL' or 'ANY' without temporal or subject limits"
+      - "time period far exceeds the relevant employment period"
+      - "requests information about persons or entities not party to the action"
+      - "scope extends to matters unrelated to any claim or defense"
+
+  - ground_id: argumentative
+    label: "Argumentative"
+    category: form
+    description: >-
+      The request is really an argument disguised as a question, primarily
+      valid at depositions and trials rather than written discovery.
+    last_verified: "2026-03-01"
+    statutory_citations: []
+    case_citations:
+      - name: "West Pico Furniture Co. v. Superior Court"
+        year: 1961
+        citation: "(1961) 56 Cal.2d 407"
+        reporter_key: "56 Cal.2d 407"
+        holding: "Trial-type objections generally not valid for written interrogatories"
+        use: "Counter-cite — this objection is primarily valid at depositions"
+    applies_to:
+      - interrogatories
+    sample_language:
+      short: "argumentative"
+      medium: >-
+        argumentative in that it is not a genuine request for information but
+        rather an argument disguised as a question
+      long: >-
+        argumentative. This request does not genuinely seek discoverable
+        information but instead frames an argument as a question designed to
+        elicit a concession rather than factual information. The argumentative
+        nature of the request renders it improper as a discovery device.
+    strength_signals:
+      - "contains loaded or inflammatory language"
+      - "frames an argument as a question"
+      - "designed to elicit a concession rather than information"
+
+  - ground_id: unintelligible
+    label: "Unintelligible"
+    category: form
+    description: >-
+      The request literally makes no sense — no reasonable interpretation is
+      possible, distinct from vague and ambiguous.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2030.060(d)"
+        description: "Interrogatories must be full and complete in themselves"
+    case_citations:
+      - name: "Deyo v. Kilbourne"
+        year: 1978
+        citation: "(1978) 84 Cal.App.3d 771"
+        reporter_key: "84 Cal.App.3d 771"
+        holding: "Courts construe requests reasonably where comprehensible meaning exists"
+        use: "Counter-cite — high bar for unintelligibility"
+    applies_to:
+      - interrogatories
+      - rfps
+      - rfas
+    sample_language:
+      short: "unintelligible"
+      medium: >-
+        unintelligible in that no reasonable interpretation of the request
+        is possible
+      long: >-
+        unintelligible. This request is so poorly drafted that no reasonable
+        interpretation is possible. Unlike a vague or ambiguous request where
+        the nature of the information sought may be apparent, this request
+        cannot be meaningfully answered because its meaning cannot be discerned.
+        (CCP §2030.060(d); Deyo v. Kilbourne (1978) 84 Cal.App.3d 771.)
+    strength_signals:
+      - "contains grammatical errors rendering meaning incomprehensible"
+      - "references undefined concepts with no discernible meaning"
+      - "sentence structure makes parsing impossible"
+
+  # =========================================================================
+  # SUBSTANTIVE / PRIVILEGE OBJECTIONS
+  # =========================================================================
+
+  - ground_id: relevance
+    label: "Relevance"
+    category: substantive
+    description: >-
+      The information sought is not relevant to the subject matter of the
+      action and not reasonably calculated to lead to the discovery of
+      admissible evidence.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2017.010"
+        description: "Scope of discovery — relevant to subject matter"
+      - code: "CCP"
+        section: "§2017.020"
+        description: "Court authority to limit discovery"
+    case_citations:
+      - name: "Emerson Electric Co. v. Superior Court"
+        year: 1997
+        citation: "(1997) 16 Cal.4th 1101, 1108"
+        reporter_key: "16 Cal.4th 1101"
+        holding: "Discovery relevance standard is 'extremely broad'"
+        use: "Standard definition — acknowledge broad standard while asserting limit"
+      - name: "Pacific Tel. & Tel. Co. v. Superior Court"
+        year: 1970
+        citation: "(1970) 2 Cal.3d 161, 173"
+        reporter_key: "2 Cal.3d 161"
+        holding: "Doubts resolved in favor of permitting discovery"
+        use: "Counter-cite — acknowledge presumption favoring disclosure"
+    applies_to:
+      - interrogatories
+      - rfps
+      - rfas
+    sample_language:
+      short: >-
+        not relevant to the subject matter of this action nor reasonably
+        calculated to lead to the discovery of admissible evidence
+      medium: >-
+        seeks information not relevant to the subject matter of this action
+        and not reasonably calculated to lead to the discovery of admissible
+        evidence, as the requested information bears no connection to any
+        claim or defense at issue
+      long: >-
+        seeks information that is neither relevant to the subject matter
+        involved in this pending action nor reasonably calculated to lead
+        to the discovery of admissible evidence. The requested information
+        has no conceivable connection to any claim, defense, or subject
+        matter at issue in this litigation. California's broad discovery
+        standard notwithstanding, this request exceeds even the liberal
+        scope permitted under CCP §2017.010. (Emerson Electric Co. v.
+        Superior Court (1997) 16 Cal.4th 1101, 1108.)
+    strength_signals:
+      - "requests information about unrelated matters"
+      - "no connection to claims or defenses"
+      - "seeks information about third parties not involved"
+      - "subject matter has zero conceivable connection to the case"
+
+  - ground_id: attorney_client_privilege
+    label: "Attorney-Client Privilege"
+    category: substantive
+    description: >-
+      The request seeks confidential communications between client and
+      attorney made for the purpose of obtaining or providing legal assistance.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "Evid. Code"
+        section: "§§950-962"
+        description: "Attorney-client privilege"
+      - code: "Evid. Code"
+        section: "§954"
+        description: "Client holds the privilege"
+      - code: "CCP"
+        section: "§2031.240(c)(1)"
+        description: "Privilege log requirement for document requests"
+    case_citations:
+      - name: "Costco Wholesale Corp. v. Superior Court"
+        year: 2009
+        citation: "(2009) 47 Cal.4th 725"
+        reporter_key: "47 Cal.4th 725"
+        holding: "Courts may not require in camera review to assess attorney-client privilege"
+        use: "Reinforces absolute nature of the privilege"
+    applies_to:
+      - interrogatories
+      - rfps
+      - rfas
+    sample_language:
+      short: >-
+        protected by the attorney-client privilege (Evid. Code §§950-962)
+      medium: >-
+        seeks information protected by the attorney-client privilege (Evid.
+        Code §§950-962). The requested information constitutes confidential
+        communications between client and counsel made for the purpose of
+        obtaining legal advice
+      long: >-
+        seeks information protected by the attorney-client privilege (Evid.
+        Code §§950-962). The requested documents and information constitute
+        confidential communications between Responding Party and counsel made
+        for the purpose of obtaining or providing legal advice. The client holds
+        the privilege (Evid. Code §954), and it has not been waived. The
+        privilege is absolute and courts may not require in camera review to
+        assess its application. (Costco Wholesale Corp. v. Superior Court
+        (2009) 47 Cal.4th 725.)
+    strength_signals:
+      - "asks about communications with attorneys"
+      - "requests legal advice or strategy documents"
+      - "seeks documents prepared for or by counsel"
+
+  - ground_id: work_product
+    label: "Work Product Doctrine"
+    category: substantive
+    description: >-
+      The request seeks attorney work product — materials prepared by counsel
+      in anticipation of litigation, including attorney mental impressions,
+      conclusions, opinions, or legal research.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§§2018.010-2018.080"
+        description: "Work product privilege"
+      - code: "CCP"
+        section: "§2018.030(a)"
+        description: "Absolute (opinion) work product — not discoverable under any circumstances"
+      - code: "CCP"
+        section: "§2018.030(b)"
+        description: "Qualified (derivative) work product — protected absent unfair prejudice"
+    case_citations:
+      - name: "Coito v. Superior Court"
+        year: 2012
+        citation: "(2012) 54 Cal.4th 480"
+        reporter_key: "54 Cal.4th 480"
+        holding: "Witness statements obtained by attorney receive at least qualified protection"
+        use: "Supports protection of investigative materials"
+    applies_to:
+      - interrogatories
+      - rfps
+      - rfas
+    sample_language:
+      short: >-
+        protected by the attorney work product doctrine (CCP §2018.030)
+      medium: >-
+        seeks materials protected by the attorney work product doctrine (CCP
+        §2018.030). The requested documents were prepared by counsel in
+        anticipation of litigation and reflect counsel's mental impressions,
+        conclusions, and legal theories
+      long: >-
+        seeks materials protected by the attorney work product doctrine (CCP
+        §§2018.010-2018.080). The requested documents were prepared by counsel
+        in anticipation of litigation and reflect counsel's mental impressions,
+        conclusions, opinions, and legal theories, constituting absolute work
+        product not discoverable under any circumstances (CCP §2018.030(a)).
+        To the extent any materials constitute derivative work product, they
+        are protected absent a showing of unfair prejudice or injustice
+        (§2018.030(b)). (Coito v. Superior Court (2012) 54 Cal.4th 480.)
+    strength_signals:
+      - "asks about litigation strategy or attorney impressions"
+      - "requests investigation materials or witness interview notes"
+      - "seeks documents prepared in anticipation of litigation"
+
+  - ground_id: privacy
+    label: "Right to Privacy"
+    category: substantive
+    description: >-
+      The request seeks information protected by the constitutional right to
+      privacy, requiring a showing that the serious intrusion is justified
+      by countervailing need.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "Cal. Const."
+        section: "Art. I, §1"
+        description: "Constitutional right to privacy"
+      - code: "CCP"
+        section: "§2017.220"
+        description: "Good-cause requirement for sexual conduct discovery"
+    case_citations:
+      - name: "Hill v. National Collegiate Athletic Assn."
+        year: 1994
+        citation: "(1994) 7 Cal.4th 1"
+        reporter_key: "7 Cal.4th 1"
+        holding: "Established three-part privacy threshold test"
+        use: "Framework: legally protected interest + reasonable expectation + serious intrusion"
+      - name: "Williams v. Superior Court"
+        year: 2017
+        citation: "(2017) 3 Cal.5th 531"
+        reporter_key: "3 Cal.5th 531"
+        holding: "Relevance alone insufficient to overcome privacy; burden on resisting party at all times"
+        use: "Leading modern authority on privacy and discovery"
+    applies_to:
+      - interrogatories
+      - rfps
+      - rfas
+    sample_language:
+      short: >-
+        violates the right to privacy (Cal. Const. Art. I, §1)
+      medium: >-
+        seeks information protected by the right to privacy under Article I,
+        Section 1 of the California Constitution. The responding party has a
+        legally protected privacy interest in this information with an
+        objectively reasonable expectation of confidentiality
+      long: >-
+        seeks information protected by the right of privacy under Article I,
+        Section 1 of the California Constitution. Responding Party has a
+        legally protected privacy interest in the requested information, with
+        an objectively reasonable expectation of confidentiality. The intrusion
+        is serious and not justified by countervailing need. Relevance alone
+        is not sufficient to overcome this privacy interest. (Hill v. National
+        Collegiate Athletic Assn. (1994) 7 Cal.4th 1; Williams v. Superior
+        Court (2017) 3 Cal.5th 531.) To the extent disclosure is ordered,
+        Responding Party requests a protective order limiting dissemination.
+    strength_signals:
+      - "requests medical records or health information"
+      - "requests financial or tax records"
+      - "requests personal contact information of third parties"
+      - "requests information about sexual conduct or intimate matters"
+      - "requests social media content"
+
+  - ground_id: trade_secret
+    label: "Trade Secret Privilege"
+    category: substantive
+    description: >-
+      The request seeks trade secrets — information deriving independent
+      economic value from not being generally known, where reasonable measures
+      have been taken to maintain secrecy.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "Evid. Code"
+        section: "§§1060-1063"
+        description: "Trade secret privilege"
+      - code: "Civil Code"
+        section: "§§3426-3426.11"
+        description: "California Uniform Trade Secrets Act (CUTSA)"
+      - code: "CCP"
+        section: "§2019.210"
+        description: "Plaintiff must identify trade secret with reasonable particularity before discovery"
+    case_citations: []
+    applies_to:
+      - interrogatories
+      - rfps
+      - rfas
+    sample_language:
+      short: >-
+        seeks trade secrets protected by Evidence Code §1060
+      medium: >-
+        seeks trade secrets protected by Evidence Code §1060 and Civil Code
+        §§3426 et seq. The information derives independent economic value from
+        not being generally known, and Responding Party has taken reasonable
+        measures to maintain secrecy
+      long: >-
+        seeks trade secrets protected by Evidence Code §§1060-1063 and Civil
+        Code §§3426 et seq. (California Uniform Trade Secrets Act). The
+        requested information derives independent economic value from not
+        being generally known to other persons who can obtain economic value
+        from its disclosure or use, and Responding Party has taken reasonable
+        measures to maintain its secrecy. Responding Party requests any
+        disclosure be subject to a protective order pursuant to Civil Code
+        §3426.5.
+    strength_signals:
+      - "requests proprietary business processes or methodologies"
+      - "requests customer lists or pricing structures"
+      - "requests source code or technical specifications"
+      - "requests financial projections or strategic plans"
+
+  # =========================================================================
+  # BURDEN / PROPORTIONALITY OBJECTIONS
+  # =========================================================================
+
+  - ground_id: undue_burden
+    label: "Undue Burden and Expense"
+    category: burden
+    description: >-
+      Compliance with the request would impose an unreasonable or
+      disproportionate burden in time, effort, or cost. The objecting party
+      must provide concrete evidence quantifying the claimed burden.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2017.020"
+        description: "Court may limit discovery where burden clearly outweighs benefit"
+      - code: "CCP"
+        section: "§2019.030"
+        description: "Restriction of cumulative or unduly burdensome discovery"
+      - code: "CCP"
+        section: "§2023.010(c)"
+        description: "Misuse of discovery — unduly burdensome requests"
+    case_citations:
+      - name: "West Pico Furniture Co. v. Superior Court"
+        year: 1961
+        citation: "(1961) 56 Cal.2d 407"
+        reporter_key: "56 Cal.2d 407"
+        holding: "All discovery involves some burden; only unreasonable burden is objectionable"
+        use: "Standard — 'undue' means unreasonable or disproportionate"
+      - name: "Williams v. Superior Court"
+        year: 2017
+        citation: "(2017) 3 Cal.5th 531"
+        reporter_key: "3 Cal.5th 531"
+        holding: "Rejected burden objection where party failed to offer evidence beyond number of employees affected"
+        use: "Requires concrete evidence quantifying burden"
+    applies_to:
+      - interrogatories
+      - rfps
+      - rfas
+    sample_language:
+      short: "unduly burdensome and oppressive"
+      medium: >-
+        unduly burdensome and oppressive in that compliance would require a
+        disproportionate expenditure of time and resources relative to the
+        needs of this case
+      long: >-
+        unduly burdensome and oppressive. Compliance with this request would
+        require a disproportionate expenditure of time and resources. The burden
+        and expense of compliance clearly outweighs the likelihood that the
+        information sought will lead to the discovery of admissible evidence.
+        (CCP §2017.020.) The objecting party must provide concrete evidence
+        quantifying the burden — conclusory assertions are insufficient.
+        (Williams v. Superior Court (2017) 3 Cal.5th 531.)
+    strength_signals:
+      - "requires review of an extremely large volume of documents"
+      - "requests information from numerous custodians or locations"
+      - "compliance cost disproportionate to amount in controversy"
+      - "information obtainable from less burdensome source"
+
+  - ground_id: proportionality
+    label: "Proportionality"
+    category: burden
+    description: >-
+      The discovery sought is disproportionate to the needs of the case,
+      considering the amount in controversy, importance of the issues,
+      and availability from less burdensome sources.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2017.020(a)"
+        description: "Burden, expense, or intrusiveness clearly outweighs benefit"
+      - code: "CCP"
+        section: "§2019.030(a)"
+        description: "Court may restrict cumulative or duplicative discovery"
+    case_citations:
+      - name: "Emerson Electric Co. v. Superior Court"
+        year: 1997
+        citation: "(1997) 16 Cal.4th 1101"
+        reporter_key: "16 Cal.4th 1101"
+        holding: "Discovery scope is broad but not unlimited"
+        use: "Supports proportionality limits even under broad discovery standard"
+    applies_to:
+      - interrogatories
+      - rfps
+      - rfas
+    sample_language:
+      short: "disproportionate to the needs of this case"
+      medium: >-
+        disproportionate to the needs of this case, considering the amount in
+        controversy, the importance of the issues at stake, and the availability
+        of the information from less burdensome sources
+      long: >-
+        disproportionate to the needs of this case. The burden and expense of
+        compliance clearly outweighs the likelihood of obtaining admissible
+        evidence, considering: (1) the amount in controversy; (2) the
+        importance of the issues at stake; (3) the parties' resources; (4)
+        the importance of the requested discovery in resolving the issues; and
+        (5) whether the information is obtainable from some other source that
+        is more convenient, less burdensome, or less expensive. (CCP
+        §§2017.020(a), 2019.030(a).)
+    strength_signals:
+      - "scope of request vastly exceeds the magnitude of the case"
+      - "information available from a less burdensome source"
+      - "discovery is cumulative or duplicative of prior requests"
+
+  - ground_id: equally_available
+    label: "Equally Available Information"
+    category: burden
+    description: >-
+      The information sought is equally available to the propounding party.
+      Valid only for interrogatories — does not apply to document requests.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2030.220(c)"
+        description: "No duty to inquire of others when info equally available to propounding party"
+    case_citations:
+      - name: "Alpine Mutual Water Co. v. Superior Court"
+        year: 1968
+        citation: "(1968) 259 Cal.App.2d 45"
+        reporter_key: "259 Cal.App.2d 45"
+        holding: "Objection sustained where information consisted of public records equally accessible"
+        use: "Supports objection when information is from public records"
+      - name: "Bunnell v. Superior Court"
+        year: 1967
+        citation: "(1967) 254 Cal.App.2d 720"
+        reporter_key: "254 Cal.App.2d 720"
+        holding: "Cannot refuse to produce documents simply because propounding party may also have access"
+        use: "Counter-cite — does NOT apply to document requests"
+    applies_to:
+      - interrogatories
+    sample_language:
+      short: "the information is equally available to the propounding party"
+      medium: >-
+        the information sought is equally available to the propounding party
+        and can be obtained through the same sources available to Responding
+        Party (CCP §2030.220(c))
+      long: >-
+        the information sought is equally available to the propounding party.
+        Under CCP §2030.220(c), Responding Party is not required to make
+        inquiries of other persons or entities when the information is equally
+        accessible to the propounding party through the same sources. The
+        requested information consists of publicly available records that
+        Propounding Party can obtain directly. (Alpine Mutual Water Co. v.
+        Superior Court (1968) 259 Cal.App.2d 45.)
+    strength_signals:
+      - "requests information from public records"
+      - "asks about matters within propounding party's own knowledge"
+      - "information obtainable from publicly available databases"
+
+  # =========================================================================
+  # DEVICE-SPECIFIC OBJECTIONS
+  # =========================================================================
+
+  - ground_id: exceeds_interrogatory_limit
+    label: "Exceeds 35-Interrogatory Limit"
+    category: device_specific
+    description: >-
+      The propounding party has exceeded the 35 specially prepared
+      interrogatory limit without a proper declaration of necessity.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2030.030"
+        description: "35-interrogatory limit for specially prepared interrogatories"
+      - code: "CCP"
+        section: "§2030.040"
+        description: "Declaration of necessity to exceed limit"
+      - code: "CCP"
+        section: "§2030.050"
+        description: "Contents of declaration of necessity"
+    case_citations: []
+    applies_to:
+      - interrogatories
+    sample_language:
+      short: >-
+        exceeds the 35-interrogatory limit of CCP §2030.030
+      medium: >-
+        exceeds the 35-interrogatory limit for specially prepared
+        interrogatories under CCP §2030.030 without a proper declaration
+        of necessity under CCP §2030.050
+      long: >-
+        exceeds the 35-interrogatory limit for specially prepared
+        interrogatories established by CCP §2030.030. The propounding party
+        has served more than 35 specially prepared interrogatories without
+        attaching a declaration of necessity as required by CCP §§2030.040
+        and 2030.050. This interrogatory exceeds the statutory limit and
+        Responding Party is not required to respond.
+    strength_signals:
+      - "interrogatory number is greater than 35"
+      - "no declaration of necessity accompanies the request"
+
+  - ground_id: exceeds_rfa_limit
+    label: "Exceeds 35-RFA Limit"
+    category: device_specific
+    description: >-
+      The propounding party has exceeded the 35-request limit for
+      fact-based RFAs without a proper declaration.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2033.030"
+        description: "35-request limit for non-genuineness RFAs"
+      - code: "CCP"
+        section: "§2033.050"
+        description: "Declaration of necessity to exceed RFA limit"
+    case_citations: []
+    applies_to:
+      - rfas
+    sample_language:
+      short: >-
+        exceeds the 35-request limit of CCP §2033.030
+      medium: >-
+        exceeds the 35-request limit for fact-based requests for admission
+        under CCP §2033.030 without a proper declaration under CCP §2033.050
+      long: >-
+        exceeds the 35-request limit for fact-based requests for admission
+        established by CCP §2033.030. Genuineness-of-document requests are
+        unlimited, but fact-based requests exceeding 35 require a declaration
+        of necessity under CCP §2033.050. No such declaration accompanies
+        these requests. Responding Party is not required to respond to requests
+        exceeding the statutory limit.
+    strength_signals:
+      - "RFA number is greater than 35"
+      - "request concerns facts (not genuineness of documents)"
+      - "no declaration of necessity accompanies the request"
+
+  - ground_id: failure_to_particularize
+    label: "Failure to Reasonably Particularize"
+    category: device_specific
+    description: >-
+      The document request fails to describe the requested documents with
+      reasonable particularity, making compliance impossible.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2031.030(c)(1)"
+        description: "Demand must designate documents with reasonable particularity"
+    case_citations:
+      - name: "Calcor Space Facility, Inc. v. Superior Court"
+        year: 1997
+        citation: "(1997) 53 Cal.App.4th 216"
+        reporter_key: "53 Cal.App.4th 216"
+        holding: "Categories must be reasonably particularized from standpoint of producing party"
+        use: "Standard for reasonable particularity"
+    applies_to:
+      - rfps
+    sample_language:
+      short: >-
+        fails to reasonably particularize the documents sought (CCP §2031.030(c)(1))
+      medium: >-
+        fails to describe the documents sought with reasonable particularity
+        as required by CCP §2031.030(c)(1), making it impossible to determine
+        what specific documents are responsive
+      long: >-
+        fails to describe the requested documents with reasonable particularity
+        as required by CCP §2031.030(c)(1). The request is so broadly worded
+        that Responding Party cannot reasonably determine what specific
+        documents are sought. Document categories must be reasonably
+        particularized from the standpoint of the party subjected to the
+        burden of producing the materials. (Calcor Space Facility, Inc. v.
+        Superior Court (1997) 53 Cal.App.4th 216.)
+    strength_signals:
+      - "requests 'any and all documents' without specifying type or subject"
+      - "category description is so broad that virtually any document could be responsive"
+      - "no reasonable way to identify which documents are sought"
+
+  - ground_id: esi_inaccessible
+    label: "ESI from Not Reasonably Accessible Source"
+    category: device_specific
+    description: >-
+      The electronically stored information (ESI) requested resides on a
+      source that is not reasonably accessible due to undue burden or cost.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2031.210(d)"
+        description: "Response may state ESI is from not reasonably accessible source"
+      - code: "CCP"
+        section: "§2031.310(d)"
+        description: "Burden on objecting party to demonstrate inaccessibility"
+    case_citations: []
+    applies_to:
+      - rfps
+    sample_language:
+      short: >-
+        the ESI is from a source that is not reasonably accessible (CCP §2031.210(d))
+      medium: >-
+        the electronically stored information sought resides on a source that
+        is not reasonably accessible due to undue burden or cost (CCP
+        §2031.210(d))
+      long: >-
+        the electronically stored information sought resides on a source that
+        is not reasonably accessible due to undue burden or cost, as permitted
+        by CCP §2031.210(d). The ESI is stored on backup tapes, legacy systems,
+        or other media that would require extraordinary effort and expense to
+        access and restore. Responding Party identifies the source and the
+        reasons for inaccessibility pursuant to §2031.210(d).
+    strength_signals:
+      - "requests data from backup tapes or legacy systems"
+      - "requests deleted or archived electronic data"
+      - "restoration would require extraordinary effort or expense"
+
+  - ground_id: already_produced
+    label: "Already Produced"
+    category: device_specific
+    description: >-
+      The requested documents have already been produced in response to
+      prior discovery requests, making this request cumulative.
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2019.030(a)(1)"
+        description: "Court may restrict unreasonably cumulative discovery"
+    case_citations: []
+    applies_to:
+      - rfps
+    sample_language:
+      short: >-
+        the requested documents have already been produced
+      medium: >-
+        the requested documents have already been produced in response to prior
+        discovery, and this request is unreasonably cumulative (CCP §2019.030(a)(1))
+      long: >-
+        the requested documents have already been produced in response to prior
+        discovery requests. This request is unreasonably cumulative or
+        duplicative within the meaning of CCP §2019.030(a)(1). The responsive
+        documents were previously produced as Bates-stamped documents
+        {BATES_RANGE} in response to {PRIOR_REQUEST}. Responding Party
+        incorporates its prior production by reference.
+    strength_signals:
+      - "substantially identical to a prior document request"
+      - "documents were produced in response to a prior set"
+      - "request overlaps significantly with previously served discovery"

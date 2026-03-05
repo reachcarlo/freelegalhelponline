@@ -51,10 +51,11 @@ test.describe("Discovery navigation", () => {
     );
   });
 
-  test("back button disabled on first step", async ({ page }) => {
+  test("exit link shown on first step", async ({ page }) => {
     await page.goto("/tools/discovery/frogs-general");
-    const backBtn = page.getByRole("button", { name: "Back" });
-    await expect(backBtn).toBeDisabled();
+    const exitLink = page.getByRole("link", { name: /Exit/i });
+    await expect(exitLink).toBeVisible();
+    await expect(exitLink).toHaveAttribute("href", "/tools/discovery");
   });
 
   test("Start Over resets wizard after generation", async ({ page }) => {

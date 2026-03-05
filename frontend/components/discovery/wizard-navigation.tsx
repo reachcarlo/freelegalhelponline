@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 interface WizardNavigationProps {
   currentStep: number;
   totalSteps: number;
@@ -28,19 +30,23 @@ export default function WizardNavigation({
 
   return (
     <div className="flex items-center justify-between border-t border-border bg-surface px-4 py-3 sm:px-6">
-      {/* Back */}
-      <button
-        type="button"
-        onClick={onBack}
-        disabled={isFirst}
-        className={`min-h-[44px] min-w-[44px] rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 ${
-          isFirst
-            ? "cursor-not-allowed text-text-tertiary"
-            : "text-text-secondary hover:bg-accent-surface hover:text-accent"
-        }`}
-      >
-        Back
-      </button>
+      {/* Back or Exit */}
+      {isFirst ? (
+        <Link
+          href="/tools/discovery"
+          className="min-h-[44px] min-w-[44px] inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-accent-surface hover:text-accent transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
+        >
+          &larr; Exit
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={onBack}
+          className="min-h-[44px] min-w-[44px] rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-accent-surface hover:text-accent transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
+        >
+          Back
+        </button>
+      )}
 
       {/* Step indicator (center) */}
       <span className="text-xs text-text-tertiary">

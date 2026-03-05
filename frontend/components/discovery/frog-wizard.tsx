@@ -80,13 +80,10 @@ export default function FrogWizard({
   const [genError, setGenError] = useState<string | null>(null);
   const [genSuccess, setGenSuccess] = useState(false);
 
-  // Full reset on tool switch — each tool starts fresh
+  // Set tool type on mount — state always starts fresh (no hydration)
   useEffect(() => {
-    if (state.toolType !== toolType) {
-      resetState();
-      setToolType(toolType);
-    }
-  }, [toolType]); // eslint-disable-line react-hooks/exhaustive-deps
+    setToolType(toolType);
+  }, [toolType, setToolType]);
 
   // Load bank when entering sections step
   useEffect(() => {
@@ -341,17 +338,25 @@ export default function FrogWizard({
                       Your PDF has been downloaded. You can open it in any PDF
                       editor to make further changes.
                     </p>
-                    <button
-                      type="button"
-                      data-testid="start-over"
-                      onClick={() => {
-                        resetState();
-                        setToolType(toolType);
-                      }}
-                      className="mt-4 rounded-lg border border-border px-6 py-2 text-sm font-medium text-text-secondary hover:bg-surface transition-colors"
-                    >
-                      Start Over
-                    </button>
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        data-testid="start-over"
+                        onClick={() => {
+                          resetState();
+                          setToolType(toolType);
+                        }}
+                        className="rounded-lg border border-border px-6 py-2 text-sm font-medium text-text-secondary hover:bg-surface transition-colors"
+                      >
+                        Start Over
+                      </button>
+                      <Link
+                        href="/tools/discovery"
+                        className="rounded-lg px-6 py-2 text-sm font-medium text-text-tertiary hover:text-accent transition-colors"
+                      >
+                        Back to Discovery Tools
+                      </Link>
+                    </div>
                   </>
                 )}
               </div>

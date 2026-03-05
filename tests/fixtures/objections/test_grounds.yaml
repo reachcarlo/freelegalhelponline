@@ -1,0 +1,77 @@
+# Minimal 3-ground test knowledge base for fast tests
+grounds:
+  - ground_id: relevance
+    label: "Relevance"
+    category: substantive
+    description: "Information not relevant to subject matter"
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2017.010"
+        description: "Scope of discovery"
+    case_citations:
+      - name: "Emerson Electric Co. v. Superior Court"
+        year: 1997
+        citation: "(1997) 16 Cal.4th 1101, 1108"
+        reporter_key: "16 Cal.4th 1101"
+        holding: "Discovery relevance standard is extremely broad"
+        use: "Standard definition"
+    applies_to:
+      - interrogatories
+      - rfps
+      - rfas
+    sample_language:
+      short: "not relevant to the subject matter"
+      medium: "seeks information not relevant to the subject matter of this action"
+      long: "seeks information neither relevant to the subject matter nor reasonably calculated to lead to admissible evidence"
+    strength_signals:
+      - "requests information about unrelated matters"
+
+  - ground_id: overbroad
+    label: "Overbroad as to Time and Scope"
+    category: form
+    description: "Request lacks reasonable temporal or subject-matter limits"
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2017.010"
+        description: "Scope of discovery"
+      - code: "CCP"
+        section: "§2017.020"
+        description: "Court authority to limit discovery"
+    case_citations:
+      - name: "Calcor Space Facility, Inc. v. Superior Court"
+        year: 1997
+        citation: "(1997) 53 Cal.App.4th 216"
+        reporter_key: "53 Cal.App.4th 216"
+        holding: "Document categories must be reasonably particularized"
+        use: "Standard for overbreadth"
+    applies_to:
+      - interrogatories
+      - rfps
+      - rfas
+    sample_language:
+      short: "overbroad as to time and scope"
+      medium: "overbroad as to time and scope, sweeping in irrelevant material"
+      long: "overbroad as to time and scope, sweeping in vast quantities of irrelevant information"
+    strength_signals:
+      - "uses ALL or ANY without temporal limits"
+
+  - ground_id: exceeds_interrogatory_limit
+    label: "Exceeds 35-Interrogatory Limit"
+    category: device_specific
+    description: "Exceeded 35-interrogatory limit without declaration"
+    last_verified: "2026-03-01"
+    statutory_citations:
+      - code: "CCP"
+        section: "§2030.030"
+        description: "35-interrogatory limit"
+    case_citations: []
+    applies_to:
+      - interrogatories
+    sample_language:
+      short: "exceeds the 35-interrogatory limit"
+      medium: "exceeds the 35-interrogatory limit of CCP §2030.030"
+      long: "exceeds the 35-interrogatory limit without a declaration of necessity"
+    strength_signals:
+      - "interrogatory number is greater than 35"

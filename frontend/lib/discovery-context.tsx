@@ -124,40 +124,20 @@ const DiscoveryContext = createContext<DiscoveryContextValue | null>(null);
 
 // ── Provider ─────────────────────────────────────────────────────────
 
-function loadState(): DiscoveryState {
-  if (typeof window === "undefined") return { ...DEFAULT_STATE };
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...DEFAULT_STATE, ...JSON.parse(raw) };
-  } catch {
-    // corrupted storage
-  }
-  return { ...DEFAULT_STATE };
-}
-
-function saveState(state: DiscoveryState): void {
-  if (typeof window === "undefined") return;
-  try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // storage full
-  }
-}
-
 export function DiscoveryProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<DiscoveryState>(DEFAULT_STATE);
-  const [hydrated, setHydrated] = useState(false);
 
-  // Hydrate from sessionStorage on mount
+  // Clear sessionStorage on unmount so switching tools or leaving
+  // the workflow always starts fresh at step 0.
   useEffect(() => {
-    setState(loadState());
-    setHydrated(true);
+    return () => {
+      try {
+        sessionStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    };
   }, []);
-
-  // Persist on every change (after hydration)
-  useEffect(() => {
-    if (hydrated) saveState(state);
-  }, [state, hydrated]);
 
   const update = useCallback(
     (partial: Partial<DiscoveryState>) =>

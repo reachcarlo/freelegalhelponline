@@ -9,6 +9,14 @@ export const metadata: Metadata = {
 
 const tools = [
   {
+    href: "/tools/discovery/objection-drafter",
+    key: "objection_drafter",
+    title: "Objection Drafter",
+    description:
+      "AI-powered objection drafter. Paste discovery requests, get formatted objections with strength ratings, statutory and case law citations. Supports interrogatories, RFPs, and RFAs.",
+    format: "AI",
+  },
+  {
     href: "/tools/discovery/frogs-general",
     key: "frogs_general",
     title: "Form Interrogatories — General (DISC-001)",
