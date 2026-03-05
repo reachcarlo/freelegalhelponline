@@ -39,6 +39,12 @@ const tools = [
       "Document workplace incidents while details are fresh. Guided forms, evidence checklists, and exportable records. Your data stays in your browser.",
   },
   {
+    href: "/tools/discovery/objection-drafter",
+    title: "Discovery Objection Drafter",
+    description:
+      "AI-powered objection drafter. Paste discovery requests, get formatted objections with strength ratings, statutory and case law citations. Supports interrogatories, RFPs, and RFAs.",
+  },
+  {
     href: "/tools/discovery",
     title: "Discovery Document Generator",
     description:
