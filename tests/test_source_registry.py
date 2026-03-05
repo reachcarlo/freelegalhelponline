@@ -21,6 +21,7 @@ from employee_help.storage.models import (
     Document,
     Source,
     SourceType,
+    UpsertStatus,
 )
 from employee_help.storage.storage import Storage
 
@@ -202,8 +203,8 @@ class TestSourceStorage:
             source_id=source.id,
             content_category=ContentCategory.AGENCY_GUIDANCE,
         )
-        stored, is_new = storage.upsert_document(doc)
-        assert is_new
+        stored, status = storage.upsert_document(doc)
+        assert status == UpsertStatus.NEW
         assert stored.source_id == source.id
         assert stored.content_category == ContentCategory.AGENCY_GUIDANCE
 

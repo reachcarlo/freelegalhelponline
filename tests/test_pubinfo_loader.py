@@ -535,6 +535,7 @@ class TestPipelineIntegration:
             Document,
             Source,
             SourceType,
+            UpsertStatus,
         )
         from employee_help.storage.storage import Storage
 
@@ -583,8 +584,8 @@ class TestPipelineIntegration:
                 source_id=source.id,
                 content_category=ContentCategory.STATUTORY_CODE,
             )
-            stored_doc, is_new = storage.upsert_document(doc)
-            assert is_new
+            stored_doc, status = storage.upsert_document(doc)
+            assert status == UpsertStatus.NEW
             assert stored_doc.id is not None
 
             chunk_objects = [
@@ -626,6 +627,7 @@ class TestPipelineIntegration:
             Document,
             Source,
             SourceType,
+            UpsertStatus,
         )
         from employee_help.storage.storage import Storage
 
@@ -663,8 +665,8 @@ class TestPipelineIntegration:
                     source_id=source.id,
                     content_category=ContentCategory.STATUTORY_CODE,
                 )
-                stored_doc, is_new = storage.upsert_document(doc)
-                if is_new and stored_doc.id:
+                stored_doc, status = storage.upsert_document(doc)
+                if status != UpsertStatus.UNCHANGED and stored_doc.id:
                     chunk_objects = [
                         Chunk(
                             content=c.content, content_hash=c.content_hash,

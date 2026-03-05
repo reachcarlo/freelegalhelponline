@@ -1,0 +1,223 @@
+name: Scheduled Refresh
+
+on:
+  schedule:
+    # Statutory: weekly Sunday 3am UTC
+    - cron: "0 3 * * 0"
+    # Agency: Mon/Thu 3am UTC
+    - cron: "0 3 * * 1,4"
+    # Regulatory: 1st of month 3am UTC
+    - cron: "0 3 1 * *"
+    # Persuasive: quarterly (Jan/Apr/Jul/Oct 1st) 3am UTC
+    - cron: "0 3 1 1,4,7,10 *"
+    # Case law: 1st and 15th of month 4am UTC
+    - cron: "0 4 1,15 * *"
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: "Tier to refresh (statutory, regulatory, persuasive, agency, caselaw, or blank for all)"
+        required: false
+        default: ""
+      force:
+        description: "Force refresh even if sources are fresh"
+        required: false
+        default: "false"
+
+# Map cron triggers to tier names for conditional job execution
+env:
+  # Which tier each cron schedule maps to (by index in the schedule array)
+  # 0=statutory, 1=agency, 2=regulatory, 3=persuasive, 4=caselaw
+  TIER_MAP_0: statutory
+  TIER_MAP_1: agency
+  TIER_MAP_2: regulatory
+  TIER_MAP_3: persuasive
+  TIER_MAP_4: caselaw
+
+jobs:
+  # ── Shared setup (reusable steps) ──────────────────────────────
+  statutory:
+    name: "Tier: Statutory"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: >-
+      github.event_name == 'workflow_dispatch' && (inputs.tier == '' || inputs.tier == 'statutory')
+      || github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group dev
+      - name: Download PUBINFO data
+        run: uv run employee-help pubinfo-download --year 2025
+        continue-on-error: true
+      - name: Refresh statutory sources
+        run: |
+          ARGS="--all --auto-embed --tier statutory"
+          if [ "${{ inputs.force }}" != "true" ]; then
+            ARGS="$ARGS --if-stale"
+          fi
+          uv run employee-help refresh $ARGS
+      - name: Upload refresh report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: refresh-report-statutory
+          path: data/refresh_reports/
+          if-no-files-found: ignore
+
+  regulatory:
+    name: "Tier: Regulatory"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: >-
+      github.event_name == 'workflow_dispatch' && (inputs.tier == '' || inputs.tier == 'regulatory')
+      || github.event_name == 'schedule' && github.event.schedule == '0 3 1 * *'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group dev
+      - name: Refresh regulatory sources
+        run: |
+          ARGS="--all --auto-embed --tier regulatory"
+          if [ "${{ inputs.force }}" != "true" ]; then
+            ARGS="$ARGS --if-stale"
+          fi
+          uv run employee-help refresh $ARGS
+      - name: Upload refresh report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: refresh-report-regulatory
+          path: data/refresh_reports/
+          if-no-files-found: ignore
+
+  persuasive:
+    name: "Tier: Persuasive"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: >-
+      github.event_name == 'workflow_dispatch' && (inputs.tier == '' || inputs.tier == 'persuasive')
+      || github.event_name == 'schedule' && github.event.schedule == '0 3 1 1,4,7,10 *'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group dev
+      - name: Refresh persuasive sources
+        run: |
+          ARGS="--all --auto-embed --tier persuasive"
+          if [ "${{ inputs.force }}" != "true" ]; then
+            ARGS="$ARGS --if-stale"
+          fi
+          uv run employee-help refresh $ARGS
+      - name: Upload refresh report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: refresh-report-persuasive
+          path: data/refresh_reports/
+          if-no-files-found: ignore
+
+  agency:
+    name: "Tier: Agency"
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # Agency crawls are slowest (~60min)
+    if: >-
+      github.event_name == 'workflow_dispatch' && (inputs.tier == '' || inputs.tier == 'agency')
+      || github.event_name == 'schedule' && github.event.schedule == '0 3 * * 1,4'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group dev
+      - name: Install Playwright browsers
+        run: uv run playwright install chromium --with-deps
+      - name: Refresh agency sources
+        run: |
+          ARGS="--all --auto-embed --tier agency"
+          if [ "${{ inputs.force }}" != "true" ]; then
+            ARGS="$ARGS --if-stale"
+          fi
+          uv run employee-help refresh $ARGS
+      - name: Upload refresh report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: refresh-report-agency
+          path: data/refresh_reports/
+          if-no-files-found: ignore
+
+  caselaw:
+    name: "Tier: Case Law"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: >-
+      github.event_name == 'workflow_dispatch' && (inputs.tier == '' || inputs.tier == 'caselaw')
+      || github.event_name == 'schedule' && github.event.schedule == '0 4 1,15 * *'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group dev
+      - name: Refresh case law sources
+        run: |
+          ARGS="--all --auto-embed --tier caselaw"
+          if [ "${{ inputs.force }}" != "true" ]; then
+            ARGS="$ARGS --if-stale"
+          fi
+          uv run employee-help refresh $ARGS
+      - name: Upload refresh report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: refresh-report-caselaw
+          path: data/refresh_reports/
+          if-no-files-found: ignore
+
+  # ── Dashboard health check (runs after all tiers) ──────────────
+  health-check:
+    name: Post-Refresh Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [statutory, regulatory, persuasive, agency, caselaw]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group dev
+      - name: Run health dashboard
+        run: uv run employee-help dashboard --json
+      - name: Run source-health
+        run: uv run employee-help source-health

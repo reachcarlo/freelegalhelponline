@@ -17,6 +17,7 @@ from employee_help.storage.models import (
     Document,
     Source,
     SourceType,
+    UpsertStatus,
 )
 
 _SCHEMA = """
@@ -27,7 +28,8 @@ CREATE TABLE IF NOT EXISTS sources (
     source_type TEXT NOT NULL DEFAULT 'agency',
     base_url TEXT NOT NULL,
     enabled INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    last_refreshed_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS crawl_runs (
@@ -124,6 +126,8 @@ _MIGRATIONS = [
     "ALTER TABLE chunks ADD COLUMN citation TEXT;",
     # is_active on chunks
     "ALTER TABLE chunks ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1;",
+    # last_refreshed_at on sources (T1-A.1)
+    "ALTER TABLE sources ADD COLUMN last_refreshed_at TEXT;",
 ]
 
 
@@ -234,6 +238,126 @@ class Storage:
         )
         self._conn.commit()
 
+    def update_source_last_refreshed(
+        self, source_id: int, refreshed_at: datetime | None = None
+    ) -> None:
+        """Set last_refreshed_at for a source."""
+        ts = (refreshed_at or datetime.now(tz=UTC)).isoformat()
+        self._conn.execute(
+            "UPDATE sources SET last_refreshed_at = ? WHERE id = ?",
+            (ts, source_id),
+        )
+        self._conn.commit()
+
+    def get_source_freshness(self) -> list[dict]:
+        """Return freshness info for every source.
+
+        Returns list of dicts with keys: slug, source_type, last_refreshed_at,
+        age_days (None if never refreshed).
+        """
+        rows = self._conn.execute(
+            "SELECT slug, source_type, last_refreshed_at FROM sources ORDER BY slug"
+        ).fetchall()
+        now = datetime.now(tz=UTC)
+        result = []
+        for row in rows:
+            last = row["last_refreshed_at"]
+            if last:
+                last_dt = datetime.fromisoformat(last)
+                # Ensure timezone-aware comparison
+                if last_dt.tzinfo is None:
+                    from datetime import timezone
+                    last_dt = last_dt.replace(tzinfo=timezone.utc)
+                age_days = (now - last_dt).total_seconds() / 86400
+            else:
+                last_dt = None
+                age_days = None
+            result.append({
+                "slug": row["slug"],
+                "source_type": row["source_type"],
+                "last_refreshed_at": last_dt,
+                "age_days": age_days,
+            })
+        return result
+
+    def get_consecutive_failures(self, source_id: int) -> int:
+        """Count consecutive failed runs since the last successful run.
+
+        Derives from crawl_runs table — no extra column needed.
+        """
+        row = self._conn.execute(
+            """SELECT COUNT(*) as cnt FROM crawl_runs
+               WHERE source_id = ? AND status = 'failed'
+               AND completed_at > COALESCE(
+                   (SELECT MAX(completed_at) FROM crawl_runs
+                    WHERE source_id = ? AND status = 'completed'),
+                   '1970-01-01'
+               )""",
+            (source_id, source_id),
+        ).fetchone()
+        return row["cnt"] if row else 0
+
+    def get_source_dashboard_data(self) -> list[dict]:
+        """Return comprehensive per-source data for the health dashboard.
+
+        Returns list of dicts with keys: slug, name, source_type,
+        document_count, chunk_count, last_refreshed_at, age_days,
+        last_run_status, last_run_summary, last_run_completed_at,
+        first_ingested_at, consecutive_failures.
+        """
+        now = datetime.now(tz=UTC)
+        sources = self.get_all_sources()
+        result = []
+
+        for source in sources:
+            sid = source.id
+            doc_count = self.get_document_count(source_id=sid)
+            chunk_count = self.get_chunk_count(source_id=sid)
+
+            # Freshness
+            last = source.last_refreshed_at
+            if last:
+                if last.tzinfo is None:
+                    from datetime import timezone
+                    last = last.replace(tzinfo=timezone.utc)
+                age_days = (now - last).total_seconds() / 86400
+            else:
+                age_days = None
+
+            # Last run
+            runs = self.get_recent_runs(sid, limit=1) if sid else []
+            last_run = runs[0] if runs else None
+
+            # First ingestion (earliest completed run)
+            first_row = self._conn.execute(
+                """SELECT MIN(completed_at) as first_completed
+                   FROM crawl_runs
+                   WHERE source_id = ? AND status = 'completed'""",
+                (sid,),
+            ).fetchone() if sid else None
+            first_ingested = None
+            if first_row and first_row["first_completed"]:
+                first_ingested = first_row["first_completed"]
+
+            consecutive_failures = self.get_consecutive_failures(sid) if sid else 0
+
+            result.append({
+                "slug": source.slug,
+                "name": source.name,
+                "source_type": source.source_type.value if hasattr(source.source_type, 'value') else str(source.source_type),
+                "document_count": doc_count,
+                "chunk_count": chunk_count,
+                "last_refreshed_at": last,
+                "age_days": round(age_days, 1) if age_days is not None else None,
+                "last_run_status": last_run["status"] if last_run else None,
+                "last_run_summary": last_run["summary"] if last_run else {},
+                "last_run_completed_at": last_run["completed_at"] if last_run else None,
+                "first_ingested_at": first_ingested,
+                "consecutive_failures": consecutive_failures,
+            })
+
+        return result
+
     # ── Crawl Runs ──────────────────────────────────────────────
 
     def create_run(self, source_id: int | None = None) -> CrawlRun:
@@ -289,6 +413,26 @@ class Storage:
             "summary": json.loads(row["summary"]),
         }
 
+    def get_recent_runs(self, source_id: int, limit: int = 3) -> list[dict]:
+        """Return the most recent crawl runs for a source."""
+        rows = self._conn.execute(
+            """SELECT * FROM crawl_runs
+               WHERE source_id = ?
+               ORDER BY id DESC LIMIT ?""",
+            (source_id, limit),
+        ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "source_id": row["source_id"],
+                "started_at": row["started_at"],
+                "completed_at": row["completed_at"],
+                "status": row["status"],
+                "summary": json.loads(row["summary"]),
+            }
+            for row in rows
+        ]
+
     # ── Documents ───────────────────────────────────────────────
 
     def get_document_by_url(self, source_url: str) -> Document | None:
@@ -300,16 +444,20 @@ class Storage:
             return None
         return self._row_to_document(row)
 
-    def upsert_document(self, doc: Document) -> tuple[Document, bool]:
-        """Insert or update a document. Returns (document, is_new_or_changed).
+    def upsert_document(self, doc: Document) -> tuple[Document, UpsertStatus]:
+        """Insert or update a document. Returns (document, status).
 
         If a document with the same source_url exists and has the same
-        content_hash, it is unchanged — returns (existing, False).
-        Otherwise inserts a new row and returns (new_doc, True).
+        content_hash, it is unchanged — returns (existing, UNCHANGED).
+        If a document with the same source_url exists but a different hash,
+        it is updated — returns (new_doc, UPDATED).
+        If no document exists, returns (new_doc, NEW).
         """
         existing = self.get_document_by_url(doc.source_url)
         if existing and existing.content_hash == doc.content_hash:
-            return existing, False
+            return existing, UpsertStatus.UNCHANGED
+
+        is_update = existing is not None
 
         # Delete old document and its chunks if URL exists with different content
         if existing and existing.id is not None:
@@ -337,7 +485,7 @@ class Storage:
         )
         self._conn.commit()
         doc.id = cur.lastrowid
-        return doc, True
+        return doc, UpsertStatus.UPDATED if is_update else UpsertStatus.NEW
 
     def get_all_documents(self, source_id: int | None = None) -> list[Document]:
         if source_id is not None:
@@ -432,7 +580,7 @@ class Storage:
 
     def deactivate_missing_sections(
         self, source_id: int, current_section_urls: set[str]
-    ) -> int:
+    ) -> list[dict]:
         """Deactivate chunks for sections no longer present in the source.
 
         Compares the set of section URLs from the latest extraction against
@@ -444,15 +592,20 @@ class Storage:
             current_section_urls: URLs of sections found in the latest extraction.
 
         Returns:
-            Total number of chunks deactivated.
+            List of dicts with keys: source_url, document_id, chunks_deactivated.
         """
         docs = self.get_all_documents(source_id=source_id)
-        total_deactivated = 0
+        deactivated = []
         for doc in docs:
             if doc.source_url not in current_section_urls and doc.id is not None:
                 count = self.deactivate_chunks_for_document(doc.id)
-                total_deactivated += count
-        return total_deactivated
+                if count > 0:
+                    deactivated.append({
+                        "source_url": doc.source_url,
+                        "document_id": doc.id,
+                        "chunks_deactivated": count,
+                    })
+        return deactivated
 
     def get_all_chunks(self, source_id: int | None = None) -> list[Chunk]:
         if source_id is not None:
@@ -717,6 +870,7 @@ class Storage:
 
     @staticmethod
     def _row_to_source(row: sqlite3.Row) -> Source:
+        last_refreshed = row["last_refreshed_at"]
         return Source(
             id=row["id"],
             name=row["name"],
@@ -725,6 +879,7 @@ class Storage:
             base_url=row["base_url"],
             enabled=bool(row["enabled"]),
             created_at=datetime.fromisoformat(row["created_at"]),
+            last_refreshed_at=datetime.fromisoformat(last_refreshed) if last_refreshed else None,
         )
 
     @staticmethod

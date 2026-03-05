@@ -41,4 +41,8 @@ statutory:
     - "1"
   method: ccr_title_8
 
+refresh:
+  max_age_days: 30
+  cron_hint: "0 3 1 * *"  # Monthly 1st 3am UTC
+
 database_path: "data/employee_help.db"

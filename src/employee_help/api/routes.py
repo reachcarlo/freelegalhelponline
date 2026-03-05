@@ -30,6 +30,9 @@ from employee_help.api.schemas import (
     FeedbackRequest,
     FeedbackResponse,
     HealthResponse,
+    RefreshStatusResponse,
+    SourceFreshnessInfo,
+    SourceRefreshStatusInfo,
     IdentifiedIssueInfo,
     IncidentDocRequest,
     IncidentDocResponse,
@@ -54,16 +57,224 @@ router = APIRouter(prefix="/api")
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint."""
+    """Health check endpoint with knowledge base freshness."""
     try:
         retrieval = get_retrieval_service()
+
+        # Check knowledge base freshness
+        kb_status = "unknown"
+        sources_stale = 0
+        oldest: SourceFreshnessInfo | None = None
+
+        try:
+            from employee_help.config import load_all_source_configs
+            from employee_help.storage.storage import Storage
+
+            storage = Storage()
+            freshness = storage.get_source_freshness()
+            storage.close()
+
+            configs = load_all_source_configs("config/sources", enabled_only=True)
+            max_age_map = {c.slug: c.refresh.max_age_days for c in configs}
+
+            max_age_seen = 0.0
+            max_age_slug = ""
+            for f in freshness:
+                max_age = max_age_map.get(f["slug"], 7)
+                age = f["age_days"]
+                if age is None:
+                    sources_stale += 1
+                    if not max_age_slug:
+                        max_age_slug = f["slug"]
+                        max_age_seen = float("inf")
+                elif age > max_age:
+                    sources_stale += 1
+                if age is not None and age > max_age_seen:
+                    max_age_seen = age
+                    max_age_slug = f["slug"]
+
+            if max_age_slug:
+                oldest = SourceFreshnessInfo(
+                    slug=max_age_slug,
+                    age_days=round(max_age_seen, 1) if max_age_seen != float("inf") else None,
+                    status="STALE" if sources_stale > 0 else "FRESH",
+                )
+
+            kb_status = "stale" if sources_stale > 0 else "fresh"
+
+        except Exception:
+            pass  # Non-critical — health endpoint should still return
+
         return HealthResponse(
             status="ok",
             embedding_model_loaded=retrieval.embedding_service is not None,
             vector_store_connected=retrieval.vector_store is not None,
+            knowledge_base=kb_status,
+            sources_stale=sources_stale,
+            oldest_source=oldest,
         )
     except RuntimeError:
         return HealthResponse(status="starting")
+
+
+@router.get("/refresh-status", response_model=RefreshStatusResponse)
+async def refresh_status():
+    """Knowledge base refresh status and per-source freshness."""
+    try:
+        from employee_help.config import load_all_source_configs
+        from employee_help.storage.storage import Storage
+
+        storage = Storage()
+        freshness = storage.get_source_freshness()
+        all_sources = storage.get_all_sources()
+        source_id_map = {s.slug: s.id for s in all_sources}
+
+        configs = load_all_source_configs("config/sources", enabled_only=True)
+        config_map = {c.slug: c for c in configs}
+
+        sources = []
+        stale = 0
+        fresh = 0
+        never_run = 0
+
+        for f in freshness:
+            slug = f["slug"]
+            cfg = config_map.get(slug)
+            max_age = cfg.refresh.max_age_days if cfg else 7
+            cron_hint = cfg.refresh.cron_hint if cfg else ""
+            age = f["age_days"]
+            sid = source_id_map.get(slug)
+            consecutive_failures = storage.get_consecutive_failures(sid) if sid else 0
+
+            if age is None:
+                status = "NEVER_RUN"
+                never_run += 1
+            elif age > max_age:
+                status = "STALE"
+                stale += 1
+            else:
+                status = "FRESH"
+                fresh += 1
+
+            sources.append(SourceRefreshStatusInfo(
+                slug=slug,
+                source_type=f["source_type"],
+                last_refreshed_at=f["last_refreshed_at"].isoformat() if f["last_refreshed_at"] else None,
+                age_days=round(age, 1) if age is not None else None,
+                max_age_days=max_age,
+                status=status,
+                consecutive_failures=consecutive_failures,
+                cron_hint=cron_hint,
+            ))
+
+        storage.close()
+
+        kb_status = "fresh" if stale == 0 and never_run == 0 else "stale"
+        return RefreshStatusResponse(
+            knowledge_base=kb_status,
+            sources_stale=stale,
+            sources_fresh=fresh,
+            sources_never_run=never_run,
+            sources=sources,
+        )
+    except Exception as e:
+        logger.error("refresh_status_error", error=str(e))
+        return RefreshStatusResponse()
+
+
+@router.get("/dashboard")
+async def dashboard():
+    """Comprehensive knowledge base health dashboard."""
+    try:
+        from employee_help.config import load_all_source_configs
+        from employee_help.storage.storage import Storage
+
+        from employee_help.api.schemas import DashboardResponse, DashboardSourceInfo
+
+        # Tier mapping (mirrors cli.py _TIER_CATEGORIES)
+        tier_categories = {
+            "statutory": {"statutory_code"},
+            "regulatory": {"regulation", "jury_instruction"},
+            "persuasive": {"opinion_letter", "enforcement_manual", "federal_guidance"},
+            "agency": {"agency_guidance", "fact_sheet", "faq", "legal_aid_resource", "poster"},
+            "caselaw": {"case_law"},
+        }
+
+        storage = Storage()
+        data = storage.get_source_dashboard_data()
+        storage.close()
+
+        configs = load_all_source_configs("config/sources", enabled_only=False)
+        config_map = {c.slug: c for c in configs}
+
+        sources = []
+        fresh = stale = never_run = 0
+
+        for entry in data:
+            cfg = config_map.get(entry["slug"])
+            max_age = cfg.refresh.max_age_days if cfg else 7
+            content_cat = cfg.extraction.content_category if cfg else "unknown"
+            method = cfg.statutory.method if cfg and cfg.statutory else "crawler"
+            static = cfg.refresh.static if cfg else False
+            cron_hint = cfg.refresh.cron_hint if cfg else ""
+
+            # Determine tier
+            tier = "unknown"
+            for t_name, t_cats in tier_categories.items():
+                if content_cat in t_cats:
+                    tier = t_name
+                    break
+
+            # Determine status
+            age = entry["age_days"]
+            if age is None:
+                status = "NEVER_RUN"
+                never_run += 1
+            elif age <= max_age:
+                status = "FRESH"
+                fresh += 1
+            else:
+                status = "STALE"
+                stale += 1
+
+            sources.append(DashboardSourceInfo(
+                slug=entry["slug"],
+                name=entry["name"],
+                source_type=entry["source_type"],
+                tier=tier,
+                content_category=content_cat,
+                extraction_method=method,
+                document_count=entry["document_count"],
+                chunk_count=entry["chunk_count"],
+                last_refreshed_at=entry["last_refreshed_at"].isoformat() if entry["last_refreshed_at"] else None,
+                age_days=entry["age_days"],
+                max_age_days=max_age,
+                status=status,
+                static=static,
+                cron_hint=cron_hint,
+                last_run_status=entry["last_run_status"],
+                last_run_summary=entry["last_run_summary"],
+                first_ingested_at=entry["first_ingested_at"],
+                consecutive_failures=entry["consecutive_failures"],
+            ))
+
+        total_docs = sum(e["document_count"] for e in data)
+        total_chunks = sum(e["chunk_count"] for e in data)
+        kb_status = "fresh" if stale == 0 and never_run == 0 else "stale"
+
+        return DashboardResponse(
+            knowledge_base=kb_status,
+            total_sources=len(data),
+            total_documents=total_docs,
+            total_chunks=total_chunks,
+            sources_fresh=fresh,
+            sources_stale=stale,
+            sources_never_run=never_run,
+            sources=sources,
+        )
+    except Exception as e:
+        logger.error("dashboard_error", error=str(e))
+        return DashboardResponse()
 
 
 def _sse_event(event: str, data: dict) -> str:

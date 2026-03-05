@@ -39,4 +39,9 @@ statutory:
   target_divisions: []
   method: dlse_manual
 
+refresh:
+  max_age_days: 180
+  cron_hint: "0 3 1 1,7 *"  # Biannual Jan/Jul 1st 3am UTC
+  check_update_url: "https://www.dir.ca.gov/dlse/DLSEManual/dlse_enfcmanual.pdf"
+
 database_path: "data/employee_help.db"

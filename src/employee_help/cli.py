@@ -76,6 +76,36 @@ def main() -> int:
         help="Show status for a specific source slug.",
     )
 
+    # Source-health command (T1-A)
+    health_parser = subparsers.add_parser(
+        "source-health",
+        help="Show freshness and health status for all knowledge sources.",
+    )
+    health_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/employee_help.db",
+        help="Database path (default: data/employee_help.db).",
+    )
+    health_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output as JSON instead of table.",
+    )
+    health_parser.add_argument(
+        "--history",
+        type=int,
+        default=0,
+        help="Show last N refresh runs per source (default: 0).",
+    )
+    health_parser.add_argument(
+        "--check-updates",
+        action="store_true",
+        dest="check_updates",
+        help="Check for new editions of downloadable sources (CACI, DLSE Manual).",
+    )
+
     # Refresh command
     refresh_parser = subparsers.add_parser(
         "refresh",
@@ -97,6 +127,28 @@ def main() -> int:
         "--dry-run",
         action="store_true",
         help="Report what would change without modifying the database.",
+    )
+    refresh_parser.add_argument(
+        "--tier",
+        type=str,
+        choices=["statutory", "regulatory", "persuasive", "agency", "caselaw"],
+        default=None,
+        help="Refresh only sources in this tier (e.g., --tier statutory).",
+    )
+    refresh_parser.add_argument(
+        "--auto-embed",
+        action="store_true",
+        help="Run incremental embedding + FTS rebuild after refreshing.",
+    )
+    refresh_parser.add_argument(
+        "--auto-download",
+        action="store_true",
+        help="Download PUBINFO archive before refreshing statutory sources.",
+    )
+    refresh_parser.add_argument(
+        "--if-stale",
+        action="store_true",
+        help="Only refresh sources that exceed their max_age_days threshold.",
     )
 
     # Validate command (Phase 1G)
@@ -441,6 +493,24 @@ def main() -> int:
         help="Database path (default: data/employee_help.db).",
     )
 
+    # Dashboard command (T4-D)
+    dashboard_parser = subparsers.add_parser(
+        "dashboard",
+        help="Comprehensive health dashboard for all knowledge sources.",
+    )
+    dashboard_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/employee_help.db",
+        help="Database path (default: data/employee_help.db).",
+    )
+    dashboard_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output as JSON instead of table.",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -450,6 +520,8 @@ def main() -> int:
     try:
         if args.command == "scrape":
             return _handle_scrape(args)
+        elif args.command == "source-health":
+            return _handle_source_health(args)
         elif args.command == "refresh":
             return _handle_refresh(args)
         elif args.command == "status":
@@ -480,6 +552,8 @@ def main() -> int:
             return _handle_ingest_caselaw(args)
         elif args.command == "spot-check-caselaw":
             return _handle_spot_check_caselaw(args)
+        elif args.command == "dashboard":
+            return _handle_dashboard(args)
         else:
             parser.print_help()
             return 1
@@ -586,12 +660,337 @@ def _scrape_legacy(config_path: str, dry_run: bool) -> int:
     return 0 if stats.errors == 0 else 1
 
 
+# Tier → content_category mapping for --tier filter (T1-B.6)
+_TIER_CATEGORIES: dict[str, set[str]] = {
+    "statutory": {"statutory_code"},
+    "regulatory": {"regulation", "jury_instruction"},
+    "persuasive": {"opinion_letter", "enforcement_manual", "federal_guidance"},
+    "agency": {"agency_guidance", "fact_sheet", "faq", "legal_aid_resource", "poster"},
+    "caselaw": {"case_law"},
+}
+
+
+def _filter_configs_by_tier(configs: list, tier: str | None) -> list:
+    """Filter source configs to those matching the given tier's content categories."""
+    if tier is None:
+        return configs
+    categories = _TIER_CATEGORIES.get(tier, set())
+    return [c for c in configs if c.extraction.content_category in categories]
+
+
+def _handle_source_health(args) -> int:
+    """Show freshness and health status for all knowledge sources."""
+    import json as json_mod
+
+    from employee_help.config import load_all_source_configs
+    from employee_help.storage.storage import Storage
+
+    storage = Storage(args.db)
+
+    try:
+        freshness = storage.get_source_freshness()
+        all_sources = storage.get_all_sources()
+
+        # Build max_age_days lookup from configs
+        all_configs = []
+        try:
+            all_configs = load_all_source_configs("config/sources", enabled_only=False)
+            max_age_map = {c.slug: c.refresh.max_age_days for c in all_configs}
+        except FileNotFoundError:
+            max_age_map = {}
+
+        # Build consecutive failure lookup
+        source_id_map = {s.slug: s.id for s in all_sources}
+
+        rows = []
+        for f in freshness:
+            slug = f["slug"]
+            max_age = max_age_map.get(slug, 7)
+            age_days = f["age_days"]
+
+            if age_days is None:
+                status = "NEVER_RUN"
+            elif age_days <= max_age:
+                status = "FRESH"
+            else:
+                status = "STALE"
+
+            sid = source_id_map.get(slug)
+            consecutive_failures = storage.get_consecutive_failures(sid) if sid else 0
+
+            rows.append({
+                "slug": slug,
+                "source_type": f["source_type"],
+                "last_refreshed_at": f["last_refreshed_at"].isoformat() if f["last_refreshed_at"] else None,
+                "age_days": round(age_days, 1) if age_days is not None else None,
+                "max_age_days": max_age,
+                "status": status,
+                "consecutive_failures": consecutive_failures,
+            })
+
+        if args.json_output:
+            print(json_mod.dumps(rows, indent=2))
+            return 0
+
+        # Table output
+        print("\n" + "=" * 85)
+        print("SOURCE HEALTH")
+        print("=" * 85)
+        print(f"{'Slug':<25} {'Type':<15} {'Age (days)':<12} {'Max':<6} {'Status':<12} {'Failures'}")
+        print("-" * 85)
+        for r in rows:
+            age_str = f"{r['age_days']}" if r["age_days"] is not None else "—"
+            print(
+                f"{r['slug']:<25} {r['source_type']:<15} {age_str:<12} "
+                f"{r['max_age_days']:<6} {r['status']:<12} {r['consecutive_failures']}"
+            )
+
+        stale_count = sum(1 for r in rows if r["status"] in ("STALE", "NEVER_RUN"))
+        print("-" * 85)
+        print(f"Total: {len(rows)} sources, {stale_count} stale/never-run")
+        print("=" * 85 + "\n")
+
+        # Show run history if requested
+        if args.history > 0:
+            _print_run_history(storage, all_sources, args.history)
+
+        # Check for new editions (--check-updates)
+        if getattr(args, "check_updates", False):
+            _check_source_updates(all_configs)
+
+        return 0
+
+    finally:
+        storage.close()
+
+
+def _print_run_history(storage, sources, count: int) -> None:
+    """Print last N runs per source."""
+    for source in sources:
+        if source.id is None:
+            continue
+        runs = storage.get_recent_runs(source.id, count)
+        if not runs:
+            continue
+        print(f"\n  {source.slug} — Last {len(runs)} runs:")
+        for run in runs:
+            status = run["status"]
+            completed = run["completed_at"] or "—"
+            summary = run["summary"]
+            docs = summary.get("documents_stored", summary.get("opinions_loaded", "?"))
+            duration = summary.get("duration_seconds", "?")
+            if isinstance(duration, (int, float)):
+                duration = f"{duration:.0f}s"
+            print(f"    {completed}  {status:<10}  docs={docs}  duration={duration}")
+
+
+def _check_source_updates(configs: list) -> None:
+    """Check for new editions of downloadable sources via HTTP HEAD.
+
+    Sources with a non-empty ``refresh.check_update_url`` are checked.
+    URL templates may contain ``{next_year}`` which is replaced with the
+    current year + 1.
+    """
+    from datetime import datetime
+
+    import httpx
+
+    sources_with_url = [c for c in configs if c.refresh.check_update_url]
+    if not sources_with_url:
+        return
+
+    current_year = datetime.now().year
+    next_year = current_year + 1
+
+    print("\n" + "-" * 85)
+    print("UPDATE CHECKS")
+    print("-" * 85)
+
+    for config in sources_with_url:
+        url = config.refresh.check_update_url.replace("{next_year}", str(next_year))
+        try:
+            resp = httpx.head(url, timeout=10.0, follow_redirects=True)
+            if resp.status_code == 200:
+                content_length = resp.headers.get("content-length", "unknown")
+                print(f"  {config.slug}: NEW EDITION AVAILABLE at {url} (size: {content_length})")
+            elif resp.status_code == 404:
+                print(f"  {config.slug}: Current edition (no new edition at {url})")
+            else:
+                print(f"  {config.slug}: Unknown (HTTP {resp.status_code} at {url})")
+        except httpx.TimeoutException:
+            print(f"  {config.slug}: Timeout checking {url}")
+        except httpx.HTTPError as e:
+            print(f"  {config.slug}: Error checking {url}: {e}")
+
+    print("-" * 85 + "\n")
+
+
+def _handle_dashboard(args) -> int:
+    """Show comprehensive health dashboard for all knowledge sources."""
+    import json as json_mod
+
+    from employee_help.config import load_all_source_configs
+    from employee_help.storage.storage import Storage
+
+    storage = Storage(args.db)
+
+    try:
+        dashboard_data = storage.get_source_dashboard_data()
+
+        # Load configs for tier/schedule metadata
+        try:
+            all_configs = load_all_source_configs("config/sources", enabled_only=False)
+            config_map = {c.slug: c for c in all_configs}
+        except FileNotFoundError:
+            config_map = {}
+
+        # Enrich dashboard data with config metadata
+        for entry in dashboard_data:
+            cfg = config_map.get(entry["slug"])
+            if cfg:
+                entry["content_category"] = cfg.extraction.content_category
+                entry["max_age_days"] = cfg.refresh.max_age_days
+                entry["static"] = cfg.refresh.static
+                entry["cron_hint"] = cfg.refresh.cron_hint
+                entry["extraction_method"] = cfg.statutory.method if cfg.statutory else "crawler"
+                # Determine tier
+                for tier_name, cats in _TIER_CATEGORIES.items():
+                    if cfg.extraction.content_category in cats:
+                        entry["tier"] = tier_name
+                        break
+                else:
+                    entry["tier"] = "unknown"
+                # Determine status
+                age = entry["age_days"]
+                if age is None:
+                    entry["status"] = "NEVER_RUN"
+                elif age <= cfg.refresh.max_age_days:
+                    entry["status"] = "FRESH"
+                else:
+                    entry["status"] = "STALE"
+            else:
+                entry["tier"] = "unknown"
+                entry["content_category"] = "unknown"
+                entry["max_age_days"] = 7
+                entry["static"] = False
+                entry["cron_hint"] = ""
+                entry["extraction_method"] = "unknown"
+                entry["status"] = "UNKNOWN"
+
+        if args.json_output:
+            # Serialize datetimes for JSON
+            for entry in dashboard_data:
+                if entry.get("last_refreshed_at"):
+                    entry["last_refreshed_at"] = entry["last_refreshed_at"].isoformat()
+            print(json_mod.dumps(dashboard_data, indent=2, default=str))
+            return 0
+
+        # Table output grouped by tier
+        tier_order = ["statutory", "regulatory", "persuasive", "agency", "caselaw", "unknown"]
+        tier_labels = {
+            "statutory": "STATUTORY (Binding Law)",
+            "regulatory": "REGULATORY (Binding Regulations)",
+            "persuasive": "PERSUASIVE (Administrative Authority)",
+            "agency": "AGENCY (Guidance & Educational)",
+            "caselaw": "CASE LAW (Judicial Opinions)",
+            "unknown": "UNCATEGORIZED",
+        }
+
+        by_tier: dict[str, list] = {t: [] for t in tier_order}
+        for entry in dashboard_data:
+            tier = entry.get("tier", "unknown")
+            if tier in by_tier:
+                by_tier[tier].append(entry)
+            else:
+                by_tier["unknown"].append(entry)
+
+        total_docs = sum(e["document_count"] for e in dashboard_data)
+        total_chunks = sum(e["chunk_count"] for e in dashboard_data)
+        total_sources = len(dashboard_data)
+        fresh = sum(1 for e in dashboard_data if e.get("status") == "FRESH")
+        stale = sum(1 for e in dashboard_data if e.get("status") == "STALE")
+        never_run = sum(1 for e in dashboard_data if e.get("status") == "NEVER_RUN")
+
+        print()
+        print("=" * 100)
+        print("KNOWLEDGE BASE HEALTH DASHBOARD")
+        print("=" * 100)
+
+        for tier in tier_order:
+            entries = by_tier[tier]
+            if not entries:
+                continue
+
+            print(f"\n  {tier_labels.get(tier, tier)} ({len(entries)} sources)")
+            print("  " + "-" * 96)
+            print(
+                f"  {'Source':<22} {'Docs':>6} {'Chunks':>7} {'Age':>6} {'Max':>5} "
+                f"{'Status':<10} {'Last Run':<12} {'Errors':>6} {'Method'}"
+            )
+            print("  " + "-" * 96)
+
+            for e in entries:
+                age_str = f"{e['age_days']}d" if e["age_days"] is not None else "--"
+                max_str = f"{e['max_age_days']}d"
+                status = e.get("status", "?")
+
+                # Last run info
+                last_run_status = e.get("last_run_status", "")
+                if last_run_status == "completed":
+                    summary = e.get("last_run_summary", {})
+                    duration = summary.get("duration_seconds", 0)
+                    if isinstance(duration, (int, float)):
+                        last_run_str = f"OK {duration:.0f}s"
+                    else:
+                        last_run_str = "OK"
+                elif last_run_status == "failed":
+                    last_run_str = "FAILED"
+                elif last_run_status == "running":
+                    last_run_str = "RUNNING"
+                else:
+                    last_run_str = "--"
+
+                errors = e.get("last_run_summary", {}).get("errors", 0)
+                method = e.get("extraction_method", "?")
+
+                print(
+                    f"  {e['slug']:<22} {e['document_count']:>6,} {e['chunk_count']:>7,} "
+                    f"{age_str:>6} {max_str:>5} {status:<10} {last_run_str:<12} "
+                    f"{errors:>6} {method}"
+                )
+
+        # Summary footer
+        print()
+        print("  " + "=" * 96)
+        print(
+            f"  TOTAL: {total_sources} sources | {total_docs:,} documents | "
+            f"{total_chunks:,} chunks"
+        )
+        print(
+            f"  Fresh: {fresh}/{total_sources} | Stale: {stale}/{total_sources} | "
+            f"Never Run: {never_run}/{total_sources}"
+        )
+        print("  " + "=" * 96)
+        print()
+
+        return 0
+
+    finally:
+        storage.close()
+
+
 def _handle_refresh(args) -> int:
     """Execute the refresh command — re-runs pipeline with change detection."""
     if args.source:
         return _refresh_source(args.source, args.dry_run)
     elif args.all_sources:
-        return _refresh_all_sources(args.dry_run)
+        return _refresh_all_sources(
+            dry_run=args.dry_run,
+            tier=getattr(args, "tier", None),
+            auto_embed=getattr(args, "auto_embed", False),
+            auto_download=getattr(args, "auto_download", False),
+            if_stale=getattr(args, "if_stale", False),
+        )
     else:
         print("Error: Specify --source <slug> or --all.", file=sys.stderr)
         return 1
@@ -599,6 +998,12 @@ def _handle_refresh(args) -> int:
 
 def _refresh_source(slug: str, dry_run: bool) -> int:
     """Refresh a single source — re-run pipeline, report changes."""
+    result, _stats = _refresh_source_with_stats(slug, dry_run)
+    return result
+
+
+def _refresh_source_with_stats(slug: str, dry_run: bool):
+    """Refresh a single source, returning (exit_code, PipelineStats)."""
     from employee_help.pipeline import Pipeline
     from employee_help.storage.storage import Storage
 
@@ -609,10 +1014,14 @@ def _refresh_source(slug: str, dry_run: bool) -> int:
         source_config = load_source_config(config_path)
     except FileNotFoundError:
         print(f"Error: No config found for source '{slug}' at {config_path}", file=sys.stderr)
-        return 1
+        return 1, None
     except ValueError as e:
         print(f"Error: Invalid config for source '{slug}': {e}", file=sys.stderr)
-        return 1
+        return 1, None
+
+    # Static corpus confirmation (T3-A.2) — skip full extraction
+    if source_config.refresh.static and not dry_run:
+        return _confirm_static_corpus(source_config)
 
     # Get pre-refresh counts
     storage = Storage(source_config.database_path)
@@ -637,12 +1046,73 @@ def _refresh_source(slug: str, dry_run: bool) -> int:
     storage.close()
 
     _print_refresh_report(slug, stats, pre_doc_count, post_doc_count, pre_chunk_count, post_chunk_count)
-    return 0 if stats.errors == 0 else 1
+    return (0 if stats.errors == 0 else 1), stats
 
 
-def _refresh_all_sources(dry_run: bool) -> int:
-    """Refresh all enabled sources."""
-    logger.info("refresh_all_sources", dry_run=dry_run)
+def _confirm_static_corpus(source_config) -> tuple[int, None]:
+    """Confirm a static corpus is still accessible without re-extracting.
+
+    For sources with ``refresh.static: true`` (e.g., DLSE opinion letters —
+    closed corpus, no new data expected).  Performs:
+      (a) HTTP HEAD to ``base_url`` to verify accessibility,
+      (b) query stored document count for this source,
+      (c) update ``last_refreshed_at`` if confirmed.
+
+    Returns (exit_code, None) — no PipelineStats for static sources.
+    """
+    from datetime import UTC, datetime
+
+    import httpx
+
+    from employee_help.storage.storage import Storage
+
+    slug = source_config.slug
+    base_url = source_config.base_url
+    storage = Storage(source_config.database_path)
+
+    try:
+        source_record = storage.get_source(slug)
+        source_id = source_record.id if source_record else None
+        doc_count = storage.get_document_count(source_id=source_id) if source_id else 0
+
+        # HTTP HEAD to verify accessibility
+        reachable = False
+        try:
+            resp = httpx.head(base_url, timeout=10.0, follow_redirects=True)
+            reachable = resp.status_code < 400
+        except (httpx.TimeoutException, httpx.HTTPError):
+            reachable = False
+
+        if reachable:
+            print(f"  {slug}: Corpus confirmed ({doc_count} docs, source reachable)")
+            if source_id:
+                storage.update_source_last_refreshed(source_id, datetime.now(tz=UTC))
+            return 0, None
+        else:
+            print(f"  {slug}: Source unreachable at {base_url} ({doc_count} docs in DB)")
+            return 1, None
+    finally:
+        storage.close()
+
+
+def _refresh_all_sources(
+    dry_run: bool,
+    tier: str | None = None,
+    auto_embed: bool = False,
+    auto_download: bool = False,
+    if_stale: bool = False,
+) -> int:
+    """Refresh all enabled sources with optional tier filter and orchestration."""
+    import json as json_mod
+    from datetime import UTC, datetime
+
+    from employee_help.storage.storage import Storage
+
+    logger.info(
+        "refresh_all_sources",
+        dry_run=dry_run, tier=tier, auto_embed=auto_embed,
+        auto_download=auto_download, if_stale=if_stale,
+    )
 
     try:
         configs = load_all_source_configs("config/sources", enabled_only=True)
@@ -650,23 +1120,189 @@ def _refresh_all_sources(dry_run: bool) -> int:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
+    # Filter by tier
+    configs = _filter_configs_by_tier(configs, tier)
+
     if not configs:
-        print("No enabled source configs found in config/sources/.")
+        print(f"No enabled source configs found{' for tier ' + tier if tier else ''}.")
         return 0
 
+    # Conditional PUBINFO download (--auto-download)
+    has_statutory = any(
+        c.extraction.content_category == "statutory_code" for c in configs
+    )
+    if auto_download and has_statutory and not dry_run:
+        print("\n--- Auto-downloading PUBINFO archive ---")
+        try:
+            _auto_download_pubinfo()
+        except Exception as e:
+            logger.error("auto_download_failed", error=str(e))
+            print(f"Warning: PUBINFO download failed: {e}", file=sys.stderr)
+
+    # Staleness check (--if-stale)
+    if if_stale:
+        storage = Storage(configs[0].database_path)
+        freshness = storage.get_source_freshness()
+        freshness_map = {f["slug"]: f for f in freshness}
+        storage.close()
+
+        fresh_configs = []
+        for c in configs:
+            entry = freshness_map.get(c.slug)
+            if entry and entry["age_days"] is not None and entry["age_days"] <= c.refresh.max_age_days:
+                print(f"  Skipping {c.slug}: fresh ({entry['age_days']:.1f} days, max {c.refresh.max_age_days})")
+                continue
+            fresh_configs.append(c)
+        configs = fresh_configs
+
+        if not configs:
+            print("All sources are fresh. Nothing to refresh.")
+            return 0
+
+    # Track which sources had changes for auto-embed
     total_errors = 0
+    failed_sources = []
+    sources_with_changes = []
+    all_stats = []
+
     for source_config in configs:
         print(f"\n--- Refreshing source: {source_config.name} ({source_config.slug}) ---")
         try:
-            result = _refresh_source(source_config.slug, dry_run)
+            result, stats = _refresh_source_with_stats(source_config.slug, dry_run)
+            all_stats.append((source_config.slug, stats))
             if result != 0:
                 total_errors += 1
+                failed_sources.append(source_config.slug)
+            elif stats and stats.has_changes:
+                sources_with_changes.append(source_config.slug)
         except Exception as e:
             logger.error("refresh_failed", source=source_config.slug, error=str(e))
             print(f"Error refreshing {source_config.slug}: {e}", file=sys.stderr)
             total_errors += 1
+            failed_sources.append(source_config.slug)
+
+    # Retry failed sources once (T1-B.10)
+    if failed_sources and not dry_run:
+        import time
+        print(f"\n--- Retrying {len(failed_sources)} failed sources ---")
+        time.sleep(5)
+        retry_errors = 0
+        for slug in list(failed_sources):
+            print(f"  Retrying {slug}...")
+            try:
+                result, stats = _refresh_source_with_stats(slug, dry_run)
+                if result == 0:
+                    failed_sources.remove(slug)
+                    total_errors -= 1
+                    if stats and stats.has_changes:
+                        sources_with_changes.append(slug)
+                else:
+                    retry_errors += 1
+            except Exception as e:
+                logger.error("retry_failed", source=slug, error=str(e))
+                retry_errors += 1
+
+    # Auto-embed (--auto-embed)
+    if auto_embed and sources_with_changes and not dry_run:
+        print(f"\n--- Auto-embedding {len(sources_with_changes)} changed sources ---")
+        try:
+            _auto_embed_sources(sources_with_changes, configs[0].database_path)
+        except Exception as e:
+            logger.error("auto_embed_failed", error=str(e))
+            print(f"Warning: Auto-embed failed: {e}", file=sys.stderr)
+    elif auto_embed and not sources_with_changes:
+        print("\n--- No changes detected; skipping auto-embed ---")
+
+    # Write JSON refresh report (T1-B.9)
+    if not dry_run:
+        _write_refresh_report_json(all_stats, tier, sources_with_changes, failed_sources)
 
     return 0 if total_errors == 0 else 1
+
+
+def _auto_download_pubinfo() -> None:
+    """Download PUBINFO archive if a newer version is available."""
+    from employee_help.scraper.extractors.pubinfo import download_pubinfo
+
+    pubinfo_dir = Path("data/pubinfo")
+    download_pubinfo(pubinfo_dir)
+    print("  PUBINFO download complete.")
+
+
+def _auto_embed_sources(slugs: list[str], db_path: str) -> None:
+    """Run incremental embedding + FTS rebuild for changed sources."""
+    import yaml
+
+    from employee_help.retrieval.embedder import EmbeddingService
+    from employee_help.retrieval.vector_store import VectorStore
+    from employee_help.storage.storage import Storage
+
+    rag_config_path = Path("config/rag.yaml")
+    rag_config = {}
+    if rag_config_path.exists():
+        with open(rag_config_path) as f:
+            rag_config = yaml.safe_load(f) or {}
+
+    emb_cfg = rag_config.get("embedding", {})
+    vs_cfg = rag_config.get("vector_store", {})
+
+    storage = Storage(db_path)
+    embedding_service = EmbeddingService(
+        model_name=emb_cfg.get("model", "BAAI/bge-base-en-v1.5"),
+        device=emb_cfg.get("device", "cpu"),
+    )
+    vector_store = VectorStore(db_path=vs_cfg.get("path", "data/lancedb"))
+
+    try:
+        for slug in slugs:
+            result = _embed_source(slug, storage, embedding_service, vector_store)
+            if result == 0:
+                print(f"  Embedded {slug}")
+
+        # Rebuild FTS index after embedding
+        print("  Rebuilding FTS index...")
+        vector_store.rebuild_fts_index()
+        print("  FTS index rebuilt.")
+    finally:
+        storage.close()
+
+
+def _write_refresh_report_json(
+    all_stats: list, tier: str | None, changed: list[str], failed: list[str]
+) -> None:
+    """Write JSON refresh report to data/refresh_reports/."""
+    import json as json_mod
+    from datetime import UTC, datetime
+
+    report_dir = Path("data/refresh_reports")
+    report_dir.mkdir(parents=True, exist_ok=True)
+
+    now = datetime.now(tz=UTC)
+    filename = now.strftime("%Y-%m-%d_%H-%M") + ".json"
+
+    report = {
+        "timestamp": now.isoformat(),
+        "tier": tier,
+        "sources": [],
+        "sources_with_changes": changed,
+        "failed_sources": failed,
+    }
+
+    for slug, stats in all_stats:
+        if stats:
+            report["sources"].append({
+                "slug": slug,
+                "new_documents": stats.new_documents,
+                "updated_documents": stats.updated_documents,
+                "unchanged_documents": stats.unchanged_documents,
+                "deactivated_sections": len(stats.deactivated_sections),
+                "errors": stats.errors,
+                "duration_seconds": round(stats.duration_seconds, 1),
+            })
+
+    report_path = report_dir / filename
+    report_path.write_text(json_mod.dumps(report, indent=2))
+    print(f"\nRefresh report saved to {report_path}")
 
 
 def _print_refresh_report(
@@ -678,9 +1314,6 @@ def _print_refresh_report(
     post_chunk: int,
 ) -> None:
     """Print change detection report for a refresh run."""
-    new_docs = post_doc - pre_doc
-    new_chunks = post_chunk - pre_chunk
-
     print("\n" + "=" * 60)
     print("REFRESH REPORT")
     print("=" * 60)
@@ -692,16 +1325,17 @@ def _print_refresh_report(
     print(f"Duration:            {stats.duration_seconds:.2f}s")
     print("-" * 60)
     print("Change Detection:")
-    print(f"  Documents before:  {pre_doc}")
-    print(f"  Documents after:   {post_doc}")
-    print(f"  New/updated docs:  {max(0, new_docs)}")
-    print(f"  Chunks before:     {pre_chunk}")
-    print(f"  Chunks after:      {post_chunk}")
-    print(f"  New/updated chunks:{max(0, new_chunks)}")
-    if new_docs == 0 and new_chunks == 0:
-        print("  Status:            NO CHANGES DETECTED")
+    print(f"  New documents:     {stats.new_documents}")
+    print(f"  Updated documents: {stats.updated_documents}")
+    print(f"  Unchanged:         {stats.unchanged_documents}")
+    deactivated_count = sum(
+        d.get("chunks_deactivated", 0) for d in stats.deactivated_sections
+    )
+    print(f"  Deactivated:       {deactivated_count} chunks ({len(stats.deactivated_sections)} sections)")
+    if stats.has_changes:
+        print("  Status:            CONTENT UPDATED")
     else:
-        print(f"  Status:            CONTENT UPDATED ({new_docs} docs, {new_chunks} chunks)")
+        print("  Status:            NO CHANGES DETECTED")
     print("=" * 60 + "\n")
 
 

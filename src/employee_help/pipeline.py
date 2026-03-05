@@ -26,6 +26,7 @@ from employee_help.storage.models import (
     Document,
     Source,
     SourceType,
+    UpsertStatus,
 )
 from employee_help.storage.storage import Storage
 
@@ -95,10 +96,26 @@ class PipelineStats:
     start_time: datetime
     end_time: datetime
     source_slug: str | None = None
+    new_documents: int = 0
+    updated_documents: int = 0
+    unchanged_documents: int = 0
+    deactivated_sections: list = None  # list[dict] with source_url, chunks_deactivated
+
+    def __post_init__(self):
+        if self.deactivated_sections is None:
+            self.deactivated_sections = []
 
     @property
     def duration_seconds(self) -> float:
         return (self.end_time - self.start_time).total_seconds()
+
+    @property
+    def has_changes(self) -> bool:
+        return (
+            self.new_documents > 0
+            or self.updated_documents > 0
+            or len(self.deactivated_sections) > 0
+        )
 
 
 def classify_content_category(url: str, content_type: ContentType) -> ContentCategory:
@@ -181,6 +198,48 @@ class Pipeline:
                 re.compile(p, re.IGNORECASE)
                 for p in self.source_config.extraction.boilerplate_patterns
             ]
+
+    def _persist_document(
+        self,
+        document: Document,
+        chunks: list,
+        content_category: ContentCategory,
+        citation: str | None,
+        stats: PipelineStats,
+    ) -> UpsertStatus:
+        """Persist a document and its chunks via upsert. Updates stats in place.
+
+        Shared by _run_statutory, _run_caselaw, and _run_crawler (D1 fix).
+        Returns the UpsertStatus for the caller to act on.
+        """
+        stored_doc, status = self.storage.upsert_document(document)
+
+        if status != UpsertStatus.UNCHANGED and stored_doc.id:
+            chunk_objects = [
+                Chunk(
+                    content=chunk.content,
+                    content_hash=chunk.content_hash,
+                    chunk_index=chunk.chunk_index,
+                    heading_path=chunk.heading_path,
+                    token_count=chunk.token_count,
+                    document_id=stored_doc.id,
+                    content_category=content_category,
+                    citation=citation,
+                )
+                for chunk in chunks
+            ]
+            self.storage.insert_chunks(chunk_objects)
+
+        if status == UpsertStatus.NEW:
+            stats.new_documents += 1
+        elif status == UpsertStatus.UPDATED:
+            stats.updated_documents += 1
+        else:
+            stats.unchanged_documents += 1
+
+        stats.documents_stored += 1
+        stats.chunks_created += len(chunks)
+        return status
 
     def _ensure_source_record(self) -> int | None:
         """Ensure the source record exists in the DB, return its id."""
@@ -444,29 +503,15 @@ class Pipeline:
                             source_id=source_id,
                             content_category=content_category,
                         )
-
-                        stored_doc, is_new = self.storage.upsert_document(document)
-
-                        if stored_doc.id and is_new:
-                            chunk_objects = [
-                                Chunk(
-                                    content=chunk.content,
-                                    content_hash=chunk.content_hash,
-                                    chunk_index=chunk.chunk_index,
-                                    heading_path=chunk.heading_path,
-                                    token_count=chunk.token_count,
-                                    document_id=stored_doc.id,
-                                    content_category=content_category,
-                                    citation=section.citation,
-                                )
-                                for chunk in chunks
-                            ]
-                            self.storage.insert_chunks(chunk_objects)
-                        elif not is_new:
+                        status = self._persist_document(
+                            document, chunks, content_category,
+                            citation=section.citation, stats=stats,
+                        )
+                        if status == UpsertStatus.UNCHANGED:
                             self.logger.debug("document_unchanged", citation=section.citation)
-
-                    stats.documents_stored += 1
-                    stats.chunks_created += len(chunks)
+                    else:
+                        stats.documents_stored += 1
+                        stats.chunks_created += len(chunks)
 
                 except Exception as e:
                     stats.errors += 1
@@ -484,9 +529,12 @@ class Pipeline:
                     source_id, current_urls
                 )
                 if deactivated:
+                    stats.deactivated_sections.extend(deactivated)
+                    total = sum(d["chunks_deactivated"] for d in deactivated)
                     self.logger.info(
                         "repealed_sections_deactivated",
-                        count=deactivated,
+                        count=total,
+                        sections=len(deactivated),
                     )
 
             end_time = datetime.now(tz=timezone.utc)
@@ -498,8 +546,14 @@ class Pipeline:
                     "chunks_created": stats.chunks_created,
                     "errors": stats.errors,
                     "duration_seconds": (end_time - start_time).total_seconds(),
+                    "new_documents": stats.new_documents,
+                    "updated_documents": stats.updated_documents,
+                    "unchanged_documents": stats.unchanged_documents,
+                    "deactivated_sections": len(stats.deactivated_sections),
                 }
                 self.storage.complete_run(run_id, status, summary)
+                if status == CrawlStatus.COMPLETED and source_id:
+                    self.storage.update_source_last_refreshed(source_id, end_time)
 
             stats.end_time = end_time
             self._log_run_summary(stats)
@@ -617,27 +671,15 @@ class Pipeline:
                                 content_category=content_category,
                             )
 
-                            stored_doc, is_new = self.storage.upsert_document(document)
+                            status = self._persist_document(
+                                document, chunks, content_category,
+                                citation=case_citation, stats=stats,
+                            )
 
-                            if stored_doc.id and is_new:
-                                chunk_objects = [
-                                    Chunk(
-                                        content=chunk.content,
-                                        content_hash=chunk.content_hash,
-                                        chunk_index=chunk.chunk_index,
-                                        heading_path=chunk.heading_path,
-                                        token_count=chunk.token_count,
-                                        document_id=stored_doc.id,
-                                        content_category=content_category,
-                                        citation=case_citation,
-                                    )
-                                    for chunk in chunks
-                                ]
-                                self.storage.insert_chunks(chunk_objects)
-
+                            if status != UpsertStatus.UNCHANGED and document.id:
                                 # Create citation links from eyecite-extracted citations
                                 stored_chunks = self.storage.get_chunks_for_document(
-                                    stored_doc.id
+                                    document.id
                                 )
                                 if stored_chunks:
                                     first_chunk_id = stored_chunks[0].id
@@ -647,14 +689,14 @@ class Pipeline:
                                     if citation_links:
                                         self.storage.insert_citation_links(citation_links)
 
-                            elif not is_new:
+                            elif status == UpsertStatus.UNCHANGED:
                                 self.logger.debug(
                                     "opinion_unchanged",
                                     case_name=opinion.case_name,
                                 )
-
-                        stats.documents_stored += 1
-                        stats.chunks_created += len(chunks)
+                        else:
+                            stats.documents_stored += 1
+                            stats.chunks_created += len(chunks)
 
                     except Exception as e:
                         stats.errors += 1
@@ -681,8 +723,13 @@ class Pipeline:
                     "chunks_created": stats.chunks_created,
                     "errors": stats.errors,
                     "duration_seconds": (end_time - start_time).total_seconds(),
+                    "new_documents": stats.new_documents,
+                    "updated_documents": stats.updated_documents,
+                    "unchanged_documents": stats.unchanged_documents,
                 }
                 self.storage.complete_run(run_id, status, summary)
+                if status == CrawlStatus.COMPLETED and source_id:
+                    self.storage.update_source_last_refreshed(source_id, end_time)
 
             stats.end_time = end_time
             self._log_run_summary(stats)
@@ -835,27 +882,14 @@ class Pipeline:
                             source_id=source_id,
                             content_category=content_category,
                         )
-
-                        stored_doc, is_new = self.storage.upsert_document(document)
-
-                        if stored_doc.id and is_new:
-                            chunk_objects = [
-                                Chunk(
-                                    content=chunk.content,
-                                    content_hash=chunk.content_hash,
-                                    chunk_index=chunk.chunk_index,
-                                    heading_path=chunk.heading_path,
-                                    token_count=chunk.token_count,
-                                    document_id=stored_doc.id,
-                                    content_category=content_category,
-                                )
-                                for chunk in chunks
-                            ]
-                            self.storage.insert_chunks(chunk_objects)
-
-                        stats.documents_stored += 1
-                        stats.chunks_created += len(chunks)
-                        self.logger.info("document_processed", url=url, chunks=len(chunks), is_new=is_new)
+                        status = self._persist_document(
+                            document, chunks, content_category,
+                            citation=None, stats=stats,
+                        )
+                        self.logger.info(
+                            "document_processed", url=url, chunks=len(chunks),
+                            status=status.value,
+                        )
                     else:
                         stats.documents_stored += 1
                         stats.chunks_created += len(chunks)
@@ -874,8 +908,13 @@ class Pipeline:
                     "chunks_created": stats.chunks_created,
                     "errors": stats.errors,
                     "duration_seconds": stats.duration_seconds,
+                    "new_documents": stats.new_documents,
+                    "updated_documents": stats.updated_documents,
+                    "unchanged_documents": stats.unchanged_documents,
                 }
                 self.storage.complete_run(run_id, status, summary)
+                if status == CrawlStatus.COMPLETED and source_id:
+                    self.storage.update_source_last_refreshed(source_id, end_time)
 
             stats.end_time = end_time
             self._log_run_summary(stats)

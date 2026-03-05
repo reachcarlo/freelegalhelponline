@@ -39,4 +39,9 @@ statutory:
   target_divisions: []
   method: caci_pdf
 
+refresh:
+  max_age_days: 180
+  cron_hint: "0 3 1 1,7 *"  # Biannual Jan/Jul 1st 3am UTC
+  check_update_url: "https://www.courts.ca.gov/partners/documents/caci-{next_year}.pdf"
+
 database_path: "data/employee_help.db"

@@ -95,6 +95,20 @@ class StatutoryConfig:
 
 
 @dataclass
+class RefreshConfig:
+    """Refresh scheduling parameters for a source."""
+
+    max_age_days: int = 7
+    static: bool = False
+    cron_hint: str = ""
+    check_update_url: str = ""
+
+    def __post_init__(self) -> None:
+        if self.max_age_days < 1:
+            raise ValueError("max_age_days must be >= 1")
+
+
+@dataclass
 class CaselawConfig:
     """Configuration for case law ingestion from CourtListener."""
 
@@ -133,6 +147,9 @@ class SourceConfig:
 
     # Case law settings (only for CourtListener source)
     caselaw: CaselawConfig | None = None
+
+    # Refresh settings
+    refresh: RefreshConfig = field(default_factory=RefreshConfig)
 
     # Storage
     database_path: str = "data/employee_help.db"
@@ -347,6 +364,15 @@ def load_source_config(config_path: str | Path) -> SourceConfig:
             search_queries=caselaw_data.get("search_queries", []),
         )
 
+    # Parse refresh settings
+    refresh_data = data.get("refresh", {})
+    refresh = RefreshConfig(
+        max_age_days=int(refresh_data.get("max_age_days", 7)),
+        static=bool(refresh_data.get("static", False)),
+        cron_hint=str(refresh_data.get("cron_hint", "")),
+        check_update_url=str(refresh_data.get("check_update_url", "")),
+    )
+
     # Parse database path
     database_path = data.get("database_path", "data/employee_help.db")
 
@@ -365,6 +391,7 @@ def load_source_config(config_path: str | Path) -> SourceConfig:
         chunking=chunking,
         statutory=statutory,
         caselaw=caselaw,
+        refresh=refresh,
         database_path=database_path,
     )
 

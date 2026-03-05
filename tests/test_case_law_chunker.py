@@ -58,7 +58,7 @@ class TestContentCategoryEnum:
         assert "case_law" not in CONSUMER_CATEGORIES
 
     def test_all_consumer_categories_still_present(self):
-        expected = {"agency_guidance", "fact_sheet", "faq", "opinion_letter", "enforcement_manual", "federal_guidance", "legal_aid_resource"}
+        expected = {"agency_guidance", "fact_sheet", "faq", "opinion_letter", "enforcement_manual", "federal_guidance", "legal_aid_resource", "regulation"}
         assert CONSUMER_CATEGORIES == expected
 
 

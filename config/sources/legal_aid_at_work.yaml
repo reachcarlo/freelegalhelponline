@@ -83,4 +83,8 @@ chunking:
   max_tokens: 1500
   overlap_tokens: 100
 
+refresh:
+  max_age_days: 14
+  cron_hint: "0 3 * * 0"  # Weekly Sunday 3am UTC
+
 database_path: "data/employee_help.db"

@@ -20,6 +20,7 @@ from employee_help.storage.models import (
     Document,
     Source,
     SourceType,
+    UpsertStatus,
 )
 from employee_help.storage.storage import Storage
 
@@ -82,7 +83,7 @@ def _store_section(storage, source, run_id, section):
         source_id=source.id,
         content_category=ContentCategory.STATUTORY_CODE,
     )
-    stored_doc, is_new = storage.upsert_document(doc)
+    stored_doc, _status = storage.upsert_document(doc)
 
     if stored_doc.id:
         chunk_objects = [
@@ -166,7 +167,7 @@ class TestRepealedSectionSoftDelete:
         current_urls = {s100.source_url, s102.source_url}
         deactivated = storage.deactivate_missing_sections(source.id, current_urls)
 
-        assert deactivated > 0  # s101 chunks should be deactivated
+        assert len(deactivated) > 0  # s101 chunks should be deactivated
 
         # Verify s100 and s102 chunks are still active
         all_docs = storage.get_all_documents(source_id=source.id)
@@ -188,7 +189,7 @@ class TestRepealedSectionSoftDelete:
 
         current_urls = {s100.source_url, s101.source_url}
         deactivated = storage.deactivate_missing_sections(source.id, current_urls)
-        assert deactivated == 0
+        assert len(deactivated) == 0
 
     def test_full_reingest_with_repealed_section(self, storage, source):
         """End-to-end: first ingest has 3 sections, second has 2, third re-adds."""
@@ -206,7 +207,7 @@ class TestRepealedSectionSoftDelete:
         run2 = storage.create_run(source_id=source.id)
         current_urls = {s100.source_url, s102.source_url}
         deactivated = storage.deactivate_missing_sections(source.id, current_urls)
-        assert deactivated > 0
+        assert len(deactivated) > 0
 
         # Verify 101 is inactive
         all_docs = storage.get_all_documents(source_id=source.id)

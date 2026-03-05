@@ -23,6 +23,14 @@ class CrawlStatus(str, Enum):
     FAILED = "failed"
 
 
+class UpsertStatus(str, Enum):
+    """Result of a document upsert operation."""
+
+    NEW = "new"
+    UPDATED = "updated"
+    UNCHANGED = "unchanged"
+
+
 class SourceType(str, Enum):
     AGENCY = "agency"
     STATUTORY_CODE = "statutory_code"
@@ -51,6 +59,7 @@ class Source:
     base_url: str
     enabled: bool = True
     created_at: datetime = field(default_factory=_utcnow)
+    last_refreshed_at: datetime | None = None
     id: int | None = None
 
 

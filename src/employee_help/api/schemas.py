@@ -96,12 +96,82 @@ class FeedbackResponse(BaseModel):
     status: str = "ok"
 
 
+class SourceFreshnessInfo(BaseModel):
+    """Freshness info for a single source."""
+
+    slug: str
+    age_days: float | None = None
+    status: str = "unknown"
+
+
+class SourceRefreshStatusInfo(BaseModel):
+    """Per-source refresh status for /api/refresh-status."""
+
+    slug: str
+    source_type: str
+    last_refreshed_at: str | None = None
+    age_days: float | None = None
+    max_age_days: int = 7
+    status: str = "unknown"
+    consecutive_failures: int = 0
+    cron_hint: str = ""
+
+
+class RefreshStatusResponse(BaseModel):
+    """Response body for GET /api/refresh-status."""
+
+    knowledge_base: str = "unknown"
+    sources_stale: int = 0
+    sources_fresh: int = 0
+    sources_never_run: int = 0
+    sources: list[SourceRefreshStatusInfo] = []
+
+
+class DashboardSourceInfo(BaseModel):
+    """Per-source detail for the dashboard."""
+
+    slug: str
+    name: str
+    source_type: str
+    tier: str = "unknown"
+    content_category: str = "unknown"
+    extraction_method: str = "unknown"
+    document_count: int = 0
+    chunk_count: int = 0
+    last_refreshed_at: str | None = None
+    age_days: float | None = None
+    max_age_days: int = 7
+    status: str = "unknown"
+    static: bool = False
+    cron_hint: str = ""
+    last_run_status: str | None = None
+    last_run_summary: dict = {}
+    first_ingested_at: str | None = None
+    consecutive_failures: int = 0
+
+
+class DashboardResponse(BaseModel):
+    """Response body for GET /api/dashboard."""
+
+    knowledge_base: str = "unknown"
+    total_sources: int = 0
+    total_documents: int = 0
+    total_chunks: int = 0
+    sources_fresh: int = 0
+    sources_stale: int = 0
+    sources_never_run: int = 0
+    sources: list[DashboardSourceInfo] = []
+
+
 class HealthResponse(BaseModel):
     """Response body for GET /api/health."""
 
     status: str = "ok"
     embedding_model_loaded: bool = False
     vector_store_connected: bool = False
+    knowledge_base: str = "unknown"
+    sources_stale: int = 0
+    oldest_source: SourceFreshnessInfo | None = None
 
 
 # ── Deadline calculator schemas ──────────────────────────────────────

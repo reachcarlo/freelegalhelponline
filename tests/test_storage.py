@@ -10,6 +10,7 @@ from employee_help.storage.models import (
     ContentType,
     CrawlStatus,
     Document,
+    UpsertStatus,
 )
 from employee_help.storage.storage import Storage
 
@@ -91,8 +92,8 @@ class TestCrawlRuns:
 class TestDocuments:
     def test_insert_document(self, storage: Storage, sample_document: Document) -> None:
         storage.create_run()
-        doc, is_new = storage.upsert_document(sample_document)
-        assert is_new is True
+        doc, status = storage.upsert_document(sample_document)
+        assert status == UpsertStatus.NEW
         assert doc.id is not None
 
     def test_upsert_idempotency_same_hash(
@@ -100,11 +101,11 @@ class TestDocuments:
     ) -> None:
         """Re-inserting a document with the same content hash should not create a new row."""
         storage.create_run()
-        doc1, is_new1 = storage.upsert_document(sample_document)
-        assert is_new1 is True
+        doc1, status1 = storage.upsert_document(sample_document)
+        assert status1 == UpsertStatus.NEW
 
-        doc2, is_new2 = storage.upsert_document(sample_document)
-        assert is_new2 is False
+        doc2, status2 = storage.upsert_document(sample_document)
+        assert status2 == UpsertStatus.UNCHANGED
         assert doc2.id == doc1.id
         assert storage.get_document_count() == 1
 
@@ -121,8 +122,8 @@ class TestDocuments:
         sample_document.content_hash = "new_hash_456"
         sample_document.id = None
 
-        doc2, is_new = storage.upsert_document(sample_document)
-        assert is_new is True
+        doc2, status = storage.upsert_document(sample_document)
+        assert status == UpsertStatus.UPDATED
         assert doc2.id != old_id
         assert storage.get_document_count() == 1
 

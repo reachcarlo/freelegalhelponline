@@ -11,6 +11,7 @@ from employee_help.storage.models import (
     Document,
     Source,
     SourceType,
+    UpsertStatus,
 )
 from employee_help.storage.storage import Storage
 
@@ -48,9 +49,9 @@ def _make_doc_and_chunks(storage, source, url, content, run_id):
         source_id=source.id,
         content_category=ContentCategory.AGENCY_GUIDANCE,
     )
-    stored, is_new = storage.upsert_document(doc)
+    stored, status = storage.upsert_document(doc)
 
-    if is_new and stored.id:
+    if status != UpsertStatus.UNCHANGED and stored.id:
         chunk = Chunk(
             content=content,
             content_hash=content_hash,

@@ -538,18 +538,27 @@ def _split_large_section(
         current_parts.append(para)
         current_tokens += para_tokens
 
-    # Flush remaining
+    # Flush remaining — if still over max_tokens, split by sentences
     if current_parts:
         chunk_text = "\n\n".join(current_parts)
-        chunks.append(
-            ChunkResult(
-                content=chunk_text,
-                heading_path=heading_path,
-                chunk_index=start_index + len(chunks),
-                token_count=estimate_tokens(chunk_text),
-                content_hash=content_hash(chunk_text),
+        remaining_tokens = estimate_tokens(chunk_text)
+        if remaining_tokens <= max_tokens:
+            chunks.append(
+                ChunkResult(
+                    content=chunk_text,
+                    heading_path=heading_path,
+                    chunk_index=start_index + len(chunks),
+                    token_count=remaining_tokens,
+                    content_hash=content_hash(chunk_text),
+                )
             )
-        )
+        else:
+            # Safety: accumulated text exceeds max_tokens — cascade to sentences
+            sub_chunks = _split_by_sentences(
+                chunk_text, heading_path, start_index + len(chunks),
+                max_tokens, overlap_tokens,
+            )
+            chunks.extend(sub_chunks)
 
     return chunks
 

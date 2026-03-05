@@ -39,4 +39,8 @@ statutory:
   target_divisions: []
   method: dlse_opinions
 
+refresh:
+  max_age_days: 365
+  static: true
+
 database_path: "data/employee_help.db"
