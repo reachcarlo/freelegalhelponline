@@ -12,6 +12,7 @@ import type {
   ContentScope,
   ExtractedMetadataInfo,
   GenerateResponse,
+  LitigationPosture,
   ParsedRequestInfo,
   PartyRole,
   ResponseDiscoveryType,
@@ -28,6 +29,7 @@ export interface ObjectionDrafterState {
   discoveryType: ResponseDiscoveryType | "auto";
   verbosity: Verbosity;
   partyRole: PartyRole;
+  posture: LitigationPosture;
   includeWaiverLanguage: boolean;
 
   // Input (Step 2)
@@ -66,6 +68,7 @@ const initialState: ObjectionDrafterState = {
   discoveryType: "auto",
   verbosity: "medium",
   partyRole: "defendant",
+  posture: "aggressive",
   includeWaiverLanguage: false,
   rawText: "",
   parsedRequests: [],
@@ -90,6 +93,7 @@ type Action =
   | { type: "SET_DISCOVERY_TYPE"; discoveryType: ResponseDiscoveryType | "auto" }
   | { type: "SET_VERBOSITY"; verbosity: Verbosity }
   | { type: "SET_PARTY_ROLE"; partyRole: PartyRole }
+  | { type: "SET_POSTURE"; posture: LitigationPosture }
   | { type: "SET_WAIVER_LANGUAGE"; include: boolean }
   | { type: "SET_RAW_TEXT"; text: string }
   | {
@@ -131,6 +135,8 @@ function reducer(state: ObjectionDrafterState, action: Action): ObjectionDrafter
       return { ...state, verbosity: action.verbosity };
     case "SET_PARTY_ROLE":
       return { ...state, partyRole: action.partyRole };
+    case "SET_POSTURE":
+      return { ...state, posture: action.posture };
     case "SET_WAIVER_LANGUAGE":
       return { ...state, includeWaiverLanguage: action.include };
     case "SET_RAW_TEXT":

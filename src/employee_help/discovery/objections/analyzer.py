@@ -33,6 +33,7 @@ from employee_help.discovery.objections.models import (
 from employee_help.discovery.objections.validator import CitationValidator
 from employee_help.generation.llm import LLMClient
 from employee_help.generation.models import TokenUsage
+from employee_help.models.posture import LitigationPosture
 
 logger = structlog.get_logger(__name__)
 
@@ -127,6 +128,7 @@ class ObjectionAnalyzer:
         party_role: PartyRole = PartyRole.DEFENDANT,
         *,
         model: str | None = None,
+        posture: LitigationPosture = LitigationPosture.AGGRESSIVE,
     ) -> AnalysisResult:
         """Analyze a single request. Convenience wrapper around analyze_batch."""
         batch = self.analyze_batch(
@@ -134,6 +136,7 @@ class ObjectionAnalyzer:
             verbosity=verbosity,
             party_role=party_role,
             model=model,
+            posture=posture,
         )
         if batch.results:
             return batch.results[0]
@@ -147,6 +150,7 @@ class ObjectionAnalyzer:
         *,
         model: str | None = None,
         ground_ids: list[str] | None = None,
+        posture: LitigationPosture = LitigationPosture.AGGRESSIVE,
     ) -> BatchAnalysisResult:
         """Analyze a batch of requests, chunking if necessary.
 
@@ -156,6 +160,7 @@ class ObjectionAnalyzer:
             party_role: Plaintiff or defendant.
             model: Override model selection.
             ground_ids: Restrict to these ground IDs (None = all applicable).
+            posture: Litigation posture controlling objection threshold.
 
         Returns:
             BatchAnalysisResult with all results and usage info.
@@ -192,6 +197,7 @@ class ObjectionAnalyzer:
                     party_role=party_role,
                     discovery_type=discovery_type,
                     model=model,
+                    posture=posture,
                 )
                 all_results.extend(results)
                 total_input += usage.input_tokens
@@ -253,6 +259,7 @@ class ObjectionAnalyzer:
         party_role: PartyRole,
         discovery_type: ResponseDiscoveryType,
         model: str | None,
+        posture: LitigationPosture = LitigationPosture.AGGRESSIVE,
     ) -> tuple[list[AnalysisResult], TokenUsage]:
         """Analyze a single chunk of requests via one LLM call."""
         # Build system prompt
@@ -260,6 +267,7 @@ class ObjectionAnalyzer:
         system_prompt = template.render(
             party_role=party_role.value,
             verbosity=verbosity.value,
+            posture=posture.value,
             discovery_type_label=DISCOVERY_TYPE_LABELS.get(
                 discovery_type, "Discovery Requests"
             ),

@@ -39,6 +39,7 @@ California employment attorneys spend 2–6 hours per case drafting objections t
 | "Ensure every objection has correct statutory and case citations" | Manual lookup or template banks | Templates go stale, citations may be overruled or superseded |
 | "Control the verbosity and tone of objections" | Manually rewrite each time | No standardization; varies by attorney, by day, by mood |
 | "Process an entire discovery set at once" | Work through requests one-by-one | 35+ requests × manual analysis = hours of repetitive work |
+| **"Control how aggressively I object based on my litigation strategy"** | Attorney manually adjusts tone case-by-case, no systematic control | No standardization; aggressive attorneys over-object on one case and under-object on the next; no way to calibrate |
 | **"Raise only defensible objections — avoid sanctions for boilerplate"** | Attorney exercises judgment; errs toward over-objecting | CCP §2023.010(e) sanctions for meritless objections; $1,000 mandatory sanctions under §2023.050; *Korea Data Systems* risk |
 | **"Prepare meet-and-confer talking points for each objection"** | Attorney reconstructs rationale from memory or notes | CCP §2016.040 (AB 1521) requires good-faith meet-and-confer; long-form explanations serve this dual purpose |
 
@@ -66,9 +67,10 @@ Based on market research (see `learning/market research/discovery/`):
 5. **No ecosystem lock-in** — No Thomson Reuters, no $1K/mo platform; works alongside any DMS
 6. **Request-specific explanations** — LLM contextualizes each explanation to the specific request text (not generic boilerplate)
 7. **Sanctions awareness** — Tool recommends *fewer, better-justified* objections (opposite of AI.Law's blanket approach)
+8. **Litigation posture control** — 3-tier aggressiveness setting (Aggressive / Balanced / Selective) gives attorneys systematic control over objection threshold. Eve Legal offers "iterative aggressiveness tuning" but requires expensive enterprise subscription; AI.Law has no selectivity at all. Our posture control is free, transparent, and explained via tooltips.
 
 **Differentiation to validate** (build last):
-8. **Template-driven uniformity** — Variable tags for firm style customization (no competitor offers this, but demand is unvalidated)
+9. **Template-driven uniformity** — Variable tags for firm style customization (no competitor offers this, but demand is unvalidated)
 
 ---
 
@@ -329,9 +331,132 @@ Three levels, configured per-session:
 
 **Leverage existing infrastructure**: Use the existing `CaseCitationVerifier` (Phase 4D.1) and `StatuteCitationVerifier` (Phase 4D.2) for cross-validation against CourtListener and the local statutory database.
 
-### 5.4 Objection Selection
+### 5.4 Litigation Posture (Aggressiveness)
 
-The tool defaults to **LLM-recommended objections** — NOT all grounds enabled. This is a critical design decision driven by the sanctions-avoidance JTBD.
+Attorneys have distinct litigation styles that affect how many objections they raise and how assertive those objections are. The tool provides a **Litigation Posture** setting that controls this threshold — the posture determines *how readily the LLM raises an objection*, not whether the objection is proper (all generated objections must remain legally defensible).
+
+#### 5.4.1 The Three Postures
+
+| Posture | Label | Default | Threshold | Behavior |
+|---------|-------|---------|-----------|----------|
+| **Aggressive** | "Aggressive" | **Yes (default)** | Raise any objection with a colorable argument | Object to most requests. Include marginal objections (LOW strength) that preserve the right to assert them later. Err toward over-objecting. This is standard practice for attorneys who want to protect the record and force meet-and-confer. |
+| **Neutral** | "Balanced" | No | Raise objections with reasonable grounds | Object where genuine grounds exist (MEDIUM+ strength). Skip objections that would likely be overruled without significant analysis. Standard practice for collaborative litigation or experienced attorneys comfortable with selective objections. |
+| **Passive** | "Selective" | No | Only object to clearly improper requests | Object only to requests that are truly improper (HIGH strength or blatant form defects). Minimizes objections to reduce friction. Suitable for matters where the attorney values cooperation or the judge disfavors extensive objections. |
+
+**Critical constraint**: All three postures produce **legally proper objections**. The posture does not fabricate grounds — it adjusts the *threshold* for applying grounds that have at least some basis. An aggressive posture raises a vague-and-ambiguous objection to a request with borderline ambiguity; a passive posture would let that request pass. Both decisions are defensible.
+
+**Why "Aggressive" is the default**: Most California employment attorneys (particularly plaintiff-side) prefer to preserve objections. Waiver is permanent — an objection not raised is an objection forfeited. CCP §2030.290(a) / §2031.300(a) explicitly state that failure to serve timely responses waives all objections. The safer professional default is to over-object and then selectively withdraw at meet-and-confer. The tool warns about sanctions risk (CCP §2023.010(e), §2023.050) but leaves the judgment call to the attorney.
+
+#### 5.4.2 How Posture Affects LLM Behavior
+
+The posture modifies the LLM system prompt (via Jinja2 conditionals in `objection_system.j2`). Specifically:
+
+| Dimension | Aggressive | Neutral | Selective |
+|-----------|------------|---------|-----------|
+| **Objection count** | Raise every applicable ground, including marginal | Raise grounds with genuine basis | Only raise strong, clearly applicable grounds |
+| **Strength threshold** | Include LOW, MEDIUM, and HIGH | Include MEDIUM and HIGH; skip LOW unless clearly applicable | Only HIGH; MEDIUM only if clearly applicable |
+| **Form objections** | Raise form objections liberally (vague, compound, assumes facts) even if minor | Raise form objections for clear defects | Only raise form objections for egregious defects |
+| **Boilerplate grounds** | Include relevance, overbroad, and burden for most requests as preservation objections | Include relevance/overbroad only when request is genuinely off-topic | Skip boilerplate; only object when specific subject matter is truly irrelevant |
+| **Explanation tone** | Assertive, advocacy-oriented (e.g., "This request is impermissibly overbroad...") | Balanced, descriptive (e.g., "This request seeks information beyond the scope...") | Measured, concessive (e.g., "While discovery is broad, this request exceeds...") |
+| **`no_objections_rationale`** | Rarely used — nearly every request gets at least one objection | Used when request is properly drafted | Used more frequently — most requests pass without objection |
+
+**Prompt example** (aggressive):
+> "You should raise objections liberally. Your goal is to preserve the responding party's rights by asserting every colorable objection, including those with marginal strength. An objection not raised is waived. Include LOW-strength objections when any arguable basis exists. Err toward over-objecting — the attorney can always withdraw objections at meet-and-confer."
+
+**Prompt example** (selective):
+> "You should raise objections sparingly. Only object when the ground is clearly applicable and likely to be sustained. Skip marginal objections. If a request is broadly worded but the intent is clear, do not object on form grounds. The attorney prefers a targeted approach that preserves credibility with the court."
+
+#### 5.4.3 Generalizable Architecture (Litigation Posture as Platform Concept)
+
+The litigation posture is **not specific to objections**. It is a platform-level concept that any attorney-facing tool can consume. The pattern:
+
+```
+┌─────────────────────────────────────────────────┐
+│  Platform: LitigationPosture enum               │
+│  (aggressive / neutral / selective)              │
+│  Location: src/employee_help/models/posture.py  │
+│  Config: config/posture.yaml (descriptions,     │
+│          labels, tooltips per posture)           │
+└────────────────┬────────────────────────────────┘
+                 │ consumed by
+    ┌────────────┼────────────────────┐
+    ▼            ▼                    ▼
+ Objections   Discovery Requests   Motions (future)
+ (threshold   (scope/volume of     (assertiveness
+  for raising  requests generated)  of arguments)
+  objections)
+```
+
+**Implementation**:
+
+1. **Shared enum** at `src/employee_help/models/posture.py`:
+   ```python
+   class LitigationPosture(str, Enum):
+       AGGRESSIVE = "aggressive"
+       NEUTRAL = "neutral"
+       SELECTIVE = "selective"
+   ```
+
+2. **Config** at `config/posture.yaml`:
+   ```yaml
+   postures:
+     aggressive:
+       label: "Aggressive"
+       short_description: "Object to most requests — preserve all arguable grounds"
+       tooltip: "Raises every colorable objection, including those with marginal strength. Standard for attorneys who want to protect the record. You can always withdraw objections at meet-and-confer."
+       icon: "shield"  # frontend icon hint
+     neutral:
+       label: "Balanced"
+       short_description: "Object where reasonable grounds exist"
+       tooltip: "Raises objections with genuine basis. Skips marginal grounds that would likely be overruled. Good balance of preservation and credibility."
+       icon: "scale"
+     selective:
+       label: "Selective"
+       short_description: "Only object to clearly improper requests"
+       tooltip: "Minimizes objections to reduce discovery friction. Only raises strong, clearly applicable grounds. Best when you want to preserve credibility with the court or opposing counsel."
+       icon: "target"
+   default: "aggressive"
+   ```
+
+3. **Per-tool contextualization**: Each tool's prompt template receives `posture` as a Jinja2 variable and includes posture-specific instructions. The prompt in `objection_system.j2` interprets `posture` as objection threshold logic. A future `discovery_requests_system.j2` would interpret it as scope/volume logic. The enum and config are shared; the behavioral semantics are tool-specific.
+
+4. **No shared "posture service"** — This is intentionally simple. Each tool reads the enum value and renders its own prompt conditionals. No intermediary abstraction, no strategy pattern, no posture-to-behavior mapping table. The prompt template *is* the strategy. If a third tool needs posture logic, add a Jinja2 conditional to its prompt. Three similar Jinja2 blocks in three templates is better than a premature PostureBehavior abstraction.
+
+#### 5.4.4 Frontend Integration
+
+**Setup step (Step 1)**: A 3-option segmented control labeled "Litigation Posture" appears below the verbosity selector.
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Litigation Posture                            ⓘ   │
+│  ┌──────────────┬──────────────┬──────────────┐    │
+│  │ ● Aggressive │   Balanced   │  Selective   │    │
+│  └──────────────┴──────────────┴──────────────┘    │
+│  Raises every colorable objection, including        │
+│  marginal grounds. Preserves all arguable rights.   │
+└─────────────────────────────────────────────────────┘
+```
+
+- **ⓘ icon**: Hover/click opens a tooltip with full posture explanation (loaded from `config/posture.yaml`)
+- **Description line**: Below the segmented control, shows the `short_description` for the selected posture. Updates on selection change.
+- **Default**: "Aggressive" pre-selected (highlighted)
+- **Persistent**: Selection persists for the session (React state); resets on page reload
+
+**API contract**: The `posture` field is added to `GenerateRequest`:
+```python
+class GenerateRequest(BaseModel):
+    # ... existing fields ...
+    posture: LitigationPosture = LitigationPosture.AGGRESSIVE
+```
+
+Frontend TypeScript type:
+```typescript
+type LitigationPosture = "aggressive" | "neutral" | "selective";
+```
+
+### 5.5 Objection Selection
+
+The tool defaults to **LLM-recommended objections** — NOT all grounds enabled. This is a critical design decision driven by the sanctions-avoidance JTBD, **modulated by the litigation posture setting** (§5.4).
 
 **V1 behavior**:
 - LLM determines which objections apply to the request
@@ -566,15 +691,65 @@ Each request's result panel includes:
 - [x] Requests where no objections apply display "No objections applicable" message
 - [x] Content scope toggle switches between "Objections Only" and "Request + Objections"
 - [x] Copy-to-clipboard and .txt download work for formatted output
+- [x] Discovery type selector (auto-detect + manual override)
+- [x] Playwright E2E tests: 26 tests covering all 4 wizard steps, navigation, API mocking, error handling
 - [ ] Batch (35 requests) completes in < 45 seconds (Haiku) / < 90 seconds (Sonnet) *(backend perf — needs live testing)*
 - [ ] Partial failure: show results for successful requests, retry failed *(backend handles chunking; UI surfaces errors)*
 - [ ] Cost per batch: < $0.02 (Haiku) / < $0.15 (Sonnet) for 35 requests *(backend cost — needs live testing)*
+
+**Test count**: 91 backend unit tests + 31 Playwright E2E tests = 122 total
 
 **Estimated effort**: 2–2.5 weeks
 
 ---
 
-### Phase O.2 — Document Upload + Word Export + Shell Insertion
+### Phase O.2 — Litigation Posture + Document Upload + Word Export + Shell Insertion
+
+**Goal**: (1) Add the litigation posture (aggressiveness) setting that controls objection threshold, and (2) enable document upload workflows where attorneys upload a discovery shell and get objections inserted.
+
+#### O.2A — Litigation Posture (Aggressiveness)
+
+**Goal**: Give attorneys control over how aggressively the tool objects. Default to aggressive to preserve objections; allow dialing down to balanced or selective.
+
+**Scope**:
+- **Platform-level `LitigationPosture` enum** at `src/employee_help/models/posture.py` (aggressive / neutral / selective)
+- **Config file** at `config/posture.yaml` with labels, descriptions, tooltips per posture
+- **System prompt update**: `config/prompts/objection_system.j2` — Jinja2 conditionals on `posture` variable that modify objection threshold, strength filtering, form-objection liberality, and explanation tone (see §5.4.2)
+- **Backend API**: Add `posture` field to `GenerateRequest` (default: aggressive); pass through to `ObjectionAnalyzer.analyze_batch()`
+- **Frontend Setup step**: 3-option segmented control ("Aggressive" / "Balanced" / "Selective") with info icon tooltip and dynamic description line below (see §5.4.4)
+- **Frontend state**: `posture` field in `ObjectionDrafterState`, `SET_POSTURE` action in reducer
+
+**Backend changes** — **IMPLEMENTED (2026-03-04)**:
+- `src/employee_help/models/posture.py` — `LitigationPosture` enum + `PostureInfo` dataclass + `load_posture_config()` YAML loader
+- `src/employee_help/discovery/objections/analyzer.py` — `posture` param threaded through `analyze_single()`, `analyze_batch()`, `_analyze_chunk()` → Jinja2 template
+- `src/employee_help/api/objection_routes.py` — `posture` field on `GenerateRequest` (Literal["aggressive", "balanced", "selective"], default: "aggressive")
+- `config/posture.yaml` — Labels, descriptions, tooltips for all 3 postures
+- `config/prompts/objection_system.j2` — Full posture-conditional system prompt: aggressive (preserve all), balanced (genuinely warranted), selective (lean/credible)
+- **18 backend tests**: enum values, config loading, frozen dataclass, prompt rendering (3 postures + base rules), analyzer integration (posture threading, default verification), API endpoint tests (posture acceptance, default, invalid 422)
+
+**Frontend changes** — **IMPLEMENTED (2026-03-04)**:
+- `frontend/lib/objection-api.ts` — `LitigationPosture` type, `POSTURE_LABELS` constant with label/description/tooltip, `posture` field on `GenerateOptions`
+- `frontend/lib/objection-context.tsx` — `posture` state field (default: `"aggressive"`), `SET_POSTURE` action, reducer case
+- `frontend/components/discovery/objection-drafter.tsx` — 3-option segmented control in Setup step (between Party Role and waiver toggle), `title` attribute for tooltips, wired to `generateObjections()` call
+- **5 Playwright E2E tests**: posture controls visible, aggressive default, selection change, descriptions visible, persistence across steps, posture sent in API request
+
+**Acceptance Criteria**:
+- [ ] Aggressive posture (default) produces more objections per request than balanced *(needs live LLM testing)*
+- [ ] Balanced posture produces more objections per request than selective *(needs live LLM testing)*
+- [ ] Selective posture skips marginal/LOW-strength objections *(needs live LLM testing)*
+- [ ] All three postures produce legally proper objections (no fabricated grounds) *(needs live LLM testing)*
+- [x] Tooltip explains each posture clearly (title attribute on buttons, loaded from POSTURE_LABELS)
+- [x] Posture selection persists across wizard steps within a session (E2E test verified)
+- [ ] Posture value logged in analytics for conversion tracking
+- [x] `LitigationPosture` enum is importable by any module (not coupled to objections)
+
+**Test totals**: 91 backend unit tests + 31 Playwright E2E tests = 122 total
+
+**Status**: IMPLEMENTED (2026-03-04) — backend + frontend complete. Remaining: live LLM acceptance testing (4 criteria) + analytics logging.
+
+---
+
+#### O.2B — Document Upload + Word Export + Shell Insertion
 
 **Goal**: Attorney uploads a discovery shell (.docx or .pdf) → gets objections inserted into their document.
 
@@ -614,7 +789,7 @@ This is the **highest-value workflow**: legal assistants prepare discovery shell
 - [ ] Fallback to paste input on parse failure with helpful messaging
 - [ ] 0 requests found: diagnostic message (scanned image? checkbox form? unusual formatting?)
 
-**Estimated effort**: 2.5–3 weeks
+**Combined Phase O.2 estimated effort**: 3–3.5 weeks (O.2A: 3–4 days + O.2B: 2.5–3 weeks)
 
 ---
 
@@ -656,8 +831,8 @@ This is the **highest-value workflow**: legal assistants prepare discovery shell
 - **Per-request objection editing**: Inline text editing of generated objection language
 - **Desktop two-column layout**: Left column shows parsed requests, right column shows objections, with **synchronized scrolling** so request and objection stay aligned
 - **Optional case context**: Free-text field where attorney describes the case (e.g., "wrongful termination / retaliation; plaintiff was senior engineer terminated after reporting safety violations"). Passed to LLM for more relevant objection analysis.
-- **Objection style selector**: Standard (all applicable) / Conservative (only strong) / Aggressive (include marginal)
 - Smart defaults: Pre-select High/Medium, dim Low-strength objections
+- *(Objection style / litigation posture — moved to Phase O.2A, see §5.4)*
 
 **Estimated effort**: 1.5–2 weeks
 

@@ -1,0 +1,39 @@
+# Litigation Posture Configuration
+# Platform-level setting used by attorney-facing tools (objection drafter,
+# motion drafter, etc.) to control how aggressively the tool objects/argues.
+#
+# Each tool interprets these postures through its own Jinja2 prompt template.
+# This file provides shared display metadata (labels, descriptions, tooltips).
+
+postures:
+  - id: aggressive
+    label: Aggressive
+    description: >-
+      Object broadly to preserve all arguable grounds.
+      Raises form objections liberally, includes boilerplate grounds
+      where colorable, and errs on the side of preserving objections.
+    tooltip: >-
+      Default for most litigation. Raises every objection with a colorable
+      basis to preserve the right to assert it later. Courts may overrule
+      some objections, but waived objections cannot be raised at trial.
+
+  - id: balanced
+    label: Balanced
+    description: >-
+      Object where genuinely warranted. Raises substantive objections
+      with medium-or-higher strength, and form objections only when the
+      defect is clear. Produces a professional, credible response.
+    tooltip: >-
+      Appropriate when you want to maintain credibility with the court
+      or opposing counsel. Focuses on objections likely to be sustained.
+
+  - id: selective
+    label: Selective
+    description: >-
+      Object only to the strongest, most defensible grounds. Omits
+      boilerplate and marginal objections. Produces a lean response
+      focused on objections a court would almost certainly sustain.
+    tooltip: >-
+      Use when you want to project maximum credibility, in cases with
+      a cooperative discovery relationship, or when most requests are
+      proper and only a few warrant objection.

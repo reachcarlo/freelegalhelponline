@@ -880,3 +880,296 @@ class TestObjectionAPI:
             json={"text": "test", "discovery_type": "invalid"},
         )
         assert response.status_code == 400
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Litigation Posture Tests (Phase O.2A)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestLitigationPosture:
+    """Test the LitigationPosture enum, config loading, and integration."""
+
+    def test_enum_values(self):
+        from employee_help.models.posture import LitigationPosture
+
+        assert LitigationPosture.AGGRESSIVE.value == "aggressive"
+        assert LitigationPosture.BALANCED.value == "balanced"
+        assert LitigationPosture.SELECTIVE.value == "selective"
+
+    def test_enum_from_string(self):
+        from employee_help.models.posture import LitigationPosture
+
+        assert LitigationPosture("aggressive") == LitigationPosture.AGGRESSIVE
+        assert LitigationPosture("balanced") == LitigationPosture.BALANCED
+        assert LitigationPosture("selective") == LitigationPosture.SELECTIVE
+
+    def test_enum_invalid_value(self):
+        from employee_help.models.posture import LitigationPosture
+
+        with pytest.raises(ValueError):
+            LitigationPosture("invalid")
+
+    def test_config_loads(self):
+        from employee_help.models.posture import load_posture_config, LitigationPosture
+
+        config = load_posture_config()
+        assert len(config) == 3
+        assert LitigationPosture.AGGRESSIVE in config
+        assert LitigationPosture.BALANCED in config
+        assert LitigationPosture.SELECTIVE in config
+
+    def test_config_labels(self):
+        from employee_help.models.posture import load_posture_config, LitigationPosture
+
+        config = load_posture_config()
+        assert config[LitigationPosture.AGGRESSIVE].label == "Aggressive"
+        assert config[LitigationPosture.BALANCED].label == "Balanced"
+        assert config[LitigationPosture.SELECTIVE].label == "Selective"
+
+    def test_config_has_descriptions(self):
+        from employee_help.models.posture import load_posture_config, LitigationPosture
+
+        config = load_posture_config()
+        for posture in LitigationPosture:
+            info = config[posture]
+            assert len(info.description) > 10
+            assert len(info.tooltip) > 10
+
+    def test_config_missing_file(self):
+        from employee_help.models.posture import load_posture_config
+
+        with pytest.raises(FileNotFoundError):
+            load_posture_config(Path("/nonexistent/posture.yaml"))
+
+    def test_posture_info_frozen(self):
+        from employee_help.models.posture import PostureInfo
+
+        info = PostureInfo(label="Test", description="Desc", tooltip="Tip")
+        with pytest.raises(AttributeError):
+            info.label = "Changed"  # type: ignore[misc]
+
+
+class TestPosturePromptRendering:
+    """Test that the objection system prompt renders correctly with posture."""
+
+    @pytest.fixture
+    def jinja_env(self):
+        from jinja2 import Environment, FileSystemLoader
+
+        return Environment(
+            loader=FileSystemLoader("config/prompts"),
+            autoescape=False,
+        )
+
+    @pytest.fixture
+    def render_args(self, kb):
+        grounds = kb.get_grounds(discovery_type=ResponseDiscoveryType.INTERROGATORIES)
+        return {
+            "party_role": "defendant",
+            "verbosity": "medium",
+            "discovery_type_label": "Special Interrogatories",
+            "grounds": grounds,
+        }
+
+    def test_aggressive_prompt(self, jinja_env, render_args):
+        template = jinja_env.get_template("objection_system.j2")
+        result = template.render(**render_args, posture="aggressive")
+        assert "AGGRESSIVE" in result
+        assert "preserve every objection" in result.lower()
+        assert "err on the side of more objections" in result.lower()
+
+    def test_balanced_prompt(self, jinja_env, render_args):
+        template = jinja_env.get_template("objection_system.j2")
+        result = template.render(**render_args, posture="balanced")
+        assert "BALANCED" in result
+        assert "genuinely warranted" in result.lower()
+        assert "balance thoroughness with credibility" in result.lower()
+
+    def test_selective_prompt(self, jinja_env, render_args):
+        template = jinja_env.get_template("objection_system.j2")
+        result = template.render(**render_args, posture="selective")
+        assert "SELECTIVE" in result
+        assert "lean, credible" in result.lower()
+        assert "omit" in result.lower()
+
+    def test_all_prompts_include_base_rules(self, jinja_env, render_args):
+        template = jinja_env.get_template("objection_system.j2")
+        for posture in ("aggressive", "balanced", "selective"):
+            result = template.render(**render_args, posture=posture)
+            assert "CCP §2023.010(e)" in result
+            assert "Available Objection Grounds" in result
+            assert "sanctions" in result
+
+
+class TestPostureAnalyzerIntegration:
+    """Test posture parameter threading through the analyzer."""
+
+    @pytest.fixture
+    def mock_llm_response(self):
+        return {
+            "tool_name": "submit_objections",
+            "tool_input": {
+                "request_analyses": [
+                    {
+                        "request_number": 1,
+                        "applicable_objections": [
+                            {
+                                "ground_id": "relevance",
+                                "explanation": "test",
+                                "strength": "high",
+                            }
+                        ],
+                    }
+                ]
+            },
+            "input_tokens": 100,
+            "output_tokens": 50,
+            "model": "claude-haiku-4-5-20251001",
+            "duration_ms": 1000,
+        }
+
+    def test_posture_passed_to_template(self, kb, mock_llm_response):
+        """Verify posture is rendered into the system prompt."""
+        from employee_help.discovery.objections.analyzer import ObjectionAnalyzer
+        from employee_help.models.posture import LitigationPosture
+
+        mock_llm = MagicMock()
+        mock_llm.generate_with_tools.return_value = mock_llm_response
+
+        analyzer = ObjectionAnalyzer(mock_llm, kb)
+        requests = [
+            ObjectionRequest(1, "Test", ResponseDiscoveryType.INTERROGATORIES)
+        ]
+
+        for posture in LitigationPosture:
+            analyzer.analyze_batch(requests, posture=posture)
+            call_args = mock_llm.generate_with_tools.call_args
+            system_prompt = call_args.kwargs.get("system_prompt", call_args[1].get("system_prompt", ""))
+            if not system_prompt and len(call_args.args) > 0:
+                system_prompt = call_args.args[0]
+            assert posture.value.upper() in system_prompt.upper(), (
+                f"Posture '{posture.value}' not found in rendered system prompt"
+            )
+
+    def test_default_posture_is_aggressive(self, kb, mock_llm_response):
+        """Default posture should be aggressive."""
+        from employee_help.discovery.objections.analyzer import ObjectionAnalyzer
+
+        mock_llm = MagicMock()
+        mock_llm.generate_with_tools.return_value = mock_llm_response
+
+        analyzer = ObjectionAnalyzer(mock_llm, kb)
+        requests = [
+            ObjectionRequest(1, "Test", ResponseDiscoveryType.INTERROGATORIES)
+        ]
+        analyzer.analyze_batch(requests)
+        call_args = mock_llm.generate_with_tools.call_args
+        system_prompt = call_args.kwargs.get("system_prompt", call_args[1].get("system_prompt", ""))
+        if not system_prompt and len(call_args.args) > 0:
+            system_prompt = call_args.args[0]
+        assert "AGGRESSIVE" in system_prompt.upper()
+
+    def test_analyze_single_accepts_posture(self, kb, mock_llm_response):
+        """analyze_single should accept posture kwarg."""
+        from employee_help.discovery.objections.analyzer import ObjectionAnalyzer
+        from employee_help.models.posture import LitigationPosture
+
+        mock_llm = MagicMock()
+        mock_llm.generate_with_tools.return_value = mock_llm_response
+
+        analyzer = ObjectionAnalyzer(mock_llm, kb)
+        req = ObjectionRequest(1, "Test", ResponseDiscoveryType.INTERROGATORIES)
+
+        result = analyzer.analyze_single(req, posture=LitigationPosture.SELECTIVE)
+        assert isinstance(result, AnalysisResult)
+
+
+class TestPostureAPI:
+    """Test posture parameter in the API endpoints."""
+
+    @pytest.fixture
+    def client(self):
+        from fastapi.testclient import TestClient
+        from employee_help.api.objection_routes import objection_router
+        from fastapi import FastAPI
+
+        app = FastAPI()
+        app.include_router(objection_router)
+        return TestClient(app)
+
+    def test_generate_accepts_posture(self, client):
+        """POST /generate should accept posture field without error."""
+        # This will fail at the LLM call stage since we haven't mocked it,
+        # but we can verify the request schema accepts posture.
+        # Use a mock to prevent the actual LLM call.
+        with patch("employee_help.api.objection_routes._get_analyzer") as mock_get:
+            from employee_help.discovery.objections.models import BatchAnalysisResult
+
+            mock_analyzer = MagicMock()
+            mock_analyzer.analyze_batch.return_value = BatchAnalysisResult(results=[])
+            mock_get.return_value = mock_analyzer
+
+            response = client.post(
+                "/api/objections/generate",
+                json={
+                    "requests": [
+                        {
+                            "request_number": 1,
+                            "request_text": "State all facts.",
+                            "discovery_type": "interrogatories",
+                        }
+                    ],
+                    "posture": "selective",
+                },
+            )
+            assert response.status_code == 200
+
+            # Verify posture was passed through
+            call_kwargs = mock_analyzer.analyze_batch.call_args.kwargs
+            assert "posture" in call_kwargs
+
+    def test_generate_default_posture_aggressive(self, client):
+        """Default posture should be aggressive when not specified."""
+        with patch("employee_help.api.objection_routes._get_analyzer") as mock_get:
+            from employee_help.discovery.objections.models import BatchAnalysisResult
+            from employee_help.models.posture import LitigationPosture
+
+            mock_analyzer = MagicMock()
+            mock_analyzer.analyze_batch.return_value = BatchAnalysisResult(results=[])
+            mock_get.return_value = mock_analyzer
+
+            response = client.post(
+                "/api/objections/generate",
+                json={
+                    "requests": [
+                        {
+                            "request_number": 1,
+                            "request_text": "State all facts.",
+                            "discovery_type": "interrogatories",
+                        }
+                    ],
+                    # no posture field — should default to aggressive
+                },
+            )
+            assert response.status_code == 200
+
+            call_kwargs = mock_analyzer.analyze_batch.call_args.kwargs
+            assert call_kwargs["posture"] == LitigationPosture.AGGRESSIVE
+
+    def test_generate_invalid_posture(self, client):
+        """Invalid posture should return 422."""
+        response = client.post(
+            "/api/objections/generate",
+            json={
+                "requests": [
+                    {
+                        "request_number": 1,
+                        "request_text": "State all facts.",
+                        "discovery_type": "interrogatories",
+                    }
+                ],
+                "posture": "invalid_posture",
+            },
+        )
+        assert response.status_code == 422

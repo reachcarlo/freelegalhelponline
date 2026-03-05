@@ -57,6 +57,7 @@ data/lancedb/
 
 # ML model cache
 models/
+!src/employee_help/models/
 
 # Spike / scratch
 spike/

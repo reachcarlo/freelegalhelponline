@@ -8,11 +8,13 @@ import {
 import {
   DISCOVERY_TYPE_LABELS,
   VERBOSITY_LABELS,
+  POSTURE_LABELS,
   parseRequests,
   generateObjections,
   type ResponseDiscoveryType,
   type Verbosity,
   type PartyRole,
+  type LitigationPosture,
 } from "@/lib/objection-api";
 import WizardStepper from "./wizard-stepper";
 import ObjectionParsePreview from "./objection-parse-preview";
@@ -76,6 +78,7 @@ export default function ObjectionDrafter() {
         })),
         verbosity: state.verbosity,
         party_role: state.partyRole,
+        posture: state.posture,
         include_request_text:
           state.contentScope === "request_and_objections",
         include_waiver_language: state.includeWaiverLanguage,
@@ -93,6 +96,7 @@ export default function ObjectionDrafter() {
     state.selectedRequestIds,
     state.verbosity,
     state.partyRole,
+    state.posture,
     state.contentScope,
     state.includeWaiverLanguage,
     dispatch,
@@ -418,6 +422,47 @@ function SetupStep() {
               </button>
             );
           })}
+        </div>
+      </fieldset>
+
+      {/* Litigation Posture */}
+      <fieldset>
+        <legend className="text-sm font-medium text-text-primary mb-3">
+          Litigation Posture
+        </legend>
+        <div className="grid grid-cols-3 gap-3">
+          {(Object.entries(POSTURE_LABELS) as [LitigationPosture, { label: string; description: string; tooltip: string }][]).map(
+            ([key, info]) => {
+              const selected = state.posture === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() =>
+                    dispatch({ type: "SET_POSTURE", posture: key })
+                  }
+                  title={info.tooltip}
+                  className={`min-h-[44px] rounded-lg border p-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 ${
+                    selected
+                      ? "border-accent bg-accent-surface"
+                      : "border-border hover:border-border-hover"
+                  }`}
+                  aria-pressed={selected}
+                >
+                  <span
+                    className={`text-sm font-medium ${
+                      selected ? "text-accent" : "text-text-primary"
+                    }`}
+                  >
+                    {info.label}
+                  </span>
+                  <span className="mt-1 block text-xs text-text-tertiary">
+                    {info.description}
+                  </span>
+                </button>
+              );
+            }
+          )}
         </div>
       </fieldset>
 

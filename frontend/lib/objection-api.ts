@@ -9,6 +9,7 @@ export type ResponseDiscoveryType = "interrogatories" | "rfps" | "rfas";
 export type Verbosity = "short" | "medium" | "long";
 export type ObjectionStrength = "high" | "medium" | "low";
 export type PartyRole = "plaintiff" | "defendant";
+export type LitigationPosture = "aggressive" | "balanced" | "selective";
 export type ContentScope = "objections_only" | "request_and_objections";
 
 export const DISCOVERY_TYPE_LABELS: Record<ResponseDiscoveryType, string> = {
@@ -24,6 +25,30 @@ export const VERBOSITY_LABELS: Record<
   short: { label: "Short", description: "5–15 words per objection" },
   medium: { label: "Medium", description: "15–30 words per objection" },
   long: { label: "Long", description: "30–60 words (meet-and-confer ready)" },
+};
+
+export const POSTURE_LABELS: Record<
+  LitigationPosture,
+  { label: string; description: string; tooltip: string }
+> = {
+  aggressive: {
+    label: "Aggressive",
+    description: "Object broadly to preserve all arguable grounds",
+    tooltip:
+      "Raises every objection with a colorable basis to preserve the right to assert it later. Courts may overrule some, but waived objections cannot be raised at trial.",
+  },
+  balanced: {
+    label: "Balanced",
+    description: "Object where genuinely warranted",
+    tooltip:
+      "Focuses on objections likely to be sustained. Appropriate when you want to maintain credibility with the court or opposing counsel.",
+  },
+  selective: {
+    label: "Selective",
+    description: "Object only to the strongest, most defensible grounds",
+    tooltip:
+      "Produces a lean response focused on objections a court would almost certainly sustain. Use in cases with a cooperative discovery relationship.",
+  },
 };
 
 export const STRENGTH_LABELS: Record<
@@ -189,6 +214,7 @@ export interface GenerateOptions {
   requests: ObjectionRequestInput[];
   verbosity: Verbosity;
   party_role: PartyRole;
+  posture?: LitigationPosture;
   template?: string;
   separator?: string;
   include_request_text?: boolean;

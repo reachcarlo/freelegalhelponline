@@ -122,6 +122,7 @@ class GenerateRequest(BaseModel):
     requests: list[ObjectionRequestInput] = Field(..., min_length=1, max_length=50)
     verbosity: Literal["short", "medium", "long"] = "medium"
     party_role: Literal["plaintiff", "defendant"] = "defendant"
+    posture: Literal["aggressive", "balanced", "selective"] = "aggressive"
     template: str | None = None
     separator: str = "; "
     include_request_text: bool = False
@@ -270,6 +271,7 @@ async def generate_objections(body: GenerateRequest):
         ObjectionRequest,
         PartyRole,
     )
+    from employee_help.models.posture import LitigationPosture
 
     analyzer = _get_analyzer()
     formatter = _get_formatter()
@@ -286,6 +288,7 @@ async def generate_objections(body: GenerateRequest):
 
     verbosity = Verbosity(body.verbosity)
     party_role = PartyRole(body.party_role)
+    posture = LitigationPosture(body.posture)
 
     # Run analysis
     batch_result = analyzer.analyze_batch(
@@ -294,6 +297,7 @@ async def generate_objections(body: GenerateRequest):
         party_role=party_role,
         model=body.model,
         ground_ids=body.ground_ids,
+        posture=posture,
     )
 
     # Format results
