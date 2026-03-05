@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 
 type Mode = "consumer" | "attorney";
 
@@ -13,18 +13,16 @@ const STORAGE_KEY_PREFIX = "eh-consent-";
 
 const ConsentContext = createContext<ConsentContextValue | null>(null);
 
-export function ConsentProvider({ children }: { children: React.ReactNode }) {
-  const [consented, setConsented] = useState<Record<Mode, boolean>>({
-    consumer: false,
-    attorney: false,
-  });
+function readStoredConsent(): Record<Mode, boolean> {
+  if (typeof window === "undefined") return { consumer: false, attorney: false };
+  return {
+    consumer: localStorage.getItem(`${STORAGE_KEY_PREFIX}consumer`) === "true",
+    attorney: localStorage.getItem(`${STORAGE_KEY_PREFIX}attorney`) === "true",
+  };
+}
 
-  useEffect(() => {
-    setConsented({
-      consumer: localStorage.getItem(`${STORAGE_KEY_PREFIX}consumer`) === "true",
-      attorney: localStorage.getItem(`${STORAGE_KEY_PREFIX}attorney`) === "true",
-    });
-  }, []);
+export function ConsentProvider({ children }: { children: React.ReactNode }) {
+  const [consented, setConsented] = useState<Record<Mode, boolean>>(readStoredConsent);
 
   const hasConsentedForMode = useCallback(
     (mode: Mode) => consented[mode],

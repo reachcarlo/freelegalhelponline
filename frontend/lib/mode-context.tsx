@@ -11,16 +11,14 @@ interface ModeContextValue {
 
 const ModeContext = createContext<ModeContextValue | null>(null);
 
-export function ModeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<Mode>("consumer");
+function readStoredMode(): Mode {
+  if (typeof window === "undefined") return "consumer";
+  const stored = localStorage.getItem("eh-mode");
+  return stored === "consumer" || stored === "attorney" ? stored : "consumer";
+}
 
-  // Read persisted mode on mount
-  useEffect(() => {
-    const stored = localStorage.getItem("eh-mode");
-    if (stored === "consumer" || stored === "attorney") {
-      setModeState(stored);
-    }
-  }, []);
+export function ModeProvider({ children }: { children: React.ReactNode }) {
+  const [mode, setModeState] = useState<Mode>(readStoredMode);
 
   const setMode = useCallback((newMode: Mode) => {
     setModeState(newMode);

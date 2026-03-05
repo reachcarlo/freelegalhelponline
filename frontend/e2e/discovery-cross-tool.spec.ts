@@ -4,7 +4,6 @@ import {
   clickNext,
   selectClaims,
   waitForStateSaved,
-  TEST_CASE_INFO,
 } from "./helpers/wizard-helpers";
 
 test.describe("Cross-tool state reset", () => {

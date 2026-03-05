@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   calculateUnpaidWages,
-  type WageBreakdownInfo,
   type UnpaidWagesResponse,
 } from "@/lib/calculators/unpaid-wages";
 

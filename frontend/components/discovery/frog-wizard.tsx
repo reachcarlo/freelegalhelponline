@@ -53,7 +53,6 @@ export default function FrogWizard({
   const {
     state,
     setToolType,
-    setStep,
     nextStep,
     prevStep,
     setPartyRole,

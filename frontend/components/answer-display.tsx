@@ -29,18 +29,19 @@ export default function AnswerDisplay({
   isStreaming,
   mode,
 }: AnswerDisplayProps) {
-  const [showSlowMessage, setShowSlowMessage] = useState(false);
+  const [slowTimerFired, setSlowTimerFired] = useState(false);
+  const showSlowMessage = slowTimerFired && isStreaming && !text;
 
   useEffect(() => {
-    if (!isStreaming || text.length > 0) {
-      setShowSlowMessage(false);
-      return;
-    }
+    if (!isStreaming || text.length > 0) return;
     const timer = setTimeout(
-      () => setShowSlowMessage(true),
+      () => setSlowTimerFired(true),
       SLOW_THRESHOLD_MS
     );
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      setSlowTimerFired(false);
+    };
   }, [isStreaming, text]);
 
   // Split at last paragraph boundary for memoized rendering

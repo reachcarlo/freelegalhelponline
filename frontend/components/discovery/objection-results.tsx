@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useState } from "react";
 import { useObjectionDrafter } from "@/lib/objection-context";
 import {
   STRENGTH_LABELS,
@@ -26,7 +26,7 @@ export default function ObjectionResults() {
 
   if (!generateResponse) return null;
 
-  const { results, formatted_text, disclaimer, model_used, duration_ms, cost_estimate } =
+  const { results, disclaimer, model_used, duration_ms, cost_estimate } =
     generateResponse;
 
   const totalObjections = results.reduce(
@@ -87,7 +87,6 @@ export default function ObjectionResults() {
           <RequestPanel
             key={result.request_number}
             result={result}
-            index={idx}
             isExpanded={expandedPanels.has(idx)}
             onToggleExpand={() =>
               setExpandedPanels((prev) => {
@@ -205,7 +204,6 @@ function ContentScopeToggle({
 
 function RequestPanel({
   result,
-  index,
   isExpanded,
   onToggleExpand,
   contentScope,
@@ -215,7 +213,6 @@ function RequestPanel({
   onCopy,
 }: {
   result: RequestAnalysisInfo;
-  index: number;
   isExpanded: boolean;
   onToggleExpand: () => void;
   contentScope: ContentScope;

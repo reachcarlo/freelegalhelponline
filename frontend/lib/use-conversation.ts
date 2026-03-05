@@ -182,6 +182,14 @@ export function useConversation(mode: "consumer" | "attorney") {
     setError(null);
   }, []);
 
+  const abortPrevious = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  const setAbortController = useCallback((controller: AbortController) => {
+    abortRef.current = controller;
+  }, []);
+
   return {
     sessionId,
     turns,
@@ -193,7 +201,8 @@ export function useConversation(mode: "consumer" | "attorney") {
     streamingSources,
     streamingQuery,
     error,
-    abortRef,
+    abortPrevious,
+    setAbortController,
     buildConversationHistory,
     startNewConversation,
     beginTurn,

@@ -20,6 +20,23 @@ export default function QuestionPanel() {
   const { hasConsentedForMode, grantConsentForMode } = useConsent();
 
   const conversation = useConversation(mode);
+  const {
+    isStreaming,
+    abortPrevious,
+    setAbortController,
+    beginTurn,
+    onSources,
+    onToken,
+    onDone,
+    onError,
+    sessionId,
+    buildConversationHistory,
+    currentTurn,
+    startNewConversation,
+    stopStreaming,
+    streamingQuery,
+    clearError,
+  } = conversation;
   const [query, setQuery] = useState("");
   const [pendingQuery, setPendingQuery] = useState<string | null>(null);
   const [showConsentModal, setShowConsentModal] = useState(false);
@@ -41,7 +58,7 @@ export default function QuestionPanel() {
 
   // Scroll to bottom when streaming starts or a turn completes
   useEffect(() => {
-    if (conversation.turns.length > 0 || conversation.isStreaming) {
+    if (conversation.turns.length > 0 || isStreaming) {
       requestAnimationFrame(() => {
         const container = scrollContainerRef.current;
         if (container) {
@@ -50,11 +67,11 @@ export default function QuestionPanel() {
         }
       });
     }
-  }, [conversation.turns.length, conversation.isStreaming]);
+  }, [conversation.turns.length, isStreaming]);
 
   // Throttled smooth scroll during streaming — 200ms interval avoids jitter
   useEffect(() => {
-    if (!conversation.isStreaming) return;
+    if (!isStreaming) return;
     const timer = setInterval(() => {
       const container = scrollContainerRef.current;
       if (container && isNearBottomRef.current) {
@@ -62,43 +79,35 @@ export default function QuestionPanel() {
       }
     }, 200);
     return () => clearInterval(timer);
-  }, [conversation.isStreaming]);
+  }, [isStreaming]);
 
-  // Reset conversation when mode changes
-  const prevModeRef = useRef(mode);
-  useEffect(() => {
-    if (prevModeRef.current !== mode) {
-      prevModeRef.current = mode;
-      conversation.startNewConversation();
-      setQuery("");
-    }
-  }, [mode, conversation.startNewConversation]);
+  // Reset conversation when mode changes — handled in handleModeChange callback
 
   const submitQuery = useCallback(
     (q: string) => {
-      conversation.abortRef.current?.abort();
-      conversation.beginTurn(q);
+      abortPrevious();
+      beginTurn(q);
       setQuery("");
 
       const controller = askQuestion(
         q,
         mode,
         {
-          onSources: conversation.onSources,
-          onToken: conversation.onToken,
-          onDone: conversation.onDone,
-          onError: conversation.onError,
+          onSources,
+          onToken,
+          onDone,
+          onError,
         },
         {
-          session_id: conversation.sessionId,
-          conversation_history: conversation.buildConversationHistory(),
-          turn_number: conversation.currentTurn,
+          session_id: sessionId,
+          conversation_history: buildConversationHistory(),
+          turn_number: currentTurn,
         }
       );
 
-      conversation.abortRef.current = controller;
+      setAbortController(controller);
     },
-    [mode, conversation]
+    [mode, abortPrevious, beginTurn, onSources, onToken, onDone, onError, sessionId, buildConversationHistory, currentTurn, setAbortController]
   );
 
   const handleSubmit = useCallback(
@@ -130,25 +139,27 @@ export default function QuestionPanel() {
   const handleModeChange = useCallback(
     (newMode: "consumer" | "attorney") => {
       setMode(newMode);
+      startNewConversation();
+      setQuery("");
     },
-    [setMode]
+    [setMode, startNewConversation]
   );
 
   const handleNewChat = useCallback(() => {
-    conversation.startNewConversation();
+    startNewConversation();
     setQuery("");
-  }, [conversation.startNewConversation]);
+  }, [startNewConversation]);
 
   const handleStop = useCallback(() => {
-    conversation.stopStreaming();
-  }, [conversation.stopStreaming]);
+    stopStreaming();
+  }, [stopStreaming]);
 
   const handleRetry = useCallback(() => {
-    if (conversation.streamingQuery) {
-      conversation.clearError();
-      submitQuery(conversation.streamingQuery);
+    if (streamingQuery) {
+      clearError();
+      submitQuery(streamingQuery);
     }
-  }, [conversation, submitQuery]);
+  }, [streamingQuery, clearError, submitQuery]);
 
   const scrollToBottom = useCallback(() => {
     const container = scrollContainerRef.current;

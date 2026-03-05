@@ -386,7 +386,7 @@ function addYears(iso: string, n: number): string {
 function addMonths(iso: string, n: number): string {
   const d = parseDate(iso);
   // Total months from year 0, then divide back
-  let totalMonths = d.year * 12 + (d.month - 1) + n;
+  const totalMonths = d.year * 12 + (d.month - 1) + n;
   const newYear = Math.floor(totalMonths / 12);
   const newMonth = (totalMonths % 12) + 1;
   const maxDay = daysInMonth(newYear, newMonth);

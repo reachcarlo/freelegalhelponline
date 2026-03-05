@@ -135,6 +135,7 @@ export async function selectAllInFirstCategory(page: Page): Promise<void> {
  * Small delay to let React state settle before navigating away.
  * State no longer persists to sessionStorage — it resets on unmount.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function waitForStateSaved(page: Page): Promise<void> {
   // No-op: state resets on navigation now. Kept for backward compat.
 }

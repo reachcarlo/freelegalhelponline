@@ -58,7 +58,6 @@ export default function DocxWizard({
   const {
     state,
     setToolType,
-    setStep,
     nextStep,
     prevStep,
     setPartyRole,

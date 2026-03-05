@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import {
   getIncidentGuide,
@@ -189,12 +189,8 @@ export default function IncidentDocs() {
   const [checkedEvidence, setCheckedEvidence] = useState<Set<string>>(
     new Set()
   );
-  const [savedIncidents, setSavedIncidents] = useState<StoredIncident[]>([]);
+  const [savedIncidents, setSavedIncidents] = useState<StoredIncident[]>(loadIncidents);
   const [editingId, setEditingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setSavedIncidents(loadIncidents());
-  }, []);
 
   const handleFieldChange = useCallback((name: string, val: string) => {
     setFieldValues((prev) => ({ ...prev, [name]: val }));

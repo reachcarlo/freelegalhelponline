@@ -28,11 +28,11 @@ function confidenceBadge(confidence: string) {
 }
 
 export default function GuidedIntake() {
-  const [questions, setQuestions] = useState<IntakeQuestionInfo[]>([]);
+  const [questions] = useState<IntakeQuestionInfo[]>(getQuestions);
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [currentStep, setCurrentStep] = useState(0);
   const [result, setResult] = useState<IntakeResponse | null>(null);
-  const [fetchLoading, setFetchLoading] = useState(true);
+  const fetchLoading = questions.length === 0;
   const [error, setError] = useState("");
   const [slideDirection, setSlideDirection] = useState<"right" | "left">("right");
   // P1: Auto-advance flag — set true when a single-select option is picked
@@ -46,19 +46,11 @@ export default function GuidedIntake() {
   const [summaryError, setSummaryError] = useState("");
   const summaryAbortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    setQuestions(getQuestions());
-    setFetchLoading(false);
-  }, []);
-
   // Auto-trigger rights summary stream after intake results load
+  // State resets (summaryStreaming, summaryText, etc.) happen in handleSubmit
   useEffect(() => {
     if (!result || result.identified_issues.length === 0) return;
     const allAnswers = Object.values(answers).flat();
-    setSummaryStreaming(true);
-    setSummaryText("");
-    setSummarySources([]);
-    setSummaryError("");
 
     const controller = streamIntakeSummary(allAnswers, {
       onSources: (s) => setSummarySources(s),
@@ -85,10 +77,29 @@ export default function GuidedIntake() {
   const currentQuestion = visibleQuestions[currentStep] ?? null;
   const isLastStep = currentStep === visibleQuestions.length - 1;
 
+  const handleSubmit = useCallback(() => {
+    setError("");
+
+    try {
+      const allAnswers = Object.values(answers).flat();
+      const data = evaluateIntake(allAnswers);
+      // Reset summary state before triggering the stream effect
+      setSummaryStreaming(true);
+      setSummaryText("");
+      setSummarySources([]);
+      setSummaryError("");
+      setResult(data);
+      // P4: Scroll to top on results
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    }
+  }, [answers]);
+
   // Keep submitRef current so the auto-advance effect can call it
-  submitRef.current = () => {
-    handleSubmit();
-  };
+  useEffect(() => {
+    submitRef.current = handleSubmit;
+  }, [handleSubmit]);
 
   // P1: Auto-advance effect — fires after answer state has settled
   useEffect(() => {
@@ -136,7 +147,7 @@ export default function GuidedIntake() {
       setSlideDirection("right");
       setCurrentStep((s) => s + 1);
     }
-  }, [isLastStep]);
+  }, [isLastStep, handleSubmit]);
 
   const handleBack = useCallback(() => {
     setPendingAutoAdvance(false);
@@ -161,20 +172,6 @@ export default function GuidedIntake() {
       });
     }
   }, [currentStep, questions]);
-
-  function handleSubmit() {
-    setError("");
-
-    try {
-      const allAnswers = Object.values(answers).flat();
-      const data = evaluateIntake(allAnswers);
-      setResult(data);
-      // P4: Scroll to top on results
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    }
-  }
 
   function handleStartOver() {
     summaryAbortRef.current?.abort();
