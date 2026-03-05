@@ -166,8 +166,8 @@ export async function interceptGenerateResponse(
   // Clean up the route handler
   await page.unroute("**/api/discovery/generate**");
 
-  if (!capturedBody || capturedBody.length === 0) {
+  if (!capturedBody || (capturedBody as Buffer).length === 0) {
     throw new Error("No response body captured from generate endpoint");
   }
-  return capturedBody;
+  return capturedBody as Buffer;
 }
