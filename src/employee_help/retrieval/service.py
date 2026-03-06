@@ -243,10 +243,6 @@ class RetrievalService:
             if candidate.content_category == "federal_guidance":
                 candidate.relevance_score *= 1.1
 
-            # Regulation boost in attorney mode
-            if candidate.content_category == "regulation":
-                candidate.relevance_score *= 1.15
-
             # Citation match boost — strong boost for exact section match
             if (
                 processed.has_citation

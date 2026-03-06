@@ -18,10 +18,10 @@ dependencies = [
 [project.optional-dependencies]
 rag = [
     "sentence-transformers>=3.0,<3.5",
-    "torch>=2.0",
+    "torch>=2.0,<=2.2.2",
     "transformers>=4.40,<4.50",
     "numpy<2.0",
-    "lancedb>=0.6",
+    "lancedb>=0.6,<0.26",
     "anthropic>=0.40",
     "jinja2>=3.1",
     "eyecite>=2.7",
