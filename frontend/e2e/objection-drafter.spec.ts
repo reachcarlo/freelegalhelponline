@@ -245,7 +245,7 @@ test.describe("Objection Drafter", () => {
   test("Next button advances to Input step", async ({ page }) => {
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await expect(
-      page.getByRole("heading", { name: "Paste Discovery Requests" })
+      page.getByRole("heading", { name: /Upload or Paste Discovery Requests/i })
     ).toBeVisible();
     await expect(page.getByText("2 / 4")).toBeVisible();
   });
@@ -722,5 +722,237 @@ test.describe("Objection Drafter", () => {
     expect(body.verbosity).toBe("medium");
     expect(body.party_role).toBe("defendant");
     expect(body.posture).toBe("balanced");
+  });
+
+  // ── File upload (Phase O.2B) ─────────────────────────────────────
+
+  test("drop zone visible in Input step", async ({ page }) => {
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await expect(
+      page.getByText("Upload .docx or .pdf")
+    ).toBeVisible();
+    await expect(
+      page.getByText("or paste text")
+    ).toBeVisible();
+  });
+
+  test("file upload replaces textarea", async ({ page }) => {
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+
+    // Upload a file via the hidden input
+    const fileInput = page.getByLabel("File upload input");
+    await fileInput.setInputFiles({
+      name: "discovery.docx",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      buffer: Buffer.from("PK mock docx content"),
+    });
+
+    // File card should be visible
+    await expect(page.getByText("discovery.docx")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Remove" })).toBeVisible();
+
+    // Textarea and divider should be hidden
+    await expect(page.getByLabel("Discovery request text")).not.toBeVisible();
+    await expect(page.getByText("or paste text")).not.toBeVisible();
+  });
+
+  test("remove file restores textarea", async ({ page }) => {
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+
+    // Upload a file
+    const fileInput = page.getByLabel("File upload input");
+    await fileInput.setInputFiles({
+      name: "test.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF mock"),
+    });
+
+    // File card should show
+    await expect(page.getByText("test.pdf")).toBeVisible();
+
+    // Remove file
+    await page.getByRole("button", { name: "Remove" }).click();
+
+    // Textarea should reappear
+    await expect(page.getByLabel("Discovery request text")).toBeVisible();
+    await expect(page.getByText("Upload .docx or .pdf")).toBeVisible();
+  });
+
+  test("parse works with uploaded file (mocked API)", async ({ page }) => {
+    await page.route("**/api/objections/parse-document", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_PARSE_RESPONSE),
+      });
+    });
+
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+
+    // Upload a file
+    const fileInput = page.getByLabel("File upload input");
+    await fileInput.setInputFiles({
+      name: "srog_set_one.docx",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      buffer: Buffer.from("PK mock docx content"),
+    });
+
+    await expect(page.getByText("srog_set_one.docx")).toBeVisible();
+
+    // Click parse
+    await page.getByRole("button", { name: "Parse Requests" }).first().click();
+
+    // Should advance to Review step
+    await expect(page.getByText("3 / 4")).toBeVisible();
+    await expect(page.getByText("3 requests found")).toBeVisible();
+  });
+
+  test("Download .docx button visible in Results", async ({ page }) => {
+    await page.route("**/api/objections/parse", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_PARSE_RESPONSE),
+      });
+    });
+    await page.route("**/api/objections/generate", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_GENERATE_RESPONSE),
+      });
+    });
+
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await page.getByLabel("Discovery request text").fill(SAMPLE_SROG_TEXT);
+    await page.getByRole("button", { name: "Parse Requests" }).first().click();
+    await expect(page.getByText("3 / 4")).toBeVisible();
+    await page.getByRole("button", { name: /Generate Objections/i }).click();
+    await expect(page.getByText("4 / 4")).toBeVisible();
+
+    await expect(
+      page.getByRole("button", { name: "Download .docx" })
+    ).toBeVisible();
+  });
+
+  test("Download .docx calls export API (mocked)", async ({ page }) => {
+    let exportCalled = false;
+
+    await page.route("**/api/objections/parse", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_PARSE_RESPONSE),
+      });
+    });
+    await page.route("**/api/objections/generate", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_GENERATE_RESPONSE),
+      });
+    });
+    await page.route("**/api/objections/export", async (route) => {
+      exportCalled = true;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers: {
+          "Content-Disposition": 'attachment; filename="objections.docx"',
+        },
+        body: Buffer.from("PK mock docx"),
+      });
+    });
+
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await page.getByLabel("Discovery request text").fill(SAMPLE_SROG_TEXT);
+    await page.getByRole("button", { name: "Parse Requests" }).first().click();
+    await expect(page.getByText("3 / 4")).toBeVisible();
+    await page.getByRole("button", { name: /Generate Objections/i }).click();
+    await expect(page.getByText("4 / 4")).toBeVisible();
+
+    await page.getByRole("button", { name: "Download .docx" }).click();
+
+    // Wait for the export request
+    await page.waitForTimeout(500);
+    expect(exportCalled).toBe(true);
+  });
+
+  test("Insert into Shell hidden for non-shell text uploads", async ({ page }) => {
+    await page.route("**/api/objections/parse", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_PARSE_RESPONSE),
+      });
+    });
+    await page.route("**/api/objections/generate", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_GENERATE_RESPONSE),
+      });
+    });
+
+    // Use text input (not file upload), so no file + not a shell
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await page.getByLabel("Discovery request text").fill(SAMPLE_SROG_TEXT);
+    await page.getByRole("button", { name: "Parse Requests" }).first().click();
+    await expect(page.getByText("3 / 4")).toBeVisible();
+    await page.getByRole("button", { name: /Generate Objections/i }).click();
+    await expect(page.getByText("4 / 4")).toBeVisible();
+
+    // Insert into Shell should NOT be visible (no file uploaded)
+    await expect(
+      page.getByRole("button", { name: "Insert into Shell" })
+    ).not.toBeVisible();
+  });
+
+  test("Insert into Shell shown for docx shell uploads", async ({ page }) => {
+    // Mock parse-document to return is_response_shell: true
+    const shellParseResponse = {
+      ...MOCK_PARSE_RESPONSE,
+      is_response_shell: true,
+    };
+
+    await page.route("**/api/objections/parse-document", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(shellParseResponse),
+      });
+    });
+    await page.route("**/api/objections/generate", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_GENERATE_RESPONSE),
+      });
+    });
+
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+
+    // Upload a file
+    const fileInput = page.getByLabel("File upload input");
+    await fileInput.setInputFiles({
+      name: "response_shell.docx",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      buffer: Buffer.from("PK mock shell docx"),
+    });
+
+    await expect(page.getByText("response_shell.docx")).toBeVisible();
+
+    // Parse
+    await page.getByRole("button", { name: "Parse Requests" }).first().click();
+    await expect(page.getByText("3 / 4")).toBeVisible();
+
+    // Generate
+    await page.getByRole("button", { name: /Generate Objections/i }).click();
+    await expect(page.getByText("4 / 4")).toBeVisible();
+
+    // Insert into Shell should be visible
+    await expect(
+      page.getByRole("button", { name: "Insert into Shell" })
+    ).toBeVisible();
   });
 });

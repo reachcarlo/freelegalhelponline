@@ -16,11 +16,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-cov>=6.0",
-    "pytest-asyncio>=0.24",
-]
 rag = [
     "sentence-transformers>=3.0,<3.5",
     "torch>=2.0",
@@ -39,6 +34,7 @@ eval = [
 web = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.34",
+    "python-multipart>=0.0.9",
     "pypdf>=6.7,<7.0",
     "PyPDFForm>=4.7,<5.0",
     "docxtpl>=0.20,<1.0",
@@ -85,6 +81,9 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "pytest-asyncio>=0.24",
     "respx>=0.22.0",
 ]
 

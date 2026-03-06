@@ -1173,3 +1173,500 @@ class TestPostureAPI:
             },
         )
         assert response.status_code == 422
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Document Reader Tests (Phase O.2B)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _make_docx_bytes(paragraphs: list[str]) -> bytes:
+    """Create a .docx in memory with the given paragraphs."""
+    import io
+    from docx import Document
+
+    doc = Document()
+    for text in paragraphs:
+        doc.add_paragraph(text)
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def _make_docx_with_table(paragraphs: list[str], table_data: list[list[str]]) -> bytes:
+    """Create a .docx with paragraphs and a table."""
+    import io
+    from docx import Document
+
+    doc = Document()
+    for text in paragraphs:
+        doc.add_paragraph(text)
+    if table_data:
+        table = doc.add_table(rows=len(table_data), cols=len(table_data[0]))
+        for i, row_data in enumerate(table_data):
+            for j, cell_text in enumerate(row_data):
+                table.rows[i].cells[j].text = cell_text
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def _make_pdf_bytes(text: str) -> bytes:
+    """Create a minimal PDF with text content.
+
+    Uses reportlab-free approach: build raw PDF manually.
+    """
+    # Minimal valid PDF with text
+    content = text.encode("latin-1", errors="replace")
+    stream = (
+        b"BT\n/F1 12 Tf\n72 720 Td\n("
+        + content
+        + b") Tj\nET"
+    )
+    stream_len = len(stream)
+
+    pdf = (
+        b"%PDF-1.4\n"
+        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+        b"/Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n"
+        b"4 0 obj\n<< /Length " + str(stream_len).encode() + b" >>\n"
+        b"stream\n" + stream + b"\nendstream\nendobj\n"
+        b"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n"
+        b"xref\n0 6\n"
+        b"0000000000 65535 f \n"
+        b"0000000009 00000 n \n"
+        b"0000000058 00000 n \n"
+        b"0000000115 00000 n \n"
+        b"0000000266 00000 n \n"
+        b"0000000" + str(317 + stream_len).encode() + b" 00000 n \n"
+        b"trailer\n<< /Size 6 /Root 1 0 R >>\n"
+        b"startxref\n0\n%%EOF\n"
+    )
+    return pdf
+
+
+class TestDocumentReader:
+    """Tests for document_reader.py."""
+
+    def test_docx_extraction(self):
+        """Extract text from a .docx file."""
+        from employee_help.discovery.objections.document_reader import extract_text
+
+        paragraphs = [
+            "SPECIAL INTERROGATORY NO. 1:",
+            "State all facts supporting your contention.",
+            "SPECIAL INTERROGATORY NO. 2:",
+            "Identify all documents.",
+        ]
+        docx_bytes = _make_docx_bytes(paragraphs)
+        result = extract_text(docx_bytes, "discovery.docx")
+        assert "SPECIAL INTERROGATORY NO. 1" in result
+        assert "SPECIAL INTERROGATORY NO. 2" in result
+        assert "State all facts" in result
+
+    def test_pdf_extraction(self):
+        """Extract text from a .pdf file."""
+        from employee_help.discovery.objections.document_reader import extract_text
+
+        pdf_bytes = _make_pdf_bytes("SPECIAL INTERROGATORY NO. 1: State all facts.")
+        result = extract_text(pdf_bytes, "discovery.pdf")
+        assert "SPECIAL INTERROGATORY" in result
+
+    def test_extension_rejection(self):
+        """Reject unsupported file types."""
+        from employee_help.discovery.objections.document_reader import (
+            DocumentReadError,
+            extract_text,
+        )
+
+        with pytest.raises(DocumentReadError, match="Unsupported file type"):
+            extract_text(b"data", "file.txt")
+
+    def test_size_rejection(self):
+        """Reject files exceeding 10 MB."""
+        from employee_help.discovery.objections.document_reader import (
+            DocumentReadError,
+            extract_text,
+        )
+
+        big_data = b"x" * (11 * 1024 * 1024)
+        with pytest.raises(DocumentReadError, match="too large"):
+            extract_text(big_data, "huge.docx")
+
+    def test_empty_docx(self):
+        """Raise error for empty .docx."""
+        import io
+        from docx import Document
+        from employee_help.discovery.objections.document_reader import (
+            DocumentReadError,
+            extract_text,
+        )
+
+        doc = Document()
+        buf = io.BytesIO()
+        doc.save(buf)
+        with pytest.raises(DocumentReadError, match="empty"):
+            extract_text(buf.getvalue(), "empty.docx")
+
+    def test_paragraph_preservation(self):
+        """Paragraphs should be separated by newlines."""
+        from employee_help.discovery.objections.document_reader import extract_text
+
+        paragraphs = ["First paragraph", "Second paragraph", "Third paragraph"]
+        docx_bytes = _make_docx_bytes(paragraphs)
+        result = extract_text(docx_bytes, "test.docx")
+        lines = result.strip().split("\n")
+        assert len(lines) == 3
+
+    def test_table_text(self):
+        """Table cell text should be extracted."""
+        from employee_help.discovery.objections.document_reader import extract_text
+
+        docx_bytes = _make_docx_with_table(
+            ["Header paragraph"],
+            [["Cell 1", "Cell 2"], ["Cell 3", "Cell 4"]],
+        )
+        result = extract_text(docx_bytes, "table.docx")
+        assert "Cell 1" in result
+        assert "Cell 4" in result
+
+    def test_roundtrip_with_parser(self):
+        """Extracted .docx text should parse correctly with RequestParser."""
+        from employee_help.discovery.objections.document_reader import extract_text
+        from employee_help.discovery.objections.parser import RequestParser
+
+        paragraphs = [
+            "PROPOUNDING PARTY: Plaintiff John Doe",
+            "RESPONDING PARTY: Defendant Acme Corp",
+            "SET NO. 1",
+            "",
+            "SPECIAL INTERROGATORY NO. 1:",
+            "State all facts supporting your first cause of action for wrongful termination.",
+            "",
+            "SPECIAL INTERROGATORY NO. 2:",
+            "Identify all persons who witnessed the events described in Paragraph 5 of the Complaint.",
+        ]
+        docx_bytes = _make_docx_bytes(paragraphs)
+        text = extract_text(docx_bytes, "srog.docx")
+
+        parser = RequestParser()
+        result = parser.parse_text(text)
+        assert len(result.requests) >= 2
+        assert result.requests[0].request_number == 1
+        assert result.requests[1].request_number == 2
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Objection Exporter Tests (Phase O.2B)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _sample_results() -> list[dict]:
+    """Create sample results for export tests."""
+    return [
+        {
+            "request_number": 1,
+            "request_text": "State all facts supporting your first cause of action.",
+            "discovery_type": "interrogatories",
+            "objections": [
+                {
+                    "ground_id": "overbroad",
+                    "label": "Overbroad",
+                    "category": "substantive",
+                    "explanation": "This interrogatory is overbroad as it calls for all facts.",
+                    "strength": "high",
+                    "statutory_citations": [
+                        {"code": "CCP", "section": "§2030.060(f)", "description": ""}
+                    ],
+                    "case_citations": [
+                        {
+                            "name": "Emerson Electric Co. v. Superior Court",
+                            "year": 1997,
+                            "citation": "(1997) 16 Cal.4th 1101",
+                            "reporter_key": "16 Cal.4th 1101",
+                        }
+                    ],
+                    "citation_warnings": [],
+                },
+                {
+                    "ground_id": "relevance",
+                    "label": "Relevance",
+                    "category": "substantive",
+                    "explanation": "This interrogatory seeks information not relevant to the claims.",
+                    "strength": "medium",
+                    "statutory_citations": [
+                        {"code": "CCP", "section": "§2017.010", "description": ""}
+                    ],
+                    "case_citations": [],
+                    "citation_warnings": [],
+                },
+            ],
+            "no_objections_rationale": None,
+            "formatted_output": "",
+        },
+        {
+            "request_number": 2,
+            "request_text": "Identify all witnesses.",
+            "discovery_type": "interrogatories",
+            "objections": [],
+            "no_objections_rationale": "This request appears straightforward.",
+            "formatted_output": "",
+        },
+    ]
+
+
+class TestObjectionExporter:
+    """Tests for exporter.py."""
+
+    def test_standalone_produces_valid_bytes(self):
+        """generate_standalone_docx should return valid .docx bytes."""
+        from employee_help.discovery.objections.exporter import generate_standalone_docx
+
+        result = generate_standalone_docx(_sample_results())
+        assert isinstance(result, bytes)
+        assert len(result) > 0
+        # PK magic bytes (zip/docx)
+        assert result[:2] == b"PK"
+
+    def test_standalone_contains_text(self):
+        """Standalone .docx should contain objection text."""
+        import io
+        from docx import Document
+        from employee_help.discovery.objections.exporter import generate_standalone_docx
+
+        result = generate_standalone_docx(_sample_results())
+        doc = Document(io.BytesIO(result))
+        full_text = "\n".join(p.text for p in doc.paragraphs)
+        assert "Overbroad" in full_text
+        assert "Relevance" in full_text
+        assert "RESPONSE TO INTERROGATORY NO. 1" in full_text
+
+    def test_standalone_times_new_roman(self):
+        """Default font should be Times New Roman."""
+        import io
+        from docx import Document
+        from employee_help.discovery.objections.exporter import generate_standalone_docx
+
+        result = generate_standalone_docx(_sample_results())
+        doc = Document(io.BytesIO(result))
+        style = doc.styles["Normal"]
+        assert style.font.name == "Times New Roman"
+
+    def test_standalone_italic_case_names(self):
+        """Case names should use italic runs."""
+        import io
+        from docx import Document
+        from employee_help.discovery.objections.exporter import generate_standalone_docx
+
+        result = generate_standalone_docx(_sample_results())
+        doc = Document(io.BytesIO(result))
+
+        italic_runs = [
+            r.text for p in doc.paragraphs for r in p.runs if r.italic
+        ]
+        assert any("Emerson Electric" in t for t in italic_runs)
+
+    def test_standalone_disclaimer(self):
+        """Disclaimer should appear in the document."""
+        import io
+        from docx import Document
+        from employee_help.discovery.objections.exporter import generate_standalone_docx
+
+        result = generate_standalone_docx(_sample_results())
+        doc = Document(io.BytesIO(result))
+        full_text = "\n".join(p.text for p in doc.paragraphs)
+        assert "sanctions" in full_text.lower()
+
+    def test_shell_insertion_finds_markers(self):
+        """insert_into_shell should find RESPONSE TO markers."""
+        from employee_help.discovery.objections.exporter import insert_into_shell
+
+        shell = _make_docx_bytes([
+            "RESPONSE TO SPECIAL INTERROGATORY NO. 1:",
+            "",
+            "RESPONSE TO SPECIAL INTERROGATORY NO. 2:",
+            "",
+        ])
+        result_bytes, filled, total = insert_into_shell(
+            shell, _sample_results()
+        )
+        assert total == 2
+        assert filled >= 1
+        assert isinstance(result_bytes, bytes)
+
+    def test_shell_insertion_correct_counts(self):
+        """Filled and total counts should be correct."""
+        from employee_help.discovery.objections.exporter import insert_into_shell
+
+        shell = _make_docx_bytes([
+            "RESPONSE TO SPECIAL INTERROGATORY NO. 1:",
+            "",
+            "RESPONSE TO SPECIAL INTERROGATORY NO. 2:",
+            "",
+            "RESPONSE TO SPECIAL INTERROGATORY NO. 3:",
+            "",
+        ])
+        _, filled, total = insert_into_shell(shell, _sample_results())
+        assert total == 3
+        # We only have results for requests 1 and 2
+        assert filled == 2
+
+    def test_shell_insertion_unmatched_markers(self):
+        """Markers without matching results should be left alone."""
+        from employee_help.discovery.objections.exporter import insert_into_shell
+
+        shell = _make_docx_bytes([
+            "RESPONSE TO SPECIAL INTERROGATORY NO. 99:",
+            "",
+        ])
+        _, filled, total = insert_into_shell(shell, _sample_results())
+        assert total == 1
+        assert filled == 0
+
+    def test_shell_insertion_content_preserved(self):
+        """Non-marker paragraphs in the shell should be preserved."""
+        import io as _io
+        from docx import Document
+        from employee_help.discovery.objections.exporter import insert_into_shell
+
+        shell = _make_docx_bytes([
+            "CASE CAPTION - Henderson v. Acme Corp",
+            "RESPONSE TO SPECIAL INTERROGATORY NO. 1:",
+            "",
+            "PROOF OF SERVICE",
+        ])
+        result_bytes, _, _ = insert_into_shell(shell, _sample_results())
+        doc = Document(_io.BytesIO(result_bytes))
+        texts = [p.text for p in doc.paragraphs]
+        assert any("CASE CAPTION" in t for t in texts)
+        assert any("PROOF OF SERVICE" in t for t in texts)
+
+    def test_no_markers_edge_case(self):
+        """Document with no markers should return 0/0."""
+        from employee_help.discovery.objections.exporter import insert_into_shell
+
+        shell = _make_docx_bytes(["Just a regular document."])
+        _, filled, total = insert_into_shell(shell, _sample_results())
+        assert total == 0
+        assert filled == 0
+
+    def test_enabled_objections_filtering(self):
+        """Only enabled objections should appear in standalone export."""
+        import io
+        from docx import Document
+        from employee_help.discovery.objections.exporter import (
+            ExportOptions,
+            generate_standalone_docx,
+        )
+
+        options = ExportOptions(
+            enabled_objections={"1-overbroad": True, "1-relevance": False}
+        )
+        result = generate_standalone_docx(_sample_results(), options)
+        doc = Document(io.BytesIO(result))
+        full_text = "\n".join(p.text for p in doc.paragraphs)
+        assert "Overbroad" in full_text
+        assert "Relevance" not in full_text
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Objection API Upload/Export Tests (Phase O.2B)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestObjectionAPIUpload:
+    """Tests for parse-document and export endpoints."""
+
+    @pytest.fixture
+    def client(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from employee_help.api.objection_routes import objection_router
+
+        app = FastAPI()
+        app.include_router(objection_router)
+        return TestClient(app)
+
+    def test_parse_document_docx(self, client):
+        """POST /parse-document should accept .docx and return parsed requests."""
+        docx_bytes = _make_docx_bytes([
+            "SPECIAL INTERROGATORY NO. 1:",
+            "State all facts supporting your claim.",
+            "SPECIAL INTERROGATORY NO. 2:",
+            "Identify all witnesses.",
+        ])
+        response = client.post(
+            "/api/objections/parse-document",
+            files={"file": ("discovery.docx", docx_bytes, "application/octet-stream")},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["requests"]) >= 2
+        assert data["detected_type"] == "interrogatories"
+
+    def test_parse_document_rejects_txt(self, client):
+        """POST /parse-document should reject unsupported file types."""
+        response = client.post(
+            "/api/objections/parse-document",
+            files={"file": ("notes.txt", b"some text", "text/plain")},
+        )
+        assert response.status_code == 400
+        assert "Unsupported" in response.json()["detail"]
+
+    def test_export_standalone(self, client):
+        """POST /export with docx_standalone should return .docx bytes."""
+        results = _sample_results()
+        response = client.post(
+            "/api/objections/export",
+            data={
+                "results_json": json.dumps(results),
+                "format": "docx_standalone",
+                "include_request_text": "false",
+                "include_waiver_language": "false",
+                "enabled_objections_json": "{}",
+            },
+        )
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith(
+            "application/vnd.openxmlformats"
+        )
+        assert response.content[:2] == b"PK"
+
+    def test_export_shell_insert(self, client):
+        """POST /export with docx_shell_insert should return modified .docx."""
+        results = _sample_results()
+        shell_bytes = _make_docx_bytes([
+            "RESPONSE TO SPECIAL INTERROGATORY NO. 1:",
+            "",
+        ])
+        response = client.post(
+            "/api/objections/export",
+            data={
+                "results_json": json.dumps(results),
+                "format": "docx_shell_insert",
+                "include_request_text": "false",
+                "include_waiver_language": "false",
+                "enabled_objections_json": "{}",
+            },
+            files={"shell_file": ("shell.docx", shell_bytes, "application/octet-stream")},
+        )
+        assert response.status_code == 200
+        assert response.content[:2] == b"PK"
+
+    def test_shell_insert_without_file_400(self, client):
+        """POST /export with docx_shell_insert but no shell_file should 400."""
+        results = _sample_results()
+        response = client.post(
+            "/api/objections/export",
+            data={
+                "results_json": json.dumps(results),
+                "format": "docx_shell_insert",
+                "include_request_text": "false",
+                "include_waiver_language": "false",
+                "enabled_objections_json": "{}",
+            },
+        )
+        assert response.status_code == 400
+        assert "shell_file" in response.json()["detail"]

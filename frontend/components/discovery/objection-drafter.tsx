@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   useObjectionDrafter,
 } from "@/lib/objection-context";
@@ -10,6 +10,7 @@ import {
   VERBOSITY_LABELS,
   POSTURE_LABELS,
   parseRequests,
+  parseDocument,
   generateObjections,
   type ResponseDiscoveryType,
   type Verbosity,
@@ -33,14 +34,21 @@ export default function ObjectionDrafter() {
 
   // ── Parse handler ────────────────────────────────────────────────
   const handleParse = useCallback(async () => {
-    if (!state.rawText.trim()) return;
+    const hasFile = !!state.uploadedFile;
+    const hasText = state.rawText.trim().length > 0;
+    if (!hasFile && !hasText) return;
+
     dispatch({ type: "PARSE_START" });
     try {
       const dtype =
         state.discoveryType === "auto"
           ? undefined
           : (state.discoveryType as ResponseDiscoveryType);
-      const result = await parseRequests(state.rawText, dtype);
+
+      const result = hasFile
+        ? await parseDocument(state.uploadedFile!, dtype)
+        : await parseRequests(state.rawText, dtype);
+
       dispatch({
         type: "PARSE_SUCCESS",
         requests: result.requests,
@@ -56,7 +64,7 @@ export default function ObjectionDrafter() {
         error: err instanceof Error ? err.message : "Failed to parse requests",
       });
     }
-  }, [state.rawText, state.discoveryType, dispatch]);
+  }, [state.rawText, state.uploadedFile, state.discoveryType, dispatch]);
 
   // ── Generate handler ─────────────────────────────────────────────
   const handleGenerate = useCallback(async () => {
@@ -104,7 +112,8 @@ export default function ObjectionDrafter() {
 
   // ── Navigation guards ────────────────────────────────────────────
   const canAdvanceFromSetup = true; // Setup has valid defaults
-  const canAdvanceFromInput = state.rawText.trim().length > 0;
+  const canAdvanceFromInput =
+    state.rawText.trim().length > 0 || !!state.uploadedFile;
 
   return (
     <div className="flex h-full flex-col">
@@ -507,6 +516,9 @@ function SetupStep() {
 
 // ── Step 2: Input ────────────────────────────────────────────────────
 
+const ACCEPTED_TYPES = ".docx,.pdf";
+const MAX_FILE_SIZE_MB = 10;
+
 function InputStep({
   onParse,
   isParsing,
@@ -515,51 +527,181 @@ function InputStep({
   isParsing: boolean;
 }) {
   const { state, dispatch } = useObjectionDrafter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const hasFile = !!state.uploadedFile;
+  const hasInput = hasFile || state.rawText.trim().length > 0;
+
+  const handleFile = useCallback(
+    (file: File) => {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      if (ext !== "docx" && ext !== "pdf") {
+        dispatch({
+          type: "PARSE_ERROR",
+          error: "Only .docx and .pdf files are accepted.",
+        });
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        dispatch({
+          type: "PARSE_ERROR",
+          error: `File too large. Maximum size is ${MAX_FILE_SIZE_MB} MB.`,
+        });
+        return;
+      }
+      dispatch({ type: "SET_UPLOADED_FILE", file });
+    },
+    [dispatch]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    },
+    [handleFile]
+  );
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  };
 
   return (
     <div className="space-y-4 animate-fade-in">
       <div>
         <h2 className="text-xl font-bold text-text-primary">
-          Paste Discovery Requests
+          Upload or Paste Discovery Requests
         </h2>
         <p className="mt-1 text-sm text-text-secondary">
-          Paste the full text of your discovery requests below. The parser will
+          Upload a .docx or .pdf file, or paste text below. The parser will
           extract individual requests, skip definitions, instructions, captions,
           and proof of service.
         </p>
       </div>
 
-      <textarea
-        value={state.rawText}
-        onChange={(e) =>
-          dispatch({ type: "SET_RAW_TEXT", text: e.target.value })
-        }
-        placeholder="Paste discovery requests here…&#10;&#10;Example:&#10;SPECIAL INTERROGATORY NO. 1:&#10;State all facts supporting your contention that…"
-        className="w-full min-h-[200px] max-h-[500px] rounded-lg border border-border bg-input-bg px-4 py-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-y"
-        aria-label="Discovery request text"
-        style={{
-          height: state.rawText.length > 500 ? "400px" : undefined,
-        }}
-      />
+      {/* File drop zone / uploaded file card */}
+      {hasFile ? (
+        <div className="flex items-center gap-3 rounded-lg border border-accent bg-accent-surface px-4 py-3">
+          <svg className="h-5 w-5 text-accent shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+          </svg>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-text-primary truncate">
+              {state.uploadedFileName}
+            </p>
+            <p className="text-xs text-text-tertiary">
+              {formatFileSize(state.uploadedFile!.size)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => dispatch({ type: "CLEAR_UPLOADED_FILE" })}
+            className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium border border-border text-text-secondary hover:bg-surface transition-colors"
+            aria-label="Remove uploaded file"
+          >
+            Remove
+          </button>
+        </div>
+      ) : (
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onClick={() => fileInputRef.current?.click()}
+          className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 cursor-pointer transition-colors ${
+            isDragging
+              ? "border-accent bg-accent-surface"
+              : "border-border hover:border-border-hover"
+          }`}
+          role="button"
+          aria-label="Upload .docx or .pdf file"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+        >
+          <svg className="h-8 w-8 text-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+          </svg>
+          <p className="text-sm text-text-secondary">
+            <span className="font-medium text-accent">Upload .docx or .pdf</span>
+            {" "}or drag and drop
+          </p>
+          <p className="text-xs text-text-tertiary">Max {MAX_FILE_SIZE_MB} MB</p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_TYPES}
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleFile(file);
+              e.target.value = "";
+            }}
+            aria-label="File upload input"
+          />
+        </div>
+      )}
 
-      <p className="text-xs text-text-tertiary">
-        {state.rawText.length > 0 && (
-          <span className="font-medium">
-            {state.rawText.length.toLocaleString()} characters
-          </span>
-        )}
-      </p>
+      {/* Divider */}
+      {!hasFile && (
+        <>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 border-t border-border" />
+            <span className="text-xs text-text-tertiary">or paste text</span>
+            <div className="flex-1 border-t border-border" />
+          </div>
+
+          <textarea
+            value={state.rawText}
+            onChange={(e) =>
+              dispatch({ type: "SET_RAW_TEXT", text: e.target.value })
+            }
+            placeholder="Paste discovery requests here…&#10;&#10;Example:&#10;SPECIAL INTERROGATORY NO. 1:&#10;State all facts supporting your contention that…"
+            className="w-full min-h-[200px] max-h-[500px] rounded-lg border border-border bg-input-bg px-4 py-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-y"
+            aria-label="Discovery request text"
+            style={{
+              height: state.rawText.length > 500 ? "400px" : undefined,
+            }}
+          />
+
+          <p className="text-xs text-text-tertiary">
+            {state.rawText.length > 0 && (
+              <span className="font-medium">
+                {state.rawText.length.toLocaleString()} characters
+              </span>
+            )}
+          </p>
+        </>
+      )}
 
       {/* Unsupported format notice */}
       <div className="rounded-lg border border-border bg-surface px-4 py-3 text-xs text-text-tertiary">
-        Supports typed discovery text — interrogatories, RFPs, and RFAs in
-        pasted text. Scanned forms and Judicial Council checkbox forms
-        (DISC-001 series) require manual entry of each request. File upload
-        (.docx, .pdf) coming in a future update.
+        Supports typed discovery text — interrogatories, RFPs, and RFAs.
+        Scanned forms and Judicial Council checkbox forms (DISC-001 series)
+        require manual entry of each request.
       </div>
 
       {/* Parse button (also in footer, but helpful inline) */}
-      {state.rawText.trim().length > 0 && (
+      {hasInput && (
         <button
           type="button"
           onClick={onParse}

@@ -50,6 +50,13 @@ export interface ObjectionDrafterState {
   /** Per-objection toggles: key = `${requestNumber}-${groundId}`, value = enabled */
   objectionToggles: Record<string, boolean>;
 
+  // File upload
+  uploadedFile: File | null;
+  uploadedFileName: string;
+
+  // Export
+  isExporting: boolean;
+
   // Loading / Error
   isParsing: boolean;
   isGenerating: boolean;
@@ -81,6 +88,9 @@ const initialState: ObjectionDrafterState = {
   generateResponse: null,
   contentScope: "objections_only",
   objectionToggles: {},
+  uploadedFile: null,
+  uploadedFileName: "",
+  isExporting: false,
   isParsing: false,
   isGenerating: false,
   error: null,
@@ -122,6 +132,11 @@ type Action =
   | { type: "GENERATE_ERROR"; error: string }
   | { type: "SET_CONTENT_SCOPE"; scope: ContentScope }
   | { type: "TOGGLE_OBJECTION"; key: string }
+  | { type: "SET_UPLOADED_FILE"; file: File }
+  | { type: "CLEAR_UPLOADED_FILE" }
+  | { type: "EXPORT_START" }
+  | { type: "EXPORT_DONE" }
+  | { type: "EXPORT_ERROR"; error: string }
   | { type: "CLEAR_ERROR" }
   | { type: "RESET" };
 
@@ -276,6 +291,24 @@ function reducer(state: ObjectionDrafterState, action: Action): ObjectionDrafter
       toggles[action.key] = !toggles[action.key];
       return { ...state, objectionToggles: toggles };
     }
+    case "SET_UPLOADED_FILE":
+      return {
+        ...state,
+        uploadedFile: action.file,
+        uploadedFileName: action.file.name,
+      };
+    case "CLEAR_UPLOADED_FILE":
+      return {
+        ...state,
+        uploadedFile: null,
+        uploadedFileName: "",
+      };
+    case "EXPORT_START":
+      return { ...state, isExporting: true };
+    case "EXPORT_DONE":
+      return { ...state, isExporting: false };
+    case "EXPORT_ERROR":
+      return { ...state, isExporting: false, error: action.error };
     case "CLEAR_ERROR":
       return { ...state, error: null };
     case "RESET":

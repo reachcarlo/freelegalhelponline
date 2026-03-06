@@ -7,6 +7,8 @@ import {
   DISCOVERY_TYPE_LABELS,
   copyToClipboard,
   downloadTextFile,
+  downloadBlob,
+  exportDocx,
   type ContentScope,
   type ObjectionStrength,
   type RequestAnalysisInfo,
@@ -15,7 +17,7 @@ import {
 
 export default function ObjectionResults() {
   const { state, dispatch } = useObjectionDrafter();
-  const { generateResponse, contentScope, objectionToggles } = state;
+  const { generateResponse, contentScope, objectionToggles, isExporting } = state;
 
   const [copiedAll, setCopiedAll] = useState(false);
   const [copiedRequest, setCopiedRequest] = useState<string | null>(null);
@@ -127,7 +129,7 @@ export default function ObjectionResults() {
           <span className="text-sm text-text-secondary">
             {enabledObjections} of {totalObjections} objections enabled
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => {
@@ -154,6 +156,69 @@ export default function ObjectionResults() {
             >
               Download .txt
             </button>
+            <button
+              type="button"
+              disabled={isExporting}
+              onClick={async () => {
+                dispatch({ type: "EXPORT_START" });
+                try {
+                  const { blob, filename } = await exportDocx({
+                    results,
+                    format: "docx_standalone",
+                    includeRequestText: contentScope === "request_and_objections",
+                    includeWaiverLanguage: state.includeWaiverLanguage,
+                    enabledObjections: objectionToggles,
+                  });
+                  downloadBlob(blob, filename);
+                  dispatch({ type: "EXPORT_DONE" });
+                } catch (err) {
+                  dispatch({
+                    type: "EXPORT_ERROR",
+                    error: err instanceof Error ? err.message : "Export failed",
+                  });
+                }
+              }}
+              className={`min-h-[44px] rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 ${
+                isExporting
+                  ? "cursor-not-allowed opacity-50 text-text-tertiary"
+                  : "text-text-secondary hover:bg-accent-surface"
+              }`}
+            >
+              {isExporting ? "Exporting…" : "Download .docx"}
+            </button>
+            {state.uploadedFile && state.isResponseShell && (
+              <button
+                type="button"
+                disabled={isExporting}
+                onClick={async () => {
+                  dispatch({ type: "EXPORT_START" });
+                  try {
+                    const { blob, filename } = await exportDocx({
+                      results,
+                      format: "docx_shell_insert",
+                      includeRequestText: false,
+                      includeWaiverLanguage: state.includeWaiverLanguage,
+                      enabledObjections: objectionToggles,
+                      shellFile: state.uploadedFile!,
+                    });
+                    downloadBlob(blob, filename);
+                    dispatch({ type: "EXPORT_DONE" });
+                  } catch (err) {
+                    dispatch({
+                      type: "EXPORT_ERROR",
+                      error: err instanceof Error ? err.message : "Shell insert failed",
+                    });
+                  }
+                }}
+                className={`min-h-[44px] rounded-lg border border-accent px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 ${
+                  isExporting
+                    ? "cursor-not-allowed opacity-50 text-text-tertiary"
+                    : "text-accent hover:bg-accent-surface"
+                }`}
+              >
+                {isExporting ? "Inserting…" : "Insert into Shell"}
+              </button>
+            )}
           </div>
         </div>
       </div>

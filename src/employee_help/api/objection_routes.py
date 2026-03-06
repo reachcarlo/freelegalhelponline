@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import io
+import json
 from typing import Any, Literal
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from employee_help.api.sanitize import sanitize_text
@@ -376,6 +379,135 @@ async def generate_objections(body: GenerateRequest):
         cost_estimate=batch_result.cost_estimate,
         duration_ms=batch_result.duration_ms,
         warnings=batch_result.warnings,
+    )
+
+
+DOCX_CONTENT_TYPE = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+)
+
+
+@objection_router.post("/parse-document", response_model=ParseResponse)
+async def parse_document(
+    file: UploadFile = File(...),
+    discovery_type: str | None = Form(default=None),
+):
+    """Parse an uploaded .docx or .pdf into individual discovery requests."""
+    from employee_help.discovery.objections.document_reader import (
+        DocumentReadError,
+        extract_text,
+    )
+    from employee_help.discovery.objections.parser import RequestParser
+
+    file_bytes = await file.read()
+    filename = file.filename or "upload"
+
+    try:
+        text = extract_text(file_bytes, filename)
+    except DocumentReadError as exc:
+        raise HTTPException(400, str(exc))
+
+    parser = RequestParser()
+
+    dtype = None
+    if discovery_type:
+        try:
+            dtype = ResponseDiscoveryType(discovery_type)
+        except ValueError:
+            raise HTTPException(400, f"Invalid discovery_type: {discovery_type}")
+
+    result = parser.parse_text(text, discovery_type=dtype)
+
+    return ParseResponse(
+        requests=[
+            ParsedRequestInfo(
+                id=r.id,
+                request_number=r.request_number,
+                request_text=r.request_text,
+                discovery_type=r.discovery_type.value,
+                is_selected=r.is_selected,
+            )
+            for r in result.requests
+        ],
+        skipped_sections=[
+            SkippedSectionInfo(
+                section_type=s.section_type,
+                content=s.content,
+                defined_terms=list(s.defined_terms),
+            )
+            for s in result.skipped_sections
+        ],
+        metadata=ExtractedMetadataInfo(
+            propounding_party=result.metadata.propounding_party,
+            responding_party=result.metadata.responding_party,
+            set_number=result.metadata.set_number,
+            case_name=result.metadata.case_name,
+        ),
+        detected_type=result.detected_type.value if result.detected_type else None,
+        is_response_shell=result.is_response_shell,
+        warnings=result.warnings,
+    )
+
+
+@objection_router.post("/export")
+async def export_objections(
+    results_json: str = Form(...),
+    format: Literal["docx_standalone", "docx_shell_insert"] = Form(...),
+    include_request_text: bool = Form(default=False),
+    include_waiver_language: bool = Form(default=False),
+    enabled_objections_json: str = Form(default="{}"),
+    shell_file: UploadFile | None = File(default=None),
+):
+    """Export objections as a .docx file (standalone or inserted into shell)."""
+    from employee_help.discovery.objections.exporter import (
+        ExportOptions,
+        generate_standalone_docx,
+        insert_into_shell,
+    )
+
+    try:
+        results = json.loads(results_json)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "Invalid results_json")
+
+    if not isinstance(results, list):
+        raise HTTPException(400, "results_json must be a JSON array")
+
+    try:
+        enabled_objections = json.loads(enabled_objections_json)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "Invalid enabled_objections_json")
+
+    options = ExportOptions(
+        include_request_text=include_request_text,
+        include_waiver_language=include_waiver_language,
+        enabled_objections=enabled_objections,
+    )
+
+    if format == "docx_standalone":
+        docx_bytes = generate_standalone_docx(results, options)
+        filename = "objections.docx"
+    elif format == "docx_shell_insert":
+        if not shell_file:
+            raise HTTPException(400, "shell_file is required for docx_shell_insert format")
+        shell_bytes = await shell_file.read()
+        docx_bytes, filled, total = insert_into_shell(shell_bytes, results, options)
+        filename = "objections_filled.docx"
+        logger.info(
+            "shell_insert_complete",
+            markers_filled=filled,
+            total_markers=total,
+        )
+    else:
+        raise HTTPException(400, f"Invalid format: {format}")
+
+    return StreamingResponse(
+        io.BytesIO(docx_bytes),
+        media_type=DOCX_CONTENT_TYPE,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Length": str(len(docx_bytes)),
+        },
     )
 
 

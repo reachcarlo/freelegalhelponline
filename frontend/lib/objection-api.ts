@@ -240,10 +240,84 @@ export async function generateObjections(
   return response.json();
 }
 
+// ── Document upload ──────────────────────────────────────────────────
+
+export async function parseDocument(
+  file: File,
+  discoveryType?: ResponseDiscoveryType
+): Promise<ParseResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (discoveryType) {
+    formData.append("discovery_type", discoveryType);
+  }
+
+  const response = await fetch("/api/objections/parse-document", {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(
+      err?.detail || `Document parse failed (${response.status})`
+    );
+  }
+  return response.json();
+}
+
+// ── Export ───────────────────────────────────────────────────────────
+
+export interface ExportDocxOptions {
+  results: RequestAnalysisInfo[];
+  format: "docx_standalone" | "docx_shell_insert";
+  includeRequestText?: boolean;
+  includeWaiverLanguage?: boolean;
+  enabledObjections?: Record<string, boolean>;
+  shellFile?: File;
+}
+
+export async function exportDocx(
+  options: ExportDocxOptions
+): Promise<{ blob: Blob; filename: string }> {
+  const formData = new FormData();
+  formData.append("results_json", JSON.stringify(options.results));
+  formData.append("format", options.format);
+  formData.append(
+    "include_request_text",
+    String(options.includeRequestText ?? false)
+  );
+  formData.append(
+    "include_waiver_language",
+    String(options.includeWaiverLanguage ?? false)
+  );
+  formData.append(
+    "enabled_objections_json",
+    JSON.stringify(options.enabledObjections ?? {})
+  );
+  if (options.shellFile) {
+    formData.append("shell_file", options.shellFile);
+  }
+
+  const response = await fetch("/api/objections/export", {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.detail || `Export failed (${response.status})`);
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="(.+?)"/);
+  const filename = match?.[1] || "objections.docx";
+
+  return { blob, filename };
+}
+
 // ── Download helpers ─────────────────────────────────────────────────
 
-export function downloadTextFile(text: string, filename: string): void {
-  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -252,6 +326,11 @@ export function downloadTextFile(text: string, filename: string): void {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+export function downloadTextFile(text: string, filename: string): void {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  downloadBlob(blob, filename);
 }
 
 export function copyToClipboard(text: string): Promise<void> {
