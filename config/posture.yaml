@@ -9,31 +9,39 @@ postures:
   - id: aggressive
     label: Aggressive
     description: >-
-      Object broadly to preserve all arguable grounds.
-      Raises form objections liberally, includes boilerplate grounds
-      where colorable, and errs on the side of preserving objections.
+      Zealous advocacy — object to nearly every request to preserve all
+      grounds. Raises every objection with a colorable legal basis, including
+      form objections, boilerplate grounds, and low-strength objections.
+      The attorney reviews the output and removes what doesn't fit the
+      case strategy.
     tooltip: >-
-      Default for most litigation. Raises every objection with a colorable
-      basis to preserve the right to assert it later. Courts may overrule
-      some objections, but waived objections cannot be raised at trial.
+      Standard defense practice for most litigation. Objects to nearly every
+      request to preserve all grounds — a waived objection can never be raised
+      at trial. Expect 3-8 objections per request. The attorney reviews and
+      trims the output. Recommended as the default.
 
   - id: balanced
     label: Balanced
     description: >-
-      Object where genuinely warranted. Raises substantive objections
-      with medium-or-higher strength, and form objections only when the
-      defect is clear. Produces a professional, credible response.
+      Competent advocacy — raise genuine objections while maintaining a
+      professional, credible tone. Includes substantive objections when
+      warranted and form objections when the defect is meaningful.
+      Low-strength objections only for privilege-sensitive grounds.
     tooltip: >-
-      Appropriate when you want to maintain credibility with the court
-      or opposing counsel. Focuses on objections likely to be sustained.
+      Appropriate when you want a clean set of substantive objections without
+      extensive form objections. Expect 1-4 objections per request. Good for
+      cases where you want to project professionalism while still protecting
+      your client's interests.
 
   - id: selective
     label: Selective
     description: >-
-      Object only to the strongest, most defensible grounds. Omits
+      Strategic restraint — object only when clearly warranted. Omits
       boilerplate and marginal objections. Produces a lean response
-      focused on objections a court would almost certainly sustain.
+      focused on objections a court would almost certainly sustain or
+      that preserve critical privileges.
     tooltip: >-
-      Use when you want to project maximum credibility, in cases with
-      a cooperative discovery relationship, or when most requests are
-      proper and only a few warrant objection.
+      Use for cooperative discovery relationships, court-ordered good-faith
+      responses, or when projecting maximum credibility. Most requests will
+      have zero or one objection. Only high-strength and privilege objections
+      are included.

@@ -975,31 +975,32 @@ class TestPosturePromptRendering:
     def test_aggressive_prompt(self, jinja_env, render_args):
         template = jinja_env.get_template("objection_system.j2")
         result = template.render(**render_args, posture="aggressive")
-        assert "AGGRESSIVE" in result
-        assert "preserve every objection" in result.lower()
-        assert "err on the side of more objections" in result.lower()
+        assert "ZEALOUS ADVOCATE" in result
+        assert "preserving every possible objection" in result.lower()
+        assert "colorable basis" in result.lower()
+        assert "3-8 objections" in result
 
     def test_balanced_prompt(self, jinja_env, render_args):
         template = jinja_env.get_template("objection_system.j2")
         result = template.render(**render_args, posture="balanced")
-        assert "BALANCED" in result
-        assert "genuinely warranted" in result.lower()
+        assert "COMPETENT ADVOCATE" in result
+        assert "genuinely apply" in result.lower()
         assert "balance thoroughness with credibility" in result.lower()
 
     def test_selective_prompt(self, jinja_env, render_args):
         template = jinja_env.get_template("objection_system.j2")
         result = template.render(**render_args, posture="selective")
-        assert "SELECTIVE" in result
-        assert "lean, credible" in result.lower()
+        assert "STRATEGIC LITIGATOR" in result
+        assert "lean response" in result.lower()
         assert "omit" in result.lower()
 
     def test_all_prompts_include_base_rules(self, jinja_env, render_args):
         template = jinja_env.get_template("objection_system.j2")
         for posture in ("aggressive", "balanced", "selective"):
             result = template.render(**render_args, posture=posture)
-            assert "CCP §2023.010(e)" in result
             assert "Available Objection Grounds" in result
-            assert "sanctions" in result
+            assert "Reference the specific subject matter" in result
+            assert "Use ONLY the citation keys provided" in result
 
 
 class TestPostureAnalyzerIntegration:
@@ -1030,9 +1031,15 @@ class TestPostureAnalyzerIntegration:
         }
 
     def test_posture_passed_to_template(self, kb, mock_llm_response):
-        """Verify posture is rendered into the system prompt."""
+        """Verify posture is rendered into the system prompt with distinct role labels."""
         from employee_help.discovery.objections.analyzer import ObjectionAnalyzer
         from employee_help.models.posture import LitigationPosture
+
+        posture_markers = {
+            LitigationPosture.AGGRESSIVE: "ZEALOUS ADVOCATE",
+            LitigationPosture.BALANCED: "COMPETENT ADVOCATE",
+            LitigationPosture.SELECTIVE: "STRATEGIC LITIGATOR",
+        }
 
         mock_llm = MagicMock()
         mock_llm.generate_with_tools.return_value = mock_llm_response
@@ -1048,8 +1055,9 @@ class TestPostureAnalyzerIntegration:
             system_prompt = call_args.kwargs.get("system_prompt", call_args[1].get("system_prompt", ""))
             if not system_prompt and len(call_args.args) > 0:
                 system_prompt = call_args.args[0]
-            assert posture.value.upper() in system_prompt.upper(), (
-                f"Posture '{posture.value}' not found in rendered system prompt"
+            expected_marker = posture_markers[posture]
+            assert expected_marker in system_prompt, (
+                f"Posture '{posture.value}' marker '{expected_marker}' not found in rendered system prompt"
             )
 
     def test_default_posture_is_aggressive(self, kb, mock_llm_response):
