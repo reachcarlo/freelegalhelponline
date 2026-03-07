@@ -648,6 +648,8 @@ class DiscoveryBankItemInfo(BaseModel):
     category: str
     order: int
     rfa_type: str | None = None
+    applicable_roles: list[str] | None = None
+    applicable_claims: list[str] | None = None
 
 
 class DiscoveryBankCategoryInfo(BaseModel):

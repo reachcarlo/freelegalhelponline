@@ -3,7 +3,7 @@
 Provides endpoints for:
 - Suggesting discovery items based on claim types and party role
 - Generating filled PDF/DOCX discovery documents
-- Retrieving request banks (SROGs, RFPDs, RFAs)
+- Retrieving request banks (SROGs, RFPDs, RFAs) with optional role filtering
 - Retrieving standard legal definitions
 """
 
@@ -132,6 +132,101 @@ def _to_discovery_requests(schemas):
     ]
 
 
+def _parse_party_role(value: str | None):
+    """Parse an optional party_role string into a PartyRole enum or None."""
+    if value is None:
+        return None
+    from employee_help.discovery.models import PartyRole
+
+    try:
+        return PartyRole(value)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid party_role: {value!r}. Must be 'plaintiff' or 'defendant'.",
+        )
+
+
+def _default_variable_map(party_role) -> dict[str, str]:
+    """Build a default variable map when no case info is available.
+
+    Uses definition-style defaults: EMPLOYEE, EMPLOYER, Plaintiff, Defendant.
+    """
+    from employee_help.discovery.models import PartyRole
+
+    if party_role == PartyRole.PLAINTIFF:
+        return {
+            "PROPOUNDING_PARTY": "Plaintiff",
+            "RESPONDING_PARTY": "Defendant",
+            "PROPOUNDING_DESIGNATION": "Plaintiff",
+            "RESPONDING_DESIGNATION": "Defendant",
+            "EMPLOYEE": "EMPLOYEE",
+            "EMPLOYER": "EMPLOYER",
+        }
+    else:
+        return {
+            "PROPOUNDING_PARTY": "Defendant",
+            "RESPONDING_PARTY": "Plaintiff",
+            "PROPOUNDING_DESIGNATION": "Defendant",
+            "RESPONDING_DESIGNATION": "Plaintiff",
+            "EMPLOYEE": "EMPLOYEE",
+            "EMPLOYER": "EMPLOYER",
+        }
+
+
+def _resolve_bank_item_text(text: str, variables: dict[str, str]) -> str:
+    """Resolve template variables in bank item text."""
+    from employee_help.discovery.resolver import resolve_text
+
+    return resolve_text(text, variables)
+
+
+def _filter_and_build_bank(bank, categories_dict, party_role, tool: str):
+    """Filter a bank by role and build the API response components.
+
+    Returns (items, categories, filtered_bank) where filtered_bank is
+    the list of DiscoveryRequest objects after filtering.
+    """
+    from employee_help.discovery.filters import filter_by_role
+
+    if party_role is not None:
+        filtered = filter_by_role(list(bank), party_role)
+        variables = _default_variable_map(party_role)
+    else:
+        filtered = list(bank)
+        variables = None
+
+    # Build items
+    items = []
+    for r in filtered:
+        text = _resolve_bank_item_text(r.text, variables) if variables else r.text
+        item_kwargs = {
+            "id": r.id,
+            "text": text,
+            "category": r.category,
+            "order": r.order,
+            "applicable_roles": list(r.applicable_roles),
+            "applicable_claims": list(r.applicable_claims) if r.applicable_claims else None,
+        }
+        if hasattr(r, "rfa_type"):
+            item_kwargs["rfa_type"] = r.rfa_type
+        items.append(DiscoveryBankItemInfo(**item_kwargs))
+
+    # Build categories, omitting empty ones after filtering
+    filtered_cats = {r.category for r in filtered}
+    categories = [
+        DiscoveryBankCategoryInfo(
+            key=k,
+            label=v,
+            count=sum(1 for r in filtered if r.category == k),
+        )
+        for k, v in categories_dict.items()
+        if k in filtered_cats
+    ]
+
+    return items, categories
+
+
 # ---------------------------------------------------------------------------
 # POST /api/discovery/suggest
 # ---------------------------------------------------------------------------
@@ -140,6 +235,7 @@ def _to_discovery_requests(schemas):
 @discovery_router.post("/suggest", response_model=DiscoverySuggestResponse)
 async def suggest_discovery(request: DiscoverySuggestRequest):
     """Suggest discovery items based on claim types and party role."""
+    from employee_help.discovery.filters import filter_by_claims, filter_by_role
     from employee_help.discovery.models import ClaimType, PartyRole
 
     claim_types = [ClaimType(ct) for ct in request.claim_types]
@@ -208,8 +304,10 @@ async def suggest_discovery(request: DiscoverySuggestRequest):
         from employee_help.discovery.srogs import SROG_CATEGORIES, get_srogs_for_categories
 
         merged = get_suggestions_for_claims(claim_types)
-        categories = merged.srog_categories
+        categories = merged.categories_for_role("srogs", party_role)
         items = get_srogs_for_categories(categories)
+        items = filter_by_role(items, party_role)
+        items = filter_by_claims(items, tuple(claim_types))
         cat_infos = [
             SuggestedCategoryInfo(
                 category=cat,
@@ -217,6 +315,7 @@ async def suggest_discovery(request: DiscoverySuggestRequest):
                 request_count=sum(1 for r in items if r.category == cat),
             )
             for cat in categories
+            if any(r.category == cat for r in items)
         ]
         return DiscoverySuggestResponse(
             tool_type=tool,
@@ -230,8 +329,10 @@ async def suggest_discovery(request: DiscoverySuggestRequest):
         from employee_help.discovery.rfpds import RFPD_CATEGORIES, get_rfpds_for_categories
 
         merged = get_suggestions_for_claims(claim_types)
-        categories = merged.rfpd_categories
+        categories = merged.categories_for_role("rfpds", party_role)
         items = get_rfpds_for_categories(categories)
+        items = filter_by_role(items, party_role)
+        items = filter_by_claims(items, tuple(claim_types))
         cat_infos = [
             SuggestedCategoryInfo(
                 category=cat,
@@ -239,6 +340,7 @@ async def suggest_discovery(request: DiscoverySuggestRequest):
                 request_count=sum(1 for r in items if r.category == cat),
             )
             for cat in categories
+            if any(r.category == cat for r in items)
         ]
         return DiscoverySuggestResponse(
             tool_type=tool,
@@ -252,8 +354,10 @@ async def suggest_discovery(request: DiscoverySuggestRequest):
         from employee_help.discovery.rfas import RFA_CATEGORIES, get_rfas_for_categories
 
         merged = get_suggestions_for_claims(claim_types)
-        categories = merged.rfa_categories
+        categories = merged.categories_for_role("rfas", party_role)
         items = get_rfas_for_categories(categories)
+        items = filter_by_role(items, party_role)
+        items = filter_by_claims(items, tuple(claim_types))
         cat_infos = [
             SuggestedCategoryInfo(
                 category=cat,
@@ -261,6 +365,7 @@ async def suggest_discovery(request: DiscoverySuggestRequest):
                 request_count=sum(1 for r in items if r.category == cat),
             )
             for cat in categories
+            if any(r.category == cat for r in items)
         ]
         return DiscoverySuggestResponse(
             tool_type=tool,
@@ -449,8 +554,15 @@ async def generate_proof_of_service(request: POSGenerateRequest):
 
 
 @discovery_router.get("/banks/{tool}", response_model=DiscoveryBankResponse)
-async def get_discovery_bank(tool: str):
-    """Return the complete request bank for a discovery tool."""
+async def get_discovery_bank(tool: str, party_role: str | None = None):
+    """Return the request bank for a discovery tool.
+
+    When party_role is provided, filters to role-appropriate items
+    and resolves template variables with default labels.
+    When omitted, returns the full bank (backwards compatible).
+    """
+    role = _parse_party_role(party_role)
+
     if tool == "frogs_general":
         from employee_help.discovery.frogs_general import DISC001_SECTIONS
 
@@ -505,20 +617,9 @@ async def get_discovery_bank(tool: str):
         from employee_help.discovery.models import SROG_LIMIT
         from employee_help.discovery.srogs import SROG_BANK, SROG_CATEGORIES
 
-        categories = [
-            DiscoveryBankCategoryInfo(
-                key=k,
-                label=v,
-                count=sum(1 for r in SROG_BANK if r.category == k),
-            )
-            for k, v in SROG_CATEGORIES.items()
-        ]
-        items = [
-            DiscoveryBankItemInfo(
-                id=r.id, text=r.text, category=r.category, order=r.order
-            )
-            for r in SROG_BANK
-        ]
+        items, categories = _filter_and_build_bank(
+            SROG_BANK, SROG_CATEGORIES, role, tool,
+        )
         return DiscoveryBankResponse(
             tool_type=tool,
             categories=categories,
@@ -530,20 +631,9 @@ async def get_discovery_bank(tool: str):
     elif tool == "rfpds":
         from employee_help.discovery.rfpds import RFPD_BANK, RFPD_CATEGORIES
 
-        categories = [
-            DiscoveryBankCategoryInfo(
-                key=k,
-                label=v,
-                count=sum(1 for r in RFPD_BANK if r.category == k),
-            )
-            for k, v in RFPD_CATEGORIES.items()
-        ]
-        items = [
-            DiscoveryBankItemInfo(
-                id=r.id, text=r.text, category=r.category, order=r.order
-            )
-            for r in RFPD_BANK
-        ]
+        items, categories = _filter_and_build_bank(
+            RFPD_BANK, RFPD_CATEGORIES, role, tool,
+        )
         return DiscoveryBankResponse(
             tool_type=tool,
             categories=categories,
@@ -555,24 +645,9 @@ async def get_discovery_bank(tool: str):
         from employee_help.discovery.models import RFA_FACT_LIMIT
         from employee_help.discovery.rfas import RFA_BANK, RFA_CATEGORIES
 
-        categories = [
-            DiscoveryBankCategoryInfo(
-                key=k,
-                label=v,
-                count=sum(1 for r in RFA_BANK if r.category == k),
-            )
-            for k, v in RFA_CATEGORIES.items()
-        ]
-        items = [
-            DiscoveryBankItemInfo(
-                id=r.id,
-                text=r.text,
-                category=r.category,
-                order=r.order,
-                rfa_type=r.rfa_type,
-            )
-            for r in RFA_BANK
-        ]
+        items, categories = _filter_and_build_bank(
+            RFA_BANK, RFA_CATEGORIES, role, tool,
+        )
         return DiscoveryBankResponse(
             tool_type=tool,
             categories=categories,

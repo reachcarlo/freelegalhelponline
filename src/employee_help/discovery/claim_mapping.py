@@ -5,6 +5,7 @@ typically relevant. This is the core intelligence layer that drives
 the guided workflow's pre-selection of interrogatories and requests.
 
 Mappings reflect prevailing California employment litigation practice.
+Supports role-specific category overrides for plaintiff vs. defendant.
 
 Pure data — no DB, no ML, no external services.
 """
@@ -13,7 +14,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .models import ClaimType
+from .models import ClaimType, PartyRole
+
+
+# Tool name → field prefix mapping
+_TOOL_FIELD_PREFIX = {"srogs": "srog", "rfpds": "rfpd", "rfas": "rfa"}
 
 
 @dataclass(frozen=True)
@@ -23,9 +28,10 @@ class DiscoverySuggestions:
     Each field contains identifiers that map to specific tools:
     - disc001_sections: DISC-001 section numbers (e.g. "1.1", "6.1")
     - disc002_sections: DISC-002 section numbers (e.g. "200.1", "201.1")
-    - srog_categories: Category slugs for the SROG request bank
-    - rfpd_categories: Category slugs for the RFPD request bank
-    - rfa_categories: Category slugs for the RFA request bank
+    - srog_categories: Category slugs for the SROG request bank (plaintiff default)
+    - rfpd_categories: Category slugs for the RFPD request bank (plaintiff default)
+    - rfa_categories: Category slugs for the RFA request bank (plaintiff default)
+    - *_categories_defendant: Role-specific overrides (None = use base)
     """
 
     disc001_sections: tuple[str, ...]
@@ -33,6 +39,21 @@ class DiscoverySuggestions:
     srog_categories: tuple[str, ...]
     rfpd_categories: tuple[str, ...]
     rfa_categories: tuple[str, ...]
+    # Defendant-specific overrides (None = fall back to base categories)
+    srog_categories_defendant: tuple[str, ...] | None = None
+    rfpd_categories_defendant: tuple[str, ...] | None = None
+    rfa_categories_defendant: tuple[str, ...] | None = None
+
+    def categories_for_role(
+        self, tool: str, role: PartyRole,
+    ) -> tuple[str, ...]:
+        """Return role-specific categories, falling back to base."""
+        prefix = _TOOL_FIELD_PREFIX[tool]
+        if role == PartyRole.DEFENDANT:
+            override = getattr(self, f"{prefix}_categories_defendant", None)
+            if override is not None:
+                return override
+        return getattr(self, f"{prefix}_categories")
 
 
 def merge_suggestions(suggestions: list[DiscoverySuggestions]) -> DiscoverySuggestions:
@@ -46,6 +67,12 @@ def merge_suggestions(suggestions: list[DiscoverySuggestions]) -> DiscoverySugge
     srog: set[str] = set()
     rfpd: set[str] = set()
     rfa: set[str] = set()
+    srog_def: set[str] = set()
+    rfpd_def: set[str] = set()
+    rfa_def: set[str] = set()
+    has_srog_def = False
+    has_rfpd_def = False
+    has_rfa_def = False
 
     for s in suggestions:
         disc001.update(s.disc001_sections)
@@ -53,6 +80,15 @@ def merge_suggestions(suggestions: list[DiscoverySuggestions]) -> DiscoverySugge
         srog.update(s.srog_categories)
         rfpd.update(s.rfpd_categories)
         rfa.update(s.rfa_categories)
+        if s.srog_categories_defendant is not None:
+            has_srog_def = True
+            srog_def.update(s.srog_categories_defendant)
+        if s.rfpd_categories_defendant is not None:
+            has_rfpd_def = True
+            rfpd_def.update(s.rfpd_categories_defendant)
+        if s.rfa_categories_defendant is not None:
+            has_rfa_def = True
+            rfa_def.update(s.rfa_categories_defendant)
 
     return DiscoverySuggestions(
         disc001_sections=tuple(sorted(disc001)),
@@ -60,6 +96,9 @@ def merge_suggestions(suggestions: list[DiscoverySuggestions]) -> DiscoverySugge
         srog_categories=tuple(sorted(srog)),
         rfpd_categories=tuple(sorted(rfpd)),
         rfa_categories=tuple(sorted(rfa)),
+        srog_categories_defendant=tuple(sorted(srog_def)) if has_srog_def else None,
+        rfpd_categories_defendant=tuple(sorted(rfpd_def)) if has_rfpd_def else None,
+        rfa_categories_defendant=tuple(sorted(rfa_def)) if has_rfa_def else None,
     )
 
 
@@ -135,7 +174,7 @@ _DISC002_STANDARD_TAIL = (
     "216.1",            # Defenses
 )
 
-# Standard SROG/RFPD/RFA categories for most employment claims
+# Standard SROG/RFPD/RFA categories for most employment claims (plaintiff)
 _SROG_STANDARD = (
     "employment_relationship",
     "adverse_action",
@@ -157,6 +196,118 @@ _RFA_STANDARD = (
     "employment_facts",
     "adverse_action_facts",
     "document_genuineness",
+)
+
+# ---------------------------------------------------------------------------
+# Defendant-specific category sets
+# ---------------------------------------------------------------------------
+
+# Standard defendant categories (FEHA, retaliation, CFRA, wrongful termination)
+_SROG_DEFENDANT_STANDARD = (
+    "employment_relationship",
+    "factual_basis",
+    "emotional_distress",
+    "mitigation",
+    "prior_employment",
+    "social_media_recordings",
+)
+
+_RFPD_DEFENDANT_STANDARD = (
+    "medical_records",
+    "financial_records",
+    "job_search_docs",
+    "prior_employment_docs",
+    "personal_records",
+    "social_media_docs",
+    "govt_agency_docs",
+)
+
+_RFA_DEFENDANT_STANDARD = (
+    "employment_facts",
+    "document_genuineness",
+    "performance_facts",
+    "policies_compliance",
+    "legitimate_reasons",
+    "damages_limitations",
+    "mitigation_facts",
+    "prior_claims",
+    "direct_evidence",
+)
+
+# Wage defendant categories (wage theft, meal/rest, overtime, misclassification)
+_SROG_DEFENDANT_WAGE = (
+    "employment_relationship",
+    "factual_basis",
+    "mitigation",
+    "prior_employment",
+)
+
+_RFPD_DEFENDANT_WAGE = (
+    "financial_records",
+    "job_search_docs",
+    "prior_employment_docs",
+    "govt_agency_docs",
+)
+
+_RFA_DEFENDANT_WAGE = (
+    "employment_facts",
+    "document_genuineness",
+    "performance_facts",
+    "legitimate_reasons",
+    "mitigation_facts",
+    "prior_claims",
+)
+
+# Tort defendant categories (IIED, NIED, defamation)
+_SROG_DEFENDANT_TORT = (
+    "employment_relationship",
+    "factual_basis",
+    "emotional_distress",
+    "mitigation",
+    "prior_employment",
+    "social_media_recordings",
+)
+
+_RFPD_DEFENDANT_TORT = (
+    "medical_records",
+    "financial_records",
+    "job_search_docs",
+    "prior_employment_docs",
+    "personal_records",
+    "social_media_docs",
+)
+
+_RFA_DEFENDANT_TORT = (
+    "employment_facts",
+    "document_genuineness",
+    "performance_facts",
+    "damages_limitations",
+    "mitigation_facts",
+    "prior_claims",
+)
+
+# Contract defendant categories (breach of implied contract, covenant)
+_SROG_DEFENDANT_CONTRACT = (
+    "employment_relationship",
+    "factual_basis",
+    "mitigation",
+    "prior_employment",
+)
+
+_RFPD_DEFENDANT_CONTRACT = (
+    "financial_records",
+    "job_search_docs",
+    "prior_employment_docs",
+    "govt_agency_docs",
+)
+
+_RFA_DEFENDANT_CONTRACT = (
+    "employment_facts",
+    "document_genuineness",
+    "performance_facts",
+    "legitimate_reasons",
+    "mitigation_facts",
+    "prior_claims",
 )
 
 
@@ -206,6 +357,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             *_RFA_STANDARD,
             "policy_facts",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_STANDARD,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_STANDARD,
+        rfa_categories_defendant=_RFA_DEFENDANT_STANDARD,
     ),
 
     ClaimType.FEHA_HARASSMENT: DiscoverySuggestions(
@@ -244,6 +398,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             "complaint_facts",
             "policy_facts",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_STANDARD,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_STANDARD,
+        rfa_categories_defendant=_RFA_DEFENDANT_STANDARD,
     ),
 
     ClaimType.FEHA_RETALIATION: DiscoverySuggestions(
@@ -285,6 +442,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             "complaint_facts",
             "policy_facts",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_STANDARD,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_STANDARD,
+        rfa_categories_defendant=_RFA_DEFENDANT_STANDARD,
     ),
 
     ClaimType.FEHA_FAILURE_TO_PREVENT: DiscoverySuggestions(
@@ -322,6 +482,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             "complaint_facts",
             "policy_facts",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_STANDARD,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_STANDARD,
+        rfa_categories_defendant=_RFA_DEFENDANT_STANDARD,
     ),
 
     ClaimType.FEHA_FAILURE_TO_ACCOMMODATE: DiscoverySuggestions(
@@ -362,6 +525,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             *_RFA_STANDARD,
             "policy_facts",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_STANDARD,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_STANDARD,
+        rfa_categories_defendant=_RFA_DEFENDANT_STANDARD,
     ),
 
     ClaimType.FEHA_FAILURE_INTERACTIVE_PROCESS: DiscoverySuggestions(
@@ -402,6 +568,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             *_RFA_STANDARD,
             "policy_facts",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_STANDARD,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_STANDARD,
+        rfa_categories_defendant=_RFA_DEFENDANT_STANDARD,
     ),
 
     # ----- Wrongful Termination / Contract -----
@@ -439,6 +608,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             *_RFA_STANDARD,
             "complaint_facts",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_STANDARD,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_STANDARD,
+        rfa_categories_defendant=_RFA_DEFENDANT_STANDARD,
     ),
 
     ClaimType.BREACH_IMPLIED_CONTRACT: DiscoverySuggestions(
@@ -474,6 +646,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             *_RFA_STANDARD,
             "policy_facts",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_CONTRACT,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_CONTRACT,
+        rfa_categories_defendant=_RFA_DEFENDANT_CONTRACT,
     ),
 
     ClaimType.BREACH_COVENANT_GOOD_FAITH: DiscoverySuggestions(
@@ -509,6 +684,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             *_RFA_STANDARD,
             "policy_facts",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_CONTRACT,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_CONTRACT,
+        rfa_categories_defendant=_RFA_DEFENDANT_CONTRACT,
     ),
 
     # ----- Wage & Hour Claims -----
@@ -547,6 +725,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             "wage_facts",
             "document_genuineness",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_WAGE,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_WAGE,
+        rfa_categories_defendant=_RFA_DEFENDANT_WAGE,
     ),
 
     ClaimType.MEAL_REST_BREAK: DiscoverySuggestions(
@@ -583,6 +764,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             "policy_facts",
             "document_genuineness",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_WAGE,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_WAGE,
+        rfa_categories_defendant=_RFA_DEFENDANT_WAGE,
     ),
 
     ClaimType.OVERTIME: DiscoverySuggestions(
@@ -619,6 +803,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             "wage_facts",
             "document_genuineness",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_WAGE,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_WAGE,
+        rfa_categories_defendant=_RFA_DEFENDANT_WAGE,
     ),
 
     ClaimType.MISCLASSIFICATION: DiscoverySuggestions(
@@ -656,6 +843,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             "wage_facts",
             "document_genuineness",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_WAGE,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_WAGE,
+        rfa_categories_defendant=_RFA_DEFENDANT_WAGE,
     ),
 
     # ----- Retaliation Claims -----
@@ -698,6 +888,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             "complaint_facts",
             "policy_facts",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_STANDARD,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_STANDARD,
+        rfa_categories_defendant=_RFA_DEFENDANT_STANDARD,
     ),
 
     ClaimType.LABOR_CODE_RETALIATION: DiscoverySuggestions(
@@ -736,6 +929,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             *_RFA_STANDARD,
             "complaint_facts",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_STANDARD,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_STANDARD,
+        rfa_categories_defendant=_RFA_DEFENDANT_STANDARD,
     ),
 
     # ----- CFRA / FMLA -----
@@ -772,6 +968,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             *_RFA_STANDARD,
             "policy_facts",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_STANDARD,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_STANDARD,
+        rfa_categories_defendant=_RFA_DEFENDANT_STANDARD,
     ),
 
     # ----- Tort Claims -----
@@ -807,6 +1006,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
         rfa_categories=(
             *_RFA_STANDARD,
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_TORT,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_TORT,
+        rfa_categories_defendant=_RFA_DEFENDANT_TORT,
     ),
 
     ClaimType.IIED: DiscoverySuggestions(
@@ -839,6 +1041,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             *_RFA_STANDARD,
             "complaint_facts",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_TORT,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_TORT,
+        rfa_categories_defendant=_RFA_DEFENDANT_TORT,
     ),
 
     ClaimType.NIED: DiscoverySuggestions(
@@ -869,6 +1074,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
         rfa_categories=(
             *_RFA_STANDARD,
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_TORT,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_TORT,
+        rfa_categories_defendant=_RFA_DEFENDANT_TORT,
     ),
 
     # ----- PAGA / UCL -----
@@ -908,6 +1116,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             "policy_facts",
             "document_genuineness",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_WAGE,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_WAGE,
+        rfa_categories_defendant=_RFA_DEFENDANT_WAGE,
     ),
 
     ClaimType.UNFAIR_BUSINESS_PRACTICES: DiscoverySuggestions(
@@ -944,6 +1155,9 @@ CLAIM_DISCOVERY_MAP: dict[ClaimType, DiscoverySuggestions] = {
             "wage_facts",
             "document_genuineness",
         ),
+        srog_categories_defendant=_SROG_DEFENDANT_WAGE,
+        rfpd_categories_defendant=_RFPD_DEFENDANT_WAGE,
+        rfa_categories_defendant=_RFA_DEFENDANT_WAGE,
     ),
 }
 

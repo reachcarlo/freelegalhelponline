@@ -1,6 +1,6 @@
 # Discovery Bank Redesign — Role-Aware, Variable-Driven, Comprehensive
 
-> **Status**: Phases D.1–D.2 COMPLETE (2026-03-06). D.3–D.5 not yet implemented.
+> **Status**: Phases D.1–D.3 COMPLETE (2026-03-06). D.4–D.5 not yet implemented.
 > **Date**: 2026-03-06
 > **Scope**: SROGs, RFPDs, RFAs request banks + API + frontend + claim mapping
 > **Prerequisite**: Existing discovery tools (Phases 5A–5G) fully implemented and tested
@@ -638,12 +638,12 @@ For MVP: If `party_role` is provided but no case names are available, use the de
 
 ### D.3 Gate
 
-- [ ] All existing tests pass
-- [ ] Bank endpoint returns role-filtered results when `party_role` is provided
-- [ ] Bank endpoint returns full bank when `party_role` is omitted (backwards compatible)
-- [ ] Suggest endpoint uses role-aware category mapping
-- [ ] Variable resolution works for both roles
-- [ ] ~40 new API tests pass
+- [x] All existing tests pass (2510 total, 0 failures)
+- [x] Bank endpoint returns role-filtered results when `party_role` is provided
+- [x] Bank endpoint returns full bank when `party_role` is omitted (backwards compatible)
+- [x] Suggest endpoint uses role-aware category mapping
+- [x] Variable resolution works for both roles
+- [x] 49 new API tests pass
 
 ---
 
