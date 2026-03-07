@@ -44,6 +44,10 @@ discovery = [
     "PyPDFForm>=4.7,<5.0",
     "docxtpl>=0.20,<1.0",
 ]
+casefile = [
+    "pytesseract>=0.3",
+    "Pillow>=9.0",
+]
 
 [project.scripts]
 employee-help = "employee_help.cli:main"
