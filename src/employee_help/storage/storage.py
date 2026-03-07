@@ -97,6 +97,67 @@ CREATE INDEX IF NOT EXISTS idx_chunks_content_hash ON chunks(content_hash);
 CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_content_category ON chunks(content_category);
 CREATE INDEX IF NOT EXISTS idx_sources_slug ON sources(slug);
+
+-- LITIGAGENT case tables
+CREATE TABLE IF NOT EXISTS cases (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS case_files (
+    id TEXT PRIMARY KEY,
+    case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    original_filename TEXT NOT NULL,
+    file_type TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    file_size_bytes INTEGER NOT NULL,
+    storage_path TEXT NOT NULL,
+    upload_order INTEGER NOT NULL,
+    processing_status TEXT NOT NULL DEFAULT 'queued',
+    error_message TEXT,
+    extracted_text TEXT,
+    edited_text TEXT,
+    text_dirty INTEGER NOT NULL DEFAULT 0,
+    ocr_confidence REAL,
+    page_count INTEGER,
+    metadata TEXT,
+    content_hash TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_case_files_case_id ON case_files(case_id);
+CREATE INDEX IF NOT EXISTS idx_case_files_status ON case_files(processing_status);
+
+CREATE TABLE IF NOT EXISTS case_notes (
+    id TEXT PRIMARY KEY,
+    case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    file_id TEXT REFERENCES case_files(id) ON DELETE SET NULL,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_case_notes_case_id ON case_notes(case_id);
+CREATE INDEX IF NOT EXISTS idx_case_notes_file_id ON case_notes(file_id);
+
+CREATE TABLE IF NOT EXISTS case_chunks (
+    id TEXT PRIMARY KEY,
+    file_id TEXT NOT NULL REFERENCES case_files(id) ON DELETE CASCADE,
+    case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    chunk_index INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    heading_path TEXT NOT NULL,
+    token_count INTEGER NOT NULL,
+    content_hash TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_case_chunks_case_id ON case_chunks(case_id);
+CREATE INDEX IF NOT EXISTS idx_case_chunks_file_id ON case_chunks(file_id);
+CREATE INDEX IF NOT EXISTS idx_case_chunks_hash ON case_chunks(content_hash);
 """
 
 # Migrations for upgrading from Phase 1 schema to Phase 1.5 schema.
