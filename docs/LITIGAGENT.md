@@ -1310,7 +1310,7 @@ With 100 files, total text could be 500K+ words (2M+ tokens). This doesn't fit i
 | Task | Description | Priority |
 |------|------------|----------|
 | L1.1 | Domain models + SQLite schema (cases, case_files, case_notes, case_chunks) | P0 DONE |
-| L1.2 | CaseStorage class (CRUD for all case entities) | P0 |
+| L1.2 | CaseStorage class (CRUD for all case entities) | P0 DONE |
 | L1.3 | ExtractorBase interface + ExtractorRegistry | P0 |
 | L1.4 | PDFExtractor (text + OCR fallback) | P0 |
 | L1.5 | DocxExtractor | P0 |
