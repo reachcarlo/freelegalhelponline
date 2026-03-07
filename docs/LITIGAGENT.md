@@ -1313,7 +1313,7 @@ With 100 files, total text could be 500K+ words (2M+ tokens). This doesn't fit i
 | L1.2 | CaseStorage class (CRUD for all case entities) | P0 DONE |
 | L1.3 | ExtractorBase interface + ExtractorRegistry | P0 DONE |
 | L1.4 | PDFExtractor (text + OCR fallback) | P0 DONE |
-| L1.5 | DocxExtractor | P0 |
+| L1.5 | DocxExtractor | P0 DONE |
 | L1.6 | PlainTextExtractor | P0 |
 | L1.7 | EmailExtractor (EML + MSG) | P0 |
 | L1.8 | API routes: case CRUD, file upload, file status SSE | P0 |
