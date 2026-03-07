@@ -47,6 +47,7 @@ discovery = [
 casefile = [
     "pytesseract>=0.3",
     "Pillow>=9.0",
+    "extract-msg>=0.48",
 ]
 
 [project.scripts]

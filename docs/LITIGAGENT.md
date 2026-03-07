@@ -1315,7 +1315,7 @@ With 100 files, total text could be 500K+ words (2M+ tokens). This doesn't fit i
 | L1.4 | PDFExtractor (text + OCR fallback) | P0 DONE |
 | L1.5 | DocxExtractor | P0 DONE |
 | L1.6 | PlainTextExtractor | P0 DONE |
-| L1.7 | EmailExtractor (EML + MSG) | P0 |
+| L1.7 | EmailExtractor (EML + MSG + MBOX) | P0 DONE |
 | L1.8 | API routes: case CRUD, file upload, file status SSE | P0 |
 | L1.9 | Frontend: case list page, three-panel layout shell | P0 |
 | L1.10 | Frontend: drag-and-drop file upload + file list (Panel 1) | P0 |
