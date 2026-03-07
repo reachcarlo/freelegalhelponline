@@ -393,9 +393,11 @@ Employment litigation attorneys can quickly assemble discovery sets by selecting
 
 #### Request Banks
 
-- **SROGs**: 300+ customizable interrogatories organized by claim type (FEHA, wage/hour, CFRA/FMLA, retaliation, etc.)
-- **RFPDs**: 250+ document production requests by claim type
-- **RFAs**: 200+ requests for admission by claim type, with RFA type tracking (fact/legal/mixed — only fact/mixed count toward 35 limit)
+- **SROGs**: 35 special interrogatories across 8 categories
+- **RFPDs**: 28 document requests across 14 categories
+- **RFAs**: 26 requests for admission across 6 categories (21 fact + 5 genuineness)
+
+> Request banks are being expanded to ~185 role-aware templates in Phase D.2.
 - **FROGs General**: 180 sections across 13 categories
 - **FROGs Employment**: 91 sections across employment-specific categories
 
@@ -879,7 +881,7 @@ uv run pytest -m ""
 | CLI commands | 16 |
 | Assessment tools | 5 |
 | Discovery document types | 6 |
-| Request bank items | 750+ (SROGs + RFPDs + RFAs) |
+| Request bank items | 89 curated (SROGs + RFPDs + RFAs) |
 | Topic pages (SSG) | 11 |
 | Employment claim types | 19 |
 | Test files | ~81 (72 Python + 9 E2E) |

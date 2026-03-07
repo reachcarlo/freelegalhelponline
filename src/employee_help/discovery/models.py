@@ -225,12 +225,14 @@ class DiscoveryRequest:
     """A single interrogatory, request for production, or request for admission."""
 
     id: str  # Unique ID (e.g., "srog_employment_001")
-    text: str  # Full text of the request
+    text: str  # Full text of the request (may contain {VARIABLE} placeholders)
     category: str  # Category slug (e.g., "employment_relationship")
     is_selected: bool = True
     is_custom: bool = False  # User-added (not from bank)
     order: int = 0  # Display/output order
     notes: str | None = None  # Internal notes (not in output)
+    applicable_roles: tuple[str, ...] = ("plaintiff", "defendant")
+    applicable_claims: tuple[str, ...] = ()  # empty = all claims (no gate)
 
 
 @dataclass
