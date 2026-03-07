@@ -4,6 +4,7 @@ from employee_help.casefile.extractors.base import ExtractionResult, FileExtract
 from employee_help.casefile.extractors.docx import DocxExtractor
 from employee_help.casefile.extractors.pdf import PDFExtractor
 from employee_help.casefile.extractors.registry import ExtractorRegistry
+from employee_help.casefile.extractors.text import PlainTextExtractor
 
 __all__ = [
     "DocxExtractor",
@@ -11,4 +12,5 @@ __all__ = [
     "ExtractorRegistry",
     "FileExtractor",
     "PDFExtractor",
+    "PlainTextExtractor",
 ]
