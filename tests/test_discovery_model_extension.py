@@ -79,32 +79,30 @@ class TestRFARequestInheritance:
             rfa.applicable_roles = ("plaintiff",)  # type: ignore[misc]
 
 
-class TestExistingBankDefaults:
-    def test_all_srogs_have_default_roles(self):
+class TestExistingBankAnnotations:
+    def test_all_srogs_have_explicit_roles(self):
         for req in SROG_BANK:
-            assert req.applicable_roles == ("plaintiff", "defendant"), (
-                f"{req.id} missing default applicable_roles"
+            assert len(req.applicable_roles) > 0, (
+                f"{req.id} missing applicable_roles"
             )
+            for role in req.applicable_roles:
+                assert role in ("plaintiff", "defendant"), (
+                    f"{req.id} has invalid role '{role}'"
+                )
 
-    def test_all_srogs_have_default_claims(self):
-        for req in SROG_BANK:
-            assert req.applicable_claims == (), (
-                f"{req.id} missing default applicable_claims"
-            )
-
-    def test_all_rfpds_have_default_roles(self):
+    def test_all_rfpds_have_explicit_roles(self):
         for req in RFPD_BANK:
-            assert req.applicable_roles == ("plaintiff", "defendant")
+            assert len(req.applicable_roles) > 0
+            for role in req.applicable_roles:
+                assert role in ("plaintiff", "defendant")
 
-    def test_all_rfas_have_default_roles(self):
+    def test_all_rfas_have_explicit_roles(self):
         for req in RFA_BANK:
-            assert req.applicable_roles == ("plaintiff", "defendant")
+            assert len(req.applicable_roles) > 0
+            for role in req.applicable_roles:
+                assert role in ("plaintiff", "defendant")
 
-    def test_all_rfas_have_default_claims(self):
-        for req in RFA_BANK:
-            assert req.applicable_claims == ()
-
-    def test_bank_counts_unchanged(self):
-        assert len(SROG_BANK) == 35
-        assert len(RFPD_BANK) == 28
-        assert len(RFA_BANK) == 26
+    def test_bank_counts(self):
+        assert len(SROG_BANK) == 58
+        assert len(RFPD_BANK) == 52
+        assert len(RFA_BANK) == 67

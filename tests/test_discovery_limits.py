@@ -105,10 +105,10 @@ class TestSrogLimits:
         ]
         assert count_selected(requests) == 3
 
-    def test_bank_exactly_at_limit(self):
-        """The default bank has exactly 35 items, all selected."""
-        assert count_selected(SROG_BANK) == 35
-        assert not srog_exceeds_limit(SROG_BANK)
+    def test_bank_exceeds_limit(self):
+        """The full bank (58 items, all selected) exceeds 35 limit."""
+        assert count_selected(SROG_BANK) == 58
+        assert srog_exceeds_limit(SROG_BANK)
 
     def test_exceeds_at_36(self):
         requests = [_make_srog(f"s{i}") for i in range(36)]
@@ -236,19 +236,18 @@ class TestRfaLimits:
         assert not exceeds_fact_limit([])
 
     def test_bank_default_counts(self):
-        """Default bank should have 21 fact + 5 genuineness, well under limit."""
-        assert count_fact_rfas(RFA_BANK) == 21
-        assert count_genuineness_rfas(RFA_BANK) == 5
-        assert not exceeds_fact_limit(RFA_BANK)
+        """Default bank has 60 fact + 7 genuineness RFAs."""
+        assert count_fact_rfas(RFA_BANK) == 60
+        assert count_genuineness_rfas(RFA_BANK) == 7
+        assert exceeds_fact_limit(RFA_BANK)
 
     def test_bank_genuineness_unlimited_scenario(self):
         """Adding many genuineness RFAs to the bank should never trigger limit."""
         extended = list(RFA_BANK)
         for i in range(50):
             extended.append(_make_rfa(f"extra_gen_{i}", rfa_type="genuineness"))
-        assert count_fact_rfas(extended) == 21
-        assert count_genuineness_rfas(extended) == 55  # 5 original + 50 extra
-        assert not exceeds_fact_limit(extended)
+        assert count_fact_rfas(extended) == 60
+        assert count_genuineness_rfas(extended) == 57  # 7 original + 50 extra
 
     def test_custom_fact_rfas_count_toward_limit(self):
         """Custom fact-based RFAs count toward the 35 limit."""

@@ -393,11 +393,11 @@ Employment litigation attorneys can quickly assemble discovery sets by selecting
 
 #### Request Banks
 
-- **SROGs**: 35 special interrogatories across 8 categories
-- **RFPDs**: 28 document requests across 14 categories
-- **RFAs**: 26 requests for admission across 6 categories (21 fact + 5 genuineness)
+- **SROGs**: 58 role-aware interrogatories across 16 categories (plaintiff, defendant, shared)
+- **RFPDs**: 52 role-aware document requests across 24 categories
+- **RFAs**: 67 role-aware requests for admission across 17 categories (60 fact + 7 genuineness)
 
-> Request banks are being expanded to ~185 role-aware templates in Phase D.2.
+> Variable substitution ({EMPLOYEE}, {EMPLOYER}, etc.) adapts request text to case context. Role and claim filtering ensures only relevant requests surface.
 - **FROGs General**: 180 sections across 13 categories
 - **FROGs Employment**: 91 sections across employment-specific categories
 
@@ -881,7 +881,7 @@ uv run pytest -m ""
 | CLI commands | 16 |
 | Assessment tools | 5 |
 | Discovery document types | 6 |
-| Request bank items | 89 curated (SROGs + RFPDs + RFAs) |
+| Request bank items | 177 role-aware (SROGs + RFPDs + RFAs) |
 | Topic pages (SSG) | 11 |
 | Employment claim types | 19 |
 | Test files | ~81 (72 Python + 9 E2E) |

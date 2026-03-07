@@ -438,8 +438,8 @@ class TestDisc002Suggestions:
 
 
 class TestSrogBank:
-    def test_bank_has_35_items(self):
-        assert len(SROG_BANK) == 35
+    def test_bank_has_58_items(self):
+        assert len(SROG_BANK) == 58
 
     def test_all_categories_represented(self):
         bank_cats = {r.category for r in SROG_BANK}
@@ -456,7 +456,7 @@ class TestSrogBank:
 
     def test_orders_are_sequential(self):
         orders = sorted(r.order for r in SROG_BANK)
-        assert orders == list(range(1, 36))
+        assert orders == list(range(1, len(SROG_BANK) + 1))
 
     def test_get_bank_returns_copy(self):
         bank = get_srog_bank()
@@ -486,8 +486,8 @@ class TestSrogBank:
 
 
 class TestRfpdBank:
-    def test_bank_has_28_items(self):
-        assert len(RFPD_BANK) == 28
+    def test_bank_has_52_items(self):
+        assert len(RFPD_BANK) == 52
 
     def test_all_categories_represented(self):
         bank_cats = {r.category for r in RFPD_BANK}
@@ -524,8 +524,8 @@ class TestRfpdBank:
 
 
 class TestRfaBank:
-    def test_bank_has_26_items(self):
-        assert len(RFA_BANK) == 26
+    def test_bank_has_67_items(self):
+        assert len(RFA_BANK) == 67
 
     def test_all_categories_represented(self):
         bank_cats = {r.category for r in RFA_BANK}
@@ -548,7 +548,7 @@ class TestRfaBank:
     def test_get_by_category(self):
         docs = get_rfas_by_category("document_genuineness")
         assert all(r.category == "document_genuineness" for r in docs)
-        assert len(docs) == 5
+        assert len(docs) == 7
 
     def test_get_for_categories(self):
         results = get_rfas_for_categories(["wage_facts", "employment_facts"])
@@ -568,11 +568,11 @@ class TestRfaBank:
 
     def test_fact_count(self):
         fact_count = sum(1 for r in RFA_BANK if r.rfa_type == "fact")
-        assert fact_count == 21  # 4 + 5 + 4 + 4 + 4
+        assert fact_count == 60
 
     def test_genuineness_count(self):
         gen_count = sum(1 for r in RFA_BANK if r.rfa_type == "genuineness")
-        assert gen_count == 5
+        assert gen_count == 7
 
 
 # ---------------------------------------------------------------------------

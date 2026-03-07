@@ -1,6 +1,6 @@
 # Discovery Bank Redesign — Role-Aware, Variable-Driven, Comprehensive
 
-> **Status**: Phase D.1 COMPLETE (2026-03-06). D.2–D.5 not yet implemented.
+> **Status**: Phases D.1–D.2 COMPLETE (2026-03-06). D.3–D.5 not yet implemented.
 > **Date**: 2026-03-06
 > **Scope**: SROGs, RFPDs, RFAs request banks + API + frontend + claim mapping
 > **Prerequisite**: Existing discovery tools (Phases 5A–5G) fully implemented and tested
@@ -492,14 +492,14 @@ Verify across all three banks:
 
 ### D.2 Gate
 
-- [ ] All existing tests pass
-- [ ] Bank integrity tests pass
-- [ ] SROG bank has ~65 templates across 16 categories
-- [ ] RFPD bank has ~58 templates across 24 categories
-- [ ] RFA bank has ~62 templates across 17 categories
-- [ ] Total bank size is ~185 templates
-- [ ] All templates have correct `applicable_roles` and `applicable_claims` annotations
-- [ ] Content reviewed against CCP requirements
+- [x] All existing tests pass (2438 total, 0 failures)
+- [x] Bank integrity tests pass (51 new tests)
+- [x] SROG bank has 58 templates across 16 categories
+- [x] RFPD bank has 52 templates across 24 categories
+- [x] RFA bank has 67 templates across 17 categories
+- [x] Total bank size is 177 templates
+- [x] All templates have correct `applicable_roles` and `applicable_claims` annotations
+- [x] Content reviewed against CCP requirements
 
 ---
 

@@ -383,19 +383,19 @@ class TestBanksEndpoint:
         resp = client.get("/api/discovery/banks/srogs")
         data = resp.json()
         assert data["limit"] == 35
-        assert data["total_items"] == 35
+        assert data["total_items"] == 58
 
     def test_rfas_bank_has_limit(self, client):
         resp = client.get("/api/discovery/banks/rfas")
         data = resp.json()
         assert data["limit"] == 35
-        assert data["total_items"] == 26
+        assert data["total_items"] == 67
 
     def test_rfpds_bank_no_limit(self, client):
         resp = client.get("/api/discovery/banks/rfpds")
         data = resp.json()
         assert data["limit"] is None
-        assert data["total_items"] == 28
+        assert data["total_items"] == 52
 
     def test_rfas_bank_has_rfa_type(self, client):
         resp = client.get("/api/discovery/banks/rfas")
