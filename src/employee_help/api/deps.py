@@ -17,6 +17,7 @@ logger = structlog.get_logger(__name__)
 _retrieval_service = None
 _answer_service = None
 _feedback_store = None
+_case_storage = None
 
 
 def _load_rag_config() -> dict:
@@ -30,7 +31,7 @@ def _load_rag_config() -> dict:
 
 def init_services() -> None:
     """Initialize all services. Called once at FastAPI startup."""
-    global _retrieval_service, _answer_service, _feedback_store
+    global _retrieval_service, _answer_service, _feedback_store, _case_storage
 
     from employee_help.generation.llm import LLMClient
     from employee_help.generation.prompts import PromptBuilder
@@ -123,6 +124,11 @@ def init_services() -> None:
 
     _feedback_store = FeedbackStore()
 
+    # Initialize case storage (LITIGAGENT)
+    from employee_help.storage.case_storage import CaseStorage
+
+    _case_storage = CaseStorage(db_path="data/employee_help.db")
+
     logger.info(
         "services_initialized",
         embedding_model=emb_cfg.get("model", "BAAI/bge-base-en-v1.5"),
@@ -132,12 +138,15 @@ def init_services() -> None:
 
 def shutdown_services() -> None:
     """Clean up services. Called at FastAPI shutdown."""
-    global _retrieval_service, _answer_service, _feedback_store
+    global _retrieval_service, _answer_service, _feedback_store, _case_storage
     if _feedback_store is not None:
         _feedback_store.close()
+    if _case_storage is not None:
+        _case_storage.close()
     _retrieval_service = None
     _answer_service = None
     _feedback_store = None
+    _case_storage = None
     logger.info("services_shutdown")
 
 
@@ -158,6 +167,13 @@ def get_answer_service():
 def get_feedback_store():
     """Return the feedback store singleton (may be None if not initialized)."""
     return _feedback_store
+
+
+def get_case_storage():
+    """Return the CaseStorage singleton."""
+    if _case_storage is None:
+        raise RuntimeError("Case storage not initialized. Is the server starting up?")
+    return _case_storage
 
 
 def get_conversation_config() -> dict:

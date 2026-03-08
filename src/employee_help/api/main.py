@@ -18,6 +18,7 @@ import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
+from employee_help.api.casefile_routes import casefile_router
 from employee_help.api.deps import init_services, shutdown_services
 from employee_help.api.discovery_routes import discovery_router
 from employee_help.api.objection_routes import objection_router
@@ -66,6 +67,7 @@ INTAKE_SUMMARY_RATE_LIMIT_MAX = int(os.environ.get("INTAKE_SUMMARY_RATE_LIMIT_MA
 DISCOVERY_RATE_LIMIT_MAX = int(os.environ.get("DISCOVERY_RATE_LIMIT_MAX", "20"))
 OBJECTION_PARSE_RATE_LIMIT_MAX = int(os.environ.get("OBJECTION_PARSE_RATE_LIMIT_MAX", "10"))
 OBJECTION_GENERATE_RATE_LIMIT_MAX = int(os.environ.get("OBJECTION_GENERATE_RATE_LIMIT_MAX", "5"))
+CASEFILE_UPLOAD_RATE_LIMIT_MAX = int(os.environ.get("CASEFILE_UPLOAD_RATE_LIMIT_MAX", "20"))
 DAILY_QUERY_BUDGET = int(os.environ.get("DAILY_QUERY_BUDGET", "500"))
 
 # --- In-memory rate limit state ---
@@ -81,6 +83,7 @@ _intake_summary_rate_store: dict[str, list[float]] = defaultdict(list)
 _discovery_rate_store: dict[str, list[float]] = defaultdict(list)
 _objection_parse_rate_store: dict[str, list[float]] = defaultdict(list)
 _objection_generate_rate_store: dict[str, list[float]] = defaultdict(list)
+_casefile_upload_rate_store: dict[str, list[float]] = defaultdict(list)
 _daily_budget: dict[str, int] = {"date": "", "count": 0}  # type: ignore[dict-item]
 
 
@@ -432,6 +435,31 @@ async def rate_limit_middleware(request: Request, call_next):
         if len(_discovery_rate_store) > 100:
             _prune_stale_entries(_discovery_rate_store, 60)
 
+    # --- /api/cases/*/files upload rate limiting ---
+    if (
+        request.method == "POST"
+        and request.url.path.startswith("/api/cases/")
+        and request.url.path.endswith("/files")
+    ):
+        _casefile_upload_rate_store[client_ip] = [
+            t for t in _casefile_upload_rate_store[client_ip] if now - t < 60
+        ]
+        count = len(_casefile_upload_rate_store[client_ip])
+
+        if count >= CASEFILE_UPLOAD_RATE_LIMIT_MAX:
+            oldest = _casefile_upload_rate_store[client_ip][0]
+            return Response(
+                content='{"detail":"Upload rate limit exceeded. Please wait before uploading more files."}',
+                status_code=429,
+                media_type="application/json",
+                headers=_rate_limit_headers(CASEFILE_UPLOAD_RATE_LIMIT_MAX, 0, oldest + 60),
+            )
+
+        _casefile_upload_rate_store[client_ip].append(now)
+
+        if len(_casefile_upload_rate_store) > 100:
+            _prune_stale_entries(_casefile_upload_rate_store, 60)
+
     # --- /api/feedback rate limiting ---
     if request.url.path == "/api/feedback" and request.method == "POST":
         _feedback_rate_store[client_ip] = [
@@ -476,3 +504,4 @@ async def log_requests(request: Request, call_next):
 app.include_router(router)
 app.include_router(discovery_router)
 app.include_router(objection_router)
+app.include_router(casefile_router)
