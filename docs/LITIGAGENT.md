@@ -1329,7 +1329,7 @@ With 100 files, total text could be 500K+ words (2M+ tokens). This doesn't fit i
 
 | Task | Description | Priority |
 |------|------------|----------|
-| L2.1 | Frontend: editable text panel (Panel 2) with debounced save | P0 |
+| L2.1 | Frontend: editable text panel (Panel 2) with debounced save | P0 | **DONE** |
 | L2.2 | API: PATCH file edited_text endpoint | P0 |
 | L2.3 | Frontend: notes panel (Panel 3) with case notes + file-specific notes | P0 |
 | L2.4 | API: notes CRUD endpoints | P0 |

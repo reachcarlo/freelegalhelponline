@@ -26,6 +26,24 @@ async function uploadFile(page: Page, filePath: string): Promise<void> {
   await fileChooser.setFiles(filePath);
 }
 
+/** Assert text appears in one of the editable textareas in the text panel. */
+async function expectTextInPanel(page: Page, text: string, timeout = 15_000) {
+  const textareas = page.locator('textarea[aria-label="Editable extracted text"]');
+  await expect(async () => {
+    const count = await textareas.count();
+    expect(count).toBeGreaterThan(0);
+    let found = false;
+    for (let i = 0; i < count; i++) {
+      const value = await textareas.nth(i).inputValue();
+      if (value.includes(text)) {
+        found = true;
+        break;
+      }
+    }
+    expect(found).toBeTruthy();
+  }).toPass({ timeout });
+}
+
 test.describe("LITIGAGENT Text Panel (L1.11)", () => {
   test("shows empty state when no files uploaded", async ({ page }) => {
     await createCaseAndNavigate(page, "TextPanel Empty Test");
@@ -48,10 +66,10 @@ test.describe("LITIGAGENT Text Panel (L1.11)", () => {
     await expect(page.getByText("display-test.txt")).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('[aria-label="Ready"]')).toBeVisible({ timeout: 15_000 });
 
-    // The extracted text should appear in the text panel
-    await expect(page.getByText("Line one of the document.")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("Line two with details.")).toBeVisible();
-    await expect(page.getByText("Line three conclusion.")).toBeVisible();
+    // The extracted text should appear in the editable textarea
+    await expectTextInPanel(page, "Line one of the document.");
+    await expectTextInPanel(page, "Line two with details.");
+    await expectTextInPanel(page, "Line three conclusion.");
 
     fs.unlinkSync(tempFile);
   });
@@ -132,9 +150,9 @@ test.describe("LITIGAGENT Text Panel (L1.11)", () => {
     await expect(firstRegion).toBeVisible();
     await expect(secondRegion).toBeVisible();
 
-    // Text content should eventually appear
-    await expect(page.getByText("First file content.")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Second file content.")).toBeVisible({ timeout: 15_000 });
+    // Text content should eventually appear in textareas
+    await expectTextInPanel(page, "First file content.");
+    await expectTextInPanel(page, "Second file content.");
 
     files.forEach((f) => fs.unlinkSync(f));
   });
@@ -158,7 +176,7 @@ test.describe("LITIGAGENT Text Panel (L1.11)", () => {
     await expect(page.getByText("scroll-b.txt")).toBeVisible();
 
     // Wait for text to load
-    await expect(page.getByText("Content B.")).toBeVisible({ timeout: 15_000 });
+    await expectTextInPanel(page, "Content B.");
 
     // Click second file in Panel 1 — should scroll Panel 2
     const fileOption = page.locator('[role="option"]').filter({ hasText: "scroll-b.txt" });
@@ -180,8 +198,8 @@ test.describe("LITIGAGENT Text Panel (L1.11)", () => {
     await uploadFile(page, tempFile);
     await expect(page.locator('[aria-label="Ready"]')).toBeVisible({ timeout: 15_000 });
 
-    // Verify extracted text shows
-    await expect(page.getByText("Error test content.")).toBeVisible({ timeout: 10_000 });
+    // Verify extracted text shows in textarea
+    await expectTextInPanel(page, "Error test content.");
 
     fs.unlinkSync(tempFile);
   });

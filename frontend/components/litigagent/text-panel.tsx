@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CaseFileInfo, getFile } from "@/lib/litigagent-api";
+import { CaseFileInfo, getFile, updateFileText } from "@/lib/litigagent-api";
+
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 interface TextPanelProps {
   caseId: string;
@@ -9,12 +11,21 @@ interface TextPanelProps {
   selectedFileId: string | null;
 }
 
+/** Debounce delay before auto-saving edited text (ms). */
+const DEBOUNCE_MS = 2000;
+/** How long the "Saved" indicator stays visible (ms). */
+const SAVED_DISPLAY_MS = 3000;
+
 export default function TextPanel({ caseId, files, selectedFileId }: TextPanelProps) {
-  // Cache of fetched text: fileId → extracted/edited text
+  // Current text being displayed/edited per file
   const [textCache, setTextCache] = useState<Record<string, string>>({});
+  // Last-saved text per file (used to detect unsaved changes)
+  const [serverText, setServerText] = useState<Record<string, string>>({});
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [errorIds, setErrorIds] = useState<Set<string>>(new Set());
+  const [saveStatus, setSaveStatus] = useState<Record<string, SaveStatus>>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Fetch text for "ready" files not yet in cache
   const fetchFileText = useCallback(
@@ -29,6 +40,7 @@ export default function TextPanel({ caseId, files, selectedFileId }: TextPanelPr
         const detail = await getFile(caseId, fileId);
         const text = detail.edited_text || detail.extracted_text || "";
         setTextCache((prev) => ({ ...prev, [fileId]: text }));
+        setServerText((prev) => ({ ...prev, [fileId]: text }));
       } catch {
         setErrorIds((prev) => new Set(prev).add(fileId));
       } finally {
@@ -64,6 +76,77 @@ export default function TextPanel({ caseId, files, selectedFileId }: TextPanelPr
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [selectedFileId]);
+
+  // Cleanup debounce timers on unmount
+  useEffect(() => {
+    const timers = debounceTimers.current;
+    return () => {
+      for (const timer of Object.values(timers)) {
+        clearTimeout(timer);
+      }
+    };
+  }, []);
+
+  // Save edited text to backend
+  const saveFileText = useCallback(
+    async (fileId: string, text: string) => {
+      setSaveStatus((prev) => ({ ...prev, [fileId]: "saving" }));
+      try {
+        await updateFileText(caseId, fileId, text);
+        setServerText((prev) => ({ ...prev, [fileId]: text }));
+        setSaveStatus((prev) => ({ ...prev, [fileId]: "saved" }));
+        setTimeout(() => {
+          setSaveStatus((prev) =>
+            prev[fileId] === "saved" ? { ...prev, [fileId]: "idle" } : prev
+          );
+        }, SAVED_DISPLAY_MS);
+      } catch {
+        setSaveStatus((prev) => ({ ...prev, [fileId]: "error" }));
+      }
+    },
+    [caseId]
+  );
+
+  // Handle text change with debounced save
+  const handleTextChange = useCallback(
+    (fileId: string, newText: string) => {
+      setTextCache((prev) => ({ ...prev, [fileId]: newText }));
+      setSaveStatus((prev) => ({ ...prev, [fileId]: "idle" }));
+
+      if (debounceTimers.current[fileId]) {
+        clearTimeout(debounceTimers.current[fileId]);
+      }
+
+      debounceTimers.current[fileId] = setTimeout(() => {
+        saveFileText(fileId, newText);
+        delete debounceTimers.current[fileId];
+      }, DEBOUNCE_MS);
+    },
+    [saveFileText]
+  );
+
+  // Retry a failed save
+  const retrySave = useCallback(
+    (fileId: string) => {
+      const text = textCache[fileId];
+      if (text !== undefined) {
+        saveFileText(fileId, text);
+      }
+    },
+    [textCache, saveFileText]
+  );
+
+  // Check if a file has unsaved local changes
+  const hasUnsavedChanges = useCallback(
+    (fileId: string): boolean => {
+      return (
+        fileId in textCache &&
+        fileId in serverText &&
+        textCache[fileId] !== serverText[fileId]
+      );
+    },
+    [textCache, serverText]
+  );
 
   if (files.length === 0) {
     return (
@@ -127,6 +210,11 @@ export default function TextPanel({ caseId, files, selectedFileId }: TextPanelPr
                       OCR {Math.round(f.ocr_confidence * 100)}%
                     </span>
                   )}
+                  <SaveIndicator
+                    status={saveStatus[f.id] || "idle"}
+                    hasUnsavedChanges={hasUnsavedChanges(f.id)}
+                    onRetry={() => retrySave(f.id)}
+                  />
                   <StatusBadge status={f.processing_status} />
                 </div>
               </div>
@@ -139,6 +227,7 @@ export default function TextPanel({ caseId, files, selectedFileId }: TextPanelPr
               isLoading={loadingIds.has(f.id)}
               hasError={errorIds.has(f.id)}
               onRetry={() => fetchFileText(f.id)}
+              onTextChange={(text) => handleTextChange(f.id, text)}
             />
           </div>
         ))}
@@ -154,14 +243,26 @@ function FileContent({
   isLoading,
   hasError,
   onRetry,
+  onTextChange,
 }: {
   file: CaseFileInfo;
   text: string | undefined;
   isLoading: boolean;
   hasError: boolean;
   onRetry: () => void;
+  onTextChange: (text: string) => void;
 }) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const status = file.processing_status;
+
+  // Auto-resize textarea when text changes or first loads
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = textarea.scrollHeight + "px";
+    }
+  }, [text]);
 
   if (status === "processing") {
     return (
@@ -228,10 +329,73 @@ function FileContent({
   }
 
   return (
-    <div className="px-4 py-2 text-sm leading-relaxed text-text-secondary font-mono whitespace-pre-wrap">
-      {text}
-    </div>
+    <textarea
+      ref={textareaRef}
+      value={text}
+      onChange={(e) => {
+        onTextChange(e.target.value);
+        // Immediate height adjustment on input
+        e.target.style.height = "auto";
+        e.target.style.height = e.target.scrollHeight + "px";
+      }}
+      className="w-full resize-none rounded-lg border border-transparent bg-transparent px-4 py-2 text-sm leading-relaxed text-text-secondary font-mono focus:border-accent/30 focus:outline-none"
+      spellCheck={false}
+      aria-label="Editable extracted text"
+      data-testid={`editable-text-${file.id}`}
+    />
   );
+}
+
+/** Shows save status in the file section header. */
+function SaveIndicator({
+  status,
+  hasUnsavedChanges,
+  onRetry,
+}: {
+  status: SaveStatus;
+  hasUnsavedChanges: boolean;
+  onRetry: () => void;
+}) {
+  if (status === "saving") {
+    return (
+      <span className="flex items-center gap-1 text-accent" aria-label="Saving" data-testid="save-status-saving">
+        <span className="inline-block h-3 w-3 animate-spin rounded-full border border-accent border-t-transparent" />
+        Saving...
+      </span>
+    );
+  }
+
+  if (status === "saved") {
+    return (
+      <span className="flex items-center gap-1 text-verified-text" aria-label="Saved" data-testid="save-status-saved">
+        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+        Saved
+      </span>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <span className="flex items-center gap-1 text-error-text" aria-label="Save failed" data-testid="save-status-error">
+        Save failed
+        <button onClick={onRetry} className="underline hover:no-underline">
+          Retry
+        </button>
+      </span>
+    );
+  }
+
+  if (hasUnsavedChanges) {
+    return (
+      <span className="text-text-tertiary" aria-label="Unsaved changes" data-testid="save-status-unsaved">
+        Editing...
+      </span>
+    );
+  }
+
+  return null;
 }
 
 function StatusBadge({ status }: { status: string }) {

@@ -30,6 +30,24 @@ async function createCaseAndNavigate(page: Page, name: string): Promise<string> 
   return page.url().split("/").pop()!;
 }
 
+/** Assert text appears in one of the editable textareas in the text panel. */
+async function expectTextInPanel(page: Page, text: string, timeout = 15_000) {
+  const textareas = page.locator('textarea[aria-label="Editable extracted text"]');
+  await expect(async () => {
+    const count = await textareas.count();
+    expect(count).toBeGreaterThan(0);
+    let found = false;
+    for (let i = 0; i < count; i++) {
+      const value = await textareas.nth(i).inputValue();
+      if (value.includes(text)) {
+        found = true;
+        break;
+      }
+    }
+    expect(found).toBeTruthy();
+  }).toPass({ timeout });
+}
+
 test.describe("LITIGAGENT Gate L1", () => {
   test("full journey: upload multiple files, see text, navigate between files", async ({ page }) => {
     test.slow(); // This test uploads multiple files and waits for extraction
@@ -63,17 +81,16 @@ test.describe("LITIGAGENT Gate L1", () => {
     await expect(page.locator("text=5 files").first()).toBeVisible({ timeout: 10_000 });
 
     // Wait for all files to reach "ready" status (via SSE)
-    // We check for multiple Ready indicators
     await expect(async () => {
       const readyBadges = page.locator('[aria-label="Ready"]');
       const count = await readyBadges.count();
       expect(count).toBeGreaterThanOrEqual(5);
     }).toPass({ timeout: 30_000 });
 
-    // Verify extracted text appears in Panel 2 for key files
-    await expect(page.getByText("Age discrimination claim under FEHA")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Your position has been eliminated")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Exceeds Expectations")).toBeVisible({ timeout: 15_000 });
+    // Verify extracted text appears in Panel 2 textareas
+    await expectTextInPanel(page, "Age discrimination claim under FEHA");
+    await expectTextInPanel(page, "Your position has been eliminated");
+    await expectTextInPanel(page, "Exceeds Expectations");
 
     // Navigate: click a file in Panel 1 → Panel 2 should show its content
     const witnessOption = page.locator('[role="option"]').filter({ hasText: "witness_statement.txt" });
@@ -82,7 +99,7 @@ test.describe("LITIGAGENT Gate L1", () => {
     // Verify the witness statement region is visible
     const witnessRegion = page.locator('[role="region"][aria-label="Content from witness_statement.txt"]');
     await expect(witnessRegion).toBeVisible();
-    await expect(page.getByText("age-related comments")).toBeVisible({ timeout: 10_000 });
+    await expectTextInPanel(page, "age-related comments");
 
     // Navigate to the email file
     const emailOption = page.locator('[role="option"]').filter({ hasText: "manager_email.eml" });
@@ -90,7 +107,7 @@ test.describe("LITIGAGENT Gate L1", () => {
 
     const emailRegion = page.locator('[role="region"][aria-label="Content from manager_email.eml"]');
     await expect(emailRegion).toBeVisible();
-    await expect(page.getByText("separation packages")).toBeVisible({ timeout: 10_000 });
+    await expectTextInPanel(page, "separation packages");
 
     // Verify file type badges in Panel 2
     const txtBadges = page.locator('[role="region"] .rounded.bg-badge-bg:text-is("TXT")');
@@ -122,7 +139,7 @@ test.describe("LITIGAGENT Gate L1", () => {
     }).toPass({ timeout: 30_000 });
 
     // Wait for text to load
-    await expect(page.getByText("Second document unique content here.")).toBeVisible({ timeout: 15_000 });
+    await expectTextInPanel(page, "Second document unique content here.");
 
     // Click second file — should highlight in Panel 1
     const secondOption = page.locator('[role="option"]').filter({ hasText: "second_doc.txt" });
@@ -150,7 +167,7 @@ test.describe("LITIGAGENT Gate L1", () => {
 
     // Wait for ready
     await expect(page.locator('[aria-label="Ready"]')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("This text should persist after reload.")).toBeVisible({ timeout: 10_000 });
+    await expectTextInPanel(page, "This text should persist after reload.");
 
     // Reload the page
     await page.reload();
@@ -158,8 +175,8 @@ test.describe("LITIGAGENT Gate L1", () => {
     // File should still be there
     await expect(page.getByText("persist-test.txt")).toBeVisible({ timeout: 10_000 });
 
-    // Extracted text should reload
-    await expect(page.getByText("This text should persist after reload.")).toBeVisible({ timeout: 15_000 });
+    // Extracted text should reload in textarea
+    await expectTextInPanel(page, "This text should persist after reload.");
 
     fs.unlinkSync(tempFile);
   });
