@@ -84,7 +84,7 @@ test.describe("Defendant-side discovery flows", () => {
     // Review
     await expect(page.getByText("Review Before Generating")).toBeVisible();
     // Party role shows Defendant
-    await expect(page.getByText("Defendant")).toBeVisible();
+    await expect(page.getByText("Defendant", { exact: true })).toBeVisible();
     await clickNext(page);
 
     // Generate

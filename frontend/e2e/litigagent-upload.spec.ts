@@ -66,7 +66,7 @@ test.describe("LITIGAGENT File Upload (L1.10)", () => {
     await expect(filePanel.getByText("test-doc.txt")).toBeVisible({ timeout: 10_000 });
 
     // File count should update
-    await expect(page.locator("text=1 file")).toBeVisible();
+    await expect(page.locator("text=1 file").first()).toBeVisible();
 
     // Clean up
     fs.unlinkSync(tempFile);
@@ -93,7 +93,7 @@ test.describe("LITIGAGENT File Upload (L1.10)", () => {
     await expect(filePanel.getByText("gamma.txt")).toBeVisible();
 
     // File count should show 3
-    await expect(page.locator("text=3 files")).toBeVisible();
+    await expect(page.locator("text=3 files").first()).toBeVisible();
 
     // Clean up
     files.forEach((f) => fs.unlinkSync(f));
@@ -166,7 +166,7 @@ test.describe("LITIGAGENT File Upload (L1.10)", () => {
     await deleteBtn.click();
 
     // File should be removed from list
-    await expect(page.getByText("to-delete.txt")).not.toBeVisible({ timeout: 5_000 });
+    await expect(filePanel.getByText("to-delete.txt")).not.toBeVisible({ timeout: 5_000 });
 
     // Should show empty state again
     await expect(page.getByText(/drop files here/i)).toBeVisible();
@@ -225,8 +225,8 @@ test.describe("LITIGAGENT File Upload (L1.10)", () => {
     await expect(filePanel.getByText("badge-test.txt")).toBeVisible({ timeout: 10_000 });
 
     // Should show TXT badge
-    const badge = page.locator('[role="option"]').filter({ hasText: "badge-test.txt" }).locator("text=TXT");
-    await expect(badge).toBeVisible();
+    const badge = page.locator('[role="option"]').filter({ hasText: "badge-test.txt" }).locator(".rounded.bg-badge-bg");
+    await expect(badge).toContainText("TXT");
 
     fs.unlinkSync(tempFile);
   });

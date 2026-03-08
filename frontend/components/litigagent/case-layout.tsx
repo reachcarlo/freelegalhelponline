@@ -86,6 +86,29 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
     };
   }, [caseId]);
 
+  // Poll fallback: re-fetch file list when files are still pending.
+  // This handles the race condition where SSE events arrive before
+  // handleFilesAdded adds files to React state, causing missed updates.
+  useEffect(() => {
+    const hasPending = files.some(
+      (f) =>
+        f.processing_status === "queued" ||
+        f.processing_status === "processing"
+    );
+    if (!hasPending) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        const freshFiles = await listFiles(caseId);
+        setFiles(freshFiles);
+      } catch {
+        // ignore polling errors
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [files, caseId]);
+
   const handleSelectFile = useCallback((fileId: string) => {
     setSelectedFileId(fileId);
   }, []);

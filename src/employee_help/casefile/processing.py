@@ -153,6 +153,16 @@ async def process_file(
         cf = case_storage.get_case_file(file_id)
         if cf is None:
             log.error("file_not_found")
+            case_storage.update_case_file_status(
+                file_id,
+                ProcessingStatus.ERROR,
+                error_message="File record not found in database",
+            )
+            await broadcast_status(case_id, {
+                "file_id": file_id,
+                "status": "error",
+                "message": "File record not found in database",
+            })
             return
 
         # Read bytes from disk
@@ -189,6 +199,7 @@ async def process_file(
             ocr_confidence=result.ocr_confidence,
             page_count=result.page_count,
             content_hash=h,
+            metadata=result.metadata,
         )
         case_storage.update_case_file_status(file_id, ProcessingStatus.READY)
 

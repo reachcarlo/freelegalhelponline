@@ -1336,7 +1336,7 @@ With 100 files, total text could be 500K+ words (2M+ tokens). This doesn't fit i
 | L2.5 | Frontend: click-to-navigate (Panel 1 → Panel 2) with smooth scroll | P0 DONE (L1.11) |
 | L2.6 | ExcelExtractor (XLSX/CSV as markdown tables) | P1 DONE |
 | L2.7 | ImageExtractor (OCR with confidence reporting) | P1 DONE |
-| L2.8 | OCR confidence indicators in Panel 2 | P1 |
+| L2.8 | OCR confidence indicators in Panel 2 | P1 DONE |
 | L2.9 | Frontend: file search and filter in Panel 1 | P1 |
 | L2.10 | Frontend: Panel 2 text search (Ctrl+F) | P1 |
 | L2.11 | Background processing with asyncio.create_task | P0 DONE (L1.8) |

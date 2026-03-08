@@ -74,7 +74,7 @@ test.describe("Discovery navigation", () => {
     // If no sections were auto-selected, click "Select all"
     const selText = await page.getByText(/\d+ of \d+ selected/).textContent();
     if (selText?.startsWith("0 of")) {
-      await page.getByRole("button", { name: "Select all" }).click();
+      await page.getByRole("button", { name: "Select all" }).first().click();
     }
     await waitForNextEnabled(page);
     await clickNext(page);

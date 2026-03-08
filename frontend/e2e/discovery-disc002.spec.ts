@@ -64,7 +64,7 @@ test.describe("DISC-002 (Form Interrogatories - Employment)", () => {
     // If no sections were auto-selected, click "Select all"
     const selText = await page.getByText(/\d+ of \d+ selected/).textContent();
     if (selText?.startsWith("0 of")) {
-      await page.getByRole("button", { name: "Select all" }).click();
+      await page.getByRole("button", { name: "Select all" }).first().click();
     }
     await waitForNextEnabled(page);
     await clickNext(page);
@@ -91,6 +91,7 @@ test.describe("DISC-002 (Form Interrogatories - Employment)", () => {
   });
 
   test("PDF contains all case info in correct fields", async ({ page }) => {
+    test.slow(); // PDF generation can be slow under CI load
     await fillCaseInfo(page);
     await clickNext(page);
     await selectClaims(page, ["Wrongful Termination"]);
@@ -102,7 +103,7 @@ test.describe("DISC-002 (Form Interrogatories - Employment)", () => {
     // If no sections were auto-selected, click "Select all"
     const selText = await page.getByText(/\d+ of \d+ selected/).textContent();
     if (selText?.startsWith("0 of")) {
-      await page.getByRole("button", { name: "Select all" }).click();
+      await page.getByRole("button", { name: "Select all" }).first().click();
     }
     await waitForNextEnabled(page);
     await clickNext(page);

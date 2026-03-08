@@ -205,6 +205,7 @@ class CaseStorage:
         ocr_confidence: float | None = None,
         page_count: int | None = None,
         content_hash: str | None = None,
+        metadata: dict | None = None,
     ) -> CaseFile | None:
         cf = self.get_case_file(file_id)
         if not cf:
@@ -222,12 +223,14 @@ class CaseStorage:
             cf.page_count = page_count
         if content_hash is not None:
             cf.content_hash = content_hash
+        if metadata is not None:
+            cf.metadata = metadata
         now = datetime.now(tz=UTC).isoformat()
         self._conn.execute(
             """UPDATE case_files
                SET extracted_text = ?, edited_text = ?, text_dirty = ?,
                    ocr_confidence = ?, page_count = ?, content_hash = ?,
-                   updated_at = ?
+                   metadata = ?, updated_at = ?
                WHERE id = ?""",
             (
                 cf.extracted_text,
@@ -236,6 +239,7 @@ class CaseStorage:
                 cf.ocr_confidence,
                 cf.page_count,
                 cf.content_hash,
+                json.dumps(cf.metadata) if cf.metadata else None,
                 now,
                 file_id,
             ),

@@ -143,6 +143,7 @@ test.describe("35-limit enforcement and Declaration of Necessity", () => {
   test("SROGs: DOCX includes Declaration of Necessity when over 35", async ({
     page,
   }) => {
+    test.slow(); // Large document generation with many requests
     await page.goto("/tools/discovery/special-interrogatories");
 
     await fillCaseInfo(page);

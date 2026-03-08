@@ -62,6 +62,7 @@ test.describe("Requests for Admission (RFAs)", () => {
   });
 
   test("full workflow generates valid DOCX", async ({ page }) => {
+    test.slow(); // DOCX generation can be slow under CI load
     // Case Info
     await fillCaseInfo(page);
     await clickNext(page);

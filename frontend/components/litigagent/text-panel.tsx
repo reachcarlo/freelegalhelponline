@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CaseFileInfo, getFile, updateFileText } from "@/lib/litigagent-api";
+import { CaseFileInfo, CaseFileDetail, getFile, updateFileText } from "@/lib/litigagent-api";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -21,6 +21,8 @@ export default function TextPanel({ caseId, files, selectedFileId }: TextPanelPr
   const [textCache, setTextCache] = useState<Record<string, string>>({});
   // Last-saved text per file (used to detect unsaved changes)
   const [serverText, setServerText] = useState<Record<string, string>>({});
+  // File detail cache (metadata, ocr_confidence, etc.)
+  const [detailCache, setDetailCache] = useState<Record<string, CaseFileDetail>>({});
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [errorIds, setErrorIds] = useState<Set<string>>(new Set());
   const [saveStatus, setSaveStatus] = useState<Record<string, SaveStatus>>({});
@@ -41,6 +43,7 @@ export default function TextPanel({ caseId, files, selectedFileId }: TextPanelPr
         const text = detail.edited_text || detail.extracted_text || "";
         setTextCache((prev) => ({ ...prev, [fileId]: text }));
         setServerText((prev) => ({ ...prev, [fileId]: text }));
+        setDetailCache((prev) => ({ ...prev, [fileId]: detail }));
       } catch {
         setErrorIds((prev) => new Set(prev).add(fileId));
       } finally {
@@ -226,6 +229,7 @@ export default function TextPanel({ caseId, files, selectedFileId }: TextPanelPr
               text={textCache[f.id]}
               isLoading={loadingIds.has(f.id)}
               hasError={errorIds.has(f.id)}
+              ocrUsed={detailCache[f.id]?.metadata?.ocr_used === true}
               onRetry={() => fetchFileText(f.id)}
               onTextChange={(text) => handleTextChange(f.id, text)}
             />
@@ -242,6 +246,7 @@ function FileContent({
   text,
   isLoading,
   hasError,
+  ocrUsed,
   onRetry,
   onTextChange,
 }: {
@@ -249,6 +254,7 @@ function FileContent({
   text: string | undefined;
   isLoading: boolean;
   hasError: boolean;
+  ocrUsed: boolean;
   onRetry: () => void;
   onTextChange: (text: string) => void;
 }) {
@@ -328,21 +334,83 @@ function FileContent({
     );
   }
 
+  const conf = file.ocr_confidence;
+  const showOcrBanner = ocrUsed && conf !== null;
+  const isLowConfidence = conf !== null && conf < 0.85;
+  const isVeryLowConfidence = conf !== null && conf < 0.7;
+
+  // Subtle background tint for low-confidence OCR text
+  const textareaBg = isVeryLowConfidence
+    ? "bg-amber-50/30"
+    : isLowConfidence
+      ? "bg-amber-50/15"
+      : "bg-transparent";
+
   return (
-    <textarea
-      ref={textareaRef}
-      value={text}
-      onChange={(e) => {
-        onTextChange(e.target.value);
-        // Immediate height adjustment on input
-        e.target.style.height = "auto";
-        e.target.style.height = e.target.scrollHeight + "px";
-      }}
-      className="w-full resize-none rounded-lg border border-transparent bg-transparent px-4 py-2 text-sm leading-relaxed text-text-secondary font-mono focus:border-accent/30 focus:outline-none"
-      spellCheck={false}
-      aria-label="Editable extracted text"
-      data-testid={`editable-text-${file.id}`}
-    />
+    <div>
+      {showOcrBanner && <OcrConfidenceBanner confidence={conf} />}
+      <textarea
+        ref={textareaRef}
+        value={text}
+        onChange={(e) => {
+          onTextChange(e.target.value);
+          // Immediate height adjustment on input
+          e.target.style.height = "auto";
+          e.target.style.height = e.target.scrollHeight + "px";
+        }}
+        className={`w-full resize-none rounded-lg border border-transparent ${textareaBg} px-4 py-2 text-sm leading-relaxed text-text-secondary font-mono focus:border-accent/30 focus:outline-none`}
+        spellCheck={false}
+        aria-label="Editable extracted text"
+        data-testid={`editable-text-${file.id}`}
+      />
+    </div>
+  );
+}
+
+/** Shows OCR confidence info banner above the textarea. */
+function OcrConfidenceBanner({ confidence }: { confidence: number }) {
+  const pct = Math.round(confidence * 100);
+  const isLow = confidence < 0.85;
+  const isVeryLow = confidence < 0.7;
+
+  if (isVeryLow) {
+    return (
+      <div
+        className="mb-2 flex items-start gap-2 rounded-lg border border-amber-300/50 bg-amber-50/40 px-3 py-2 text-xs text-amber-800"
+        role="alert"
+        data-testid="ocr-confidence-banner"
+      >
+        <span className="mt-px shrink-0 font-bold text-amber-600" aria-hidden="true">!</span>
+        <span>
+          This text was extracted via OCR. Confidence: {pct}%. Please verify for accuracy.
+        </span>
+      </div>
+    );
+  }
+
+  if (isLow) {
+    return (
+      <div
+        className="mb-2 flex items-start gap-2 rounded-lg border border-amber-200/50 bg-amber-50/25 px-3 py-2 text-xs text-amber-700"
+        role="status"
+        data-testid="ocr-confidence-banner"
+      >
+        <span className="mt-px shrink-0 font-bold text-amber-500" aria-hidden="true">!</span>
+        <span>
+          Extracted via OCR ({pct}% confidence). Some text may need manual review.
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="mb-2 rounded-lg border border-border/50 bg-surface/50 px-3 py-2 text-xs text-text-tertiary"
+      role="status"
+      data-testid="ocr-confidence-banner"
+    >
+      Extracted via OCR ({pct}% confidence)
+    </div>
   );
 }
 

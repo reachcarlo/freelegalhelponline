@@ -17,7 +17,7 @@ const FILE_ICONS: Record<string, string> = {
 
 const ACCEPTED_EXTENSIONS = new Set([
   "pdf", "docx", "xlsx", "csv", "tsv", "eml", "msg", "mbox",
-  "txt", "md", "rtf", "png", "jpg", "jpeg", "tiff", "tif", "pptx",
+  "txt", "md", "rtf", "png", "jpg", "jpeg", "tiff", "tif", "bmp", "pptx",
 ]);
 
 const ACCEPT_STRING = Array.from(ACCEPTED_EXTENSIONS).map((e) => `.${e}`).join(",");
