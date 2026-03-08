@@ -32,7 +32,7 @@ def case_storage(storage: Storage) -> CaseStorage:
 
 @pytest.fixture
 def sample_case() -> Case:
-    return Case(name="Smith v. Acme Corp", description="Wrongful termination claim")
+    return Case(name="Smith v. Acme Corp", user_id="test-user", organization_id="test-org", description="Wrongful termination claim")
 
 
 @pytest.fixture
@@ -80,17 +80,17 @@ class TestCaseCRUD:
         assert case_storage.get_case("nonexistent") is None
 
     def test_list_cases(self, case_storage):
-        case_storage.create_case(Case(name="Case A"))
-        case_storage.create_case(Case(name="Case B"))
-        cases = case_storage.list_cases()
+        case_storage.create_case(Case(name="Case A", user_id="test-user", organization_id="test-org"))
+        case_storage.create_case(Case(name="Case B", user_id="test-user", organization_id="test-org"))
+        cases = case_storage.list_cases(user_id="test-user")
         assert len(cases) == 2
 
     def test_list_cases_filter_status(self, case_storage):
-        c1 = case_storage.create_case(Case(name="Active Case"))
-        case_storage.create_case(Case(name="Another Active"))
+        c1 = case_storage.create_case(Case(name="Active Case", user_id="test-user", organization_id="test-org"))
+        case_storage.create_case(Case(name="Another Active", user_id="test-user", organization_id="test-org"))
         case_storage.archive_case(c1.id)
-        active = case_storage.list_cases(status=CaseStatus.ACTIVE)
-        archived = case_storage.list_cases(status=CaseStatus.ARCHIVED)
+        active = case_storage.list_cases(user_id="test-user", status=CaseStatus.ACTIVE)
+        archived = case_storage.list_cases(user_id="test-user", status=CaseStatus.ARCHIVED)
         assert len(active) == 1
         assert len(archived) == 1
 
@@ -432,8 +432,8 @@ class TestCaseStorageIntegration:
         assert refetched.file_id is None
 
     def test_case_isolation(self, case_storage):
-        c1 = case_storage.create_case(Case(name="Case 1"))
-        c2 = case_storage.create_case(Case(name="Case 2"))
+        c1 = case_storage.create_case(Case(name="Case 1", user_id="test-user", organization_id="test-org"))
+        c2 = case_storage.create_case(Case(name="Case 2", user_id="test-user", organization_id="test-org"))
 
         f1 = case_storage.create_case_file(CaseFile(
             case_id=c1.id, original_filename="a.pdf", file_type=FileType.PDF,
@@ -462,7 +462,7 @@ class TestCaseStorageIntegration:
         assert src.id is not None
 
         # Case operations work on the same DB
-        case = case_storage.create_case(Case(name="Test Case"))
+        case = case_storage.create_case(Case(name="Test Case", user_id="test-user", organization_id="test-org"))
         assert case_storage.get_case(case.id) is not None
 
     def test_own_connection_mode(self, tmp_path):
@@ -473,5 +473,5 @@ class TestCaseStorageIntegration:
         s.close()
         # Now use CaseStorage independently
         with CaseStorage(db_path=db) as cs:
-            case = cs.create_case(Case(name="Independent"))
+            case = cs.create_case(Case(name="Independent", user_id="test-user", organization_id="test-org"))
             assert cs.get_case(case.id).name == "Independent"

@@ -157,6 +157,8 @@ class CitationLink:
 @dataclass
 class Case:
     name: str
+    user_id: str
+    organization_id: str
     id: str = field(default_factory=lambda: "")
     description: str | None = None
     status: CaseStatus = CaseStatus.ACTIVE

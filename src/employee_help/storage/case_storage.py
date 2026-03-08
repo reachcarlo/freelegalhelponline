@@ -60,32 +60,55 @@ class CaseStorage:
     def create_case(self, case: Case) -> Case:
         now = datetime.now(tz=UTC).isoformat()
         self._conn.execute(
-            """INSERT INTO cases (id, name, description, status, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (case.id, case.name, case.description, case.status.value, now, now),
+            """INSERT INTO cases (id, name, user_id, organization_id,
+               description, status, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                case.id,
+                case.name,
+                case.user_id,
+                case.organization_id,
+                case.description,
+                case.status.value,
+                now,
+                now,
+            ),
         )
         self._conn.commit()
         case.created_at = datetime.fromisoformat(now)
         case.updated_at = datetime.fromisoformat(now)
         return case
 
-    def get_case(self, case_id: str) -> Case | None:
-        row = self._conn.execute(
-            "SELECT * FROM cases WHERE id = ?", (case_id,)
-        ).fetchone()
+    def get_case(
+        self, case_id: str, *, user_id: str | None = None
+    ) -> Case | None:
+        if user_id is not None:
+            row = self._conn.execute(
+                "SELECT * FROM cases WHERE id = ? AND user_id = ?",
+                (case_id, user_id),
+            ).fetchone()
+        else:
+            row = self._conn.execute(
+                "SELECT * FROM cases WHERE id = ?", (case_id,)
+            ).fetchone()
         if not row:
             return None
         return self._row_to_case(row)
 
-    def list_cases(self, status: CaseStatus | None = None) -> list[Case]:
+    def list_cases(
+        self, *, user_id: str, status: CaseStatus | None = None
+    ) -> list[Case]:
         if status is not None:
             rows = self._conn.execute(
-                "SELECT * FROM cases WHERE status = ? ORDER BY updated_at DESC",
-                (status.value,),
+                "SELECT * FROM cases WHERE user_id = ? AND status = ? "
+                "ORDER BY updated_at DESC",
+                (user_id, status.value),
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT * FROM cases ORDER BY updated_at DESC"
+                "SELECT * FROM cases WHERE user_id = ? "
+                "ORDER BY updated_at DESC",
+                (user_id,),
             ).fetchall()
         return [self._row_to_case(row) for row in rows]
 
@@ -95,6 +118,7 @@ class CaseStorage:
         *,
         name: str | None = None,
         description: str | None = ...,  # type: ignore[assignment]
+        user_id: str | None = None,
     ) -> Case | None:
         case = self.get_case(case_id)
         if not case:
@@ -105,24 +129,44 @@ class CaseStorage:
             case.description = description
         now = datetime.now(tz=UTC).isoformat()
         self._conn.execute(
-            "UPDATE cases SET name = ?, description = ?, updated_at = ? WHERE id = ?",
+            "UPDATE cases SET name = ?, description = ?, "
+            "updated_at = ? WHERE id = ?",
             (case.name, case.description, now, case_id),
         )
         self._conn.commit()
         case.updated_at = datetime.fromisoformat(now)
         return case
 
-    def archive_case(self, case_id: str) -> bool:
+    def archive_case(
+        self, case_id: str, *, user_id: str | None = None
+    ) -> bool:
         now = datetime.now(tz=UTC).isoformat()
-        cur = self._conn.execute(
-            "UPDATE cases SET status = ?, updated_at = ? WHERE id = ?",
-            (CaseStatus.ARCHIVED.value, now, case_id),
-        )
+        if user_id is not None:
+            cur = self._conn.execute(
+                "UPDATE cases SET status = ?, updated_at = ? "
+                "WHERE id = ? AND user_id = ?",
+                (CaseStatus.ARCHIVED.value, now, case_id, user_id),
+            )
+        else:
+            cur = self._conn.execute(
+                "UPDATE cases SET status = ?, updated_at = ? WHERE id = ?",
+                (CaseStatus.ARCHIVED.value, now, case_id),
+            )
         self._conn.commit()
         return cur.rowcount > 0
 
-    def delete_case(self, case_id: str) -> bool:
-        cur = self._conn.execute("DELETE FROM cases WHERE id = ?", (case_id,))
+    def delete_case(
+        self, case_id: str, *, user_id: str | None = None
+    ) -> bool:
+        if user_id is not None:
+            cur = self._conn.execute(
+                "DELETE FROM cases WHERE id = ? AND user_id = ?",
+                (case_id, user_id),
+            )
+        else:
+            cur = self._conn.execute(
+                "DELETE FROM cases WHERE id = ?", (case_id,)
+            )
         self._conn.commit()
         return cur.rowcount > 0
 
@@ -384,6 +428,8 @@ class CaseStorage:
         return Case(
             id=row["id"],
             name=row["name"],
+            user_id=row["user_id"],
+            organization_id=row["organization_id"],
             description=row["description"],
             status=CaseStatus(row["status"]),
             created_at=datetime.fromisoformat(row["created_at"]),

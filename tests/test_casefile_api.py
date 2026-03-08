@@ -69,7 +69,7 @@ def case_storage(db):
 @pytest.fixture()
 def sample_case(case_storage):
     """Create and return a sample case."""
-    case = Case(name="Test Case", description="A test case")
+    case = Case(name="Test Case", user_id="test-user", organization_id="test-org", description="A test case")
     return case_storage.create_case(case)
 
 
@@ -290,23 +290,23 @@ class TestSSEBroadcast:
 
 class TestCaseCRUDRoutes:
     def test_create_case(self, case_storage):
-        case = Case(name="New Case", description="Description")
+        case = Case(name="New Case", user_id="test-user", organization_id="test-org", description="Description")
         created = case_storage.create_case(case)
         assert created.name == "New Case"
         assert created.description == "Description"
         assert created.status == CaseStatus.ACTIVE
 
     def test_list_cases(self, case_storage):
-        case_storage.create_case(Case(name="Case 1"))
-        case_storage.create_case(Case(name="Case 2"))
-        cases = case_storage.list_cases()
+        case_storage.create_case(Case(name="Case 1", user_id="test-user", organization_id="test-org"))
+        case_storage.create_case(Case(name="Case 2", user_id="test-user", organization_id="test-org"))
+        cases = case_storage.list_cases(user_id="test-user")
         assert len(cases) >= 2
 
     def test_list_cases_filter_active(self, case_storage):
-        c1 = case_storage.create_case(Case(name="Active"))
-        c2 = case_storage.create_case(Case(name="Archived"))
+        c1 = case_storage.create_case(Case(name="Active", user_id="test-user", organization_id="test-org"))
+        c2 = case_storage.create_case(Case(name="Archived", user_id="test-user", organization_id="test-org"))
         case_storage.archive_case(c2.id)
-        active = case_storage.list_cases(status=CaseStatus.ACTIVE)
+        active = case_storage.list_cases(user_id="test-user", status=CaseStatus.ACTIVE)
         ids = [c.id for c in active]
         assert c1.id in ids
         assert c2.id not in ids
@@ -706,70 +706,80 @@ class TestRouteIntegration:
         ):
             yield case_storage
 
+    @pytest.fixture()
+    def mock_request(self):
+        """A mock Request with an authenticated user."""
+        req = MagicMock()
+        user = MagicMock()
+        user.sub = "test-user"
+        user.org = "test-org"
+        req.state.user = user
+        return req
+
     @pytest.mark.asyncio
-    async def test_create_case_route(self, mock_deps):
+    async def test_create_case_route(self, mock_deps, mock_request):
         from employee_help.api.casefile_routes import create_case
 
         body = CreateCaseRequest(name="API Case", description="Via route")
-        resp = await create_case(body)
+        resp = await create_case(body, mock_request)
         assert resp.name == "API Case"
         assert resp.status == "active"
 
     @pytest.mark.asyncio
-    async def test_list_cases_route(self, mock_deps):
+    async def test_list_cases_route(self, mock_deps, mock_request):
         from employee_help.api.casefile_routes import create_case, list_cases
 
-        await create_case(CreateCaseRequest(name="Case A"))
-        await create_case(CreateCaseRequest(name="Case B"))
-        resp = await list_cases(status=None)
+        await create_case(CreateCaseRequest(name="Case A"), mock_request)
+        await create_case(CreateCaseRequest(name="Case B"), mock_request)
+        resp = await list_cases(mock_request, status=None)
         assert len(resp.cases) >= 2
 
     @pytest.mark.asyncio
-    async def test_get_case_route(self, mock_deps):
+    async def test_get_case_route(self, mock_deps, mock_request):
         from employee_help.api.casefile_routes import create_case, get_case
 
-        created = await create_case(CreateCaseRequest(name="Get Me"))
-        resp = await get_case(created.id)
+        created = await create_case(CreateCaseRequest(name="Get Me"), mock_request)
+        resp = await get_case(created.id, mock_request)
         assert resp.name == "Get Me"
 
     @pytest.mark.asyncio
-    async def test_get_case_not_found_route(self, mock_deps):
+    async def test_get_case_not_found_route(self, mock_deps, mock_request):
         from employee_help.api.casefile_routes import get_case
 
         with pytest.raises(Exception) as exc_info:
-            await get_case("nonexistent")
+            await get_case("nonexistent", mock_request)
         assert "404" in str(exc_info.value.status_code)
 
     @pytest.mark.asyncio
-    async def test_update_case_route(self, mock_deps):
+    async def test_update_case_route(self, mock_deps, mock_request):
         from employee_help.api.casefile_routes import create_case, update_case
 
-        created = await create_case(CreateCaseRequest(name="Old Name"))
+        created = await create_case(CreateCaseRequest(name="Old Name"), mock_request)
         resp = await update_case(
-            created.id, UpdateCaseRequest(name="New Name")
+            created.id, UpdateCaseRequest(name="New Name"), mock_request
         )
         assert resp.name == "New Name"
 
     @pytest.mark.asyncio
-    async def test_archive_case_route(self, mock_deps):
+    async def test_archive_case_route(self, mock_deps, mock_request):
         from employee_help.api.casefile_routes import archive_case, create_case
 
-        created = await create_case(CreateCaseRequest(name="Archive Me"))
-        await archive_case(created.id)
+        created = await create_case(CreateCaseRequest(name="Archive Me"), mock_request)
+        await archive_case(created.id, mock_request)
 
         fetched = mock_deps.get_case(created.id)
         assert fetched.status == CaseStatus.ARCHIVED
 
     @pytest.mark.asyncio
-    async def test_archive_case_not_found(self, mock_deps):
+    async def test_archive_case_not_found(self, mock_deps, mock_request):
         from employee_help.api.casefile_routes import archive_case
 
         with pytest.raises(Exception) as exc_info:
-            await archive_case("nonexistent")
+            await archive_case("nonexistent", mock_request)
         assert "404" in str(exc_info.value.status_code)
 
     @pytest.mark.asyncio
-    async def test_list_files_route(self, mock_deps, sample_case, tmp_path):
+    async def test_list_files_route(self, mock_deps, mock_request, sample_case, tmp_path):
         from employee_help.api.casefile_routes import list_files
 
         # Create a file
@@ -786,37 +796,37 @@ class TestRouteIntegration:
         )
         mock_deps.create_case_file(cf)
 
-        resp = await list_files(sample_case.id)
+        resp = await list_files(sample_case.id, mock_request)
         assert len(resp) == 1
         assert resp[0].original_filename == "test.txt"
 
     @pytest.mark.asyncio
-    async def test_get_file_route(self, mock_deps, sample_case, sample_file):
+    async def test_get_file_route(self, mock_deps, mock_request, sample_case, sample_file):
         from employee_help.api.casefile_routes import get_file
 
-        resp = await get_file(sample_case.id, sample_file.id)
+        resp = await get_file(sample_case.id, sample_file.id, mock_request)
         assert resp.original_filename == "test.txt"
 
     @pytest.mark.asyncio
-    async def test_get_file_not_found(self, mock_deps, sample_case):
+    async def test_get_file_not_found(self, mock_deps, mock_request, sample_case):
         from employee_help.api.casefile_routes import get_file
 
         with pytest.raises(Exception) as exc_info:
-            await get_file(sample_case.id, "nonexistent")
+            await get_file(sample_case.id, "nonexistent", mock_request)
         assert "404" in str(exc_info.value.status_code)
 
     @pytest.mark.asyncio
-    async def test_get_file_wrong_case(self, mock_deps, sample_file):
+    async def test_get_file_wrong_case(self, mock_deps, mock_request, sample_file):
         from employee_help.api.casefile_routes import get_file
 
-        other_case = mock_deps.create_case(Case(name="Other"))
+        other_case = mock_deps.create_case(Case(name="Other", user_id="test-user", organization_id="test-org"))
         with pytest.raises(Exception) as exc_info:
-            await get_file(other_case.id, sample_file.id)
+            await get_file(other_case.id, sample_file.id, mock_request)
         assert "404" in str(exc_info.value.status_code)
 
     @pytest.mark.asyncio
     async def test_update_file_text_route(
-        self, mock_deps, sample_case, sample_file
+        self, mock_deps, mock_request, sample_case, sample_file
     ):
         from employee_help.api.casefile_routes import update_file_text
 
@@ -826,98 +836,99 @@ class TestRouteIntegration:
         )
 
         body = UpdateFileTextRequest(edited_text="Edited content")
-        resp = await update_file_text(sample_case.id, sample_file.id, body)
+        resp = await update_file_text(sample_case.id, sample_file.id, body, mock_request)
         assert resp.edited_text == "Edited content"
         assert resp.text_dirty is True
 
     @pytest.mark.asyncio
     async def test_delete_file_route(
-        self, mock_deps, sample_case, sample_file
+        self, mock_deps, mock_request, sample_case, sample_file
     ):
         from employee_help.api.casefile_routes import delete_file
 
-        await delete_file(sample_case.id, sample_file.id)
+        await delete_file(sample_case.id, sample_file.id, mock_request)
         assert mock_deps.get_case_file(sample_file.id) is None
 
     @pytest.mark.asyncio
-    async def test_delete_file_not_found(self, mock_deps, sample_case):
+    async def test_delete_file_not_found(self, mock_deps, mock_request, sample_case):
         from employee_help.api.casefile_routes import delete_file
 
         with pytest.raises(Exception) as exc_info:
-            await delete_file(sample_case.id, "nonexistent")
+            await delete_file(sample_case.id, "nonexistent", mock_request)
         assert "404" in str(exc_info.value.status_code)
 
     @pytest.mark.asyncio
     async def test_reprocess_file_route(
-        self, mock_deps, sample_case, sample_file
+        self, mock_deps, mock_request, sample_case, sample_file
     ):
         from employee_help.api.casefile_routes import reprocess_file
 
-        resp = await reprocess_file(sample_case.id, sample_file.id)
+        resp = await reprocess_file(sample_case.id, sample_file.id, mock_request)
         assert resp.processing_status == "queued"
 
         # Wait briefly for background task
         await asyncio.sleep(0.1)
 
     @pytest.mark.asyncio
-    async def test_create_note_route(self, mock_deps, sample_case):
+    async def test_create_note_route(self, mock_deps, mock_request, sample_case):
         from employee_help.api.casefile_routes import create_note
 
         body = CreateNoteRequest(content="A note via route")
-        resp = await create_note(sample_case.id, body)
+        resp = await create_note(sample_case.id, body, mock_request)
         assert resp.content == "A note via route"
         assert resp.case_id == sample_case.id
 
     @pytest.mark.asyncio
     async def test_create_note_with_file(
-        self, mock_deps, sample_case, sample_file
+        self, mock_deps, mock_request, sample_case, sample_file
     ):
         from employee_help.api.casefile_routes import create_note
 
         body = CreateNoteRequest(
             content="File note", file_id=sample_file.id
         )
-        resp = await create_note(sample_case.id, body)
+        resp = await create_note(sample_case.id, body, mock_request)
         assert resp.file_id == sample_file.id
 
     @pytest.mark.asyncio
-    async def test_create_note_invalid_file(self, mock_deps, sample_case):
+    async def test_create_note_invalid_file(self, mock_deps, mock_request, sample_case):
         from employee_help.api.casefile_routes import create_note
 
         body = CreateNoteRequest(content="Bad file", file_id="nonexistent")
         with pytest.raises(Exception) as exc_info:
-            await create_note(sample_case.id, body)
+            await create_note(sample_case.id, body, mock_request)
         assert "404" in str(exc_info.value.status_code)
 
     @pytest.mark.asyncio
-    async def test_list_notes_route(self, mock_deps, sample_case):
+    async def test_list_notes_route(self, mock_deps, mock_request, sample_case):
         from employee_help.api.casefile_routes import create_note, list_notes
 
         await create_note(
-            sample_case.id, CreateNoteRequest(content="Note 1")
+            sample_case.id, CreateNoteRequest(content="Note 1"), mock_request
         )
         await create_note(
-            sample_case.id, CreateNoteRequest(content="Note 2")
+            sample_case.id, CreateNoteRequest(content="Note 2"), mock_request
         )
-        resp = await list_notes(sample_case.id, file_id=None)
+        resp = await list_notes(sample_case.id, mock_request, file_id=None)
         assert len(resp.notes) == 2
 
     @pytest.mark.asyncio
-    async def test_update_note_route(self, mock_deps, sample_case):
+    async def test_update_note_route(self, mock_deps, mock_request, sample_case):
         from employee_help.api.casefile_routes import create_note, update_note
 
         created = await create_note(
-            sample_case.id, CreateNoteRequest(content="Original")
+            sample_case.id, CreateNoteRequest(content="Original"), mock_request
         )
         resp = await update_note(
             sample_case.id,
             created.id,
             UpdateNoteRequest(content="Updated"),
+            mock_request,
         )
         assert resp.content == "Updated"
 
     @pytest.mark.asyncio
-    async def test_update_note_not_found(self, mock_deps, sample_case):
+    async def test_update_note_not_found(self, mock_deps, mock_request, sample_case):
         from employee_help.api.casefile_routes import update_note
 
         with pytest.raises(Exception) as exc_info:
@@ -925,50 +936,127 @@ class TestRouteIntegration:
                 sample_case.id,
                 "nonexistent",
                 UpdateNoteRequest(content="x"),
+                mock_request,
             )
         assert "404" in str(exc_info.value.status_code)
 
     @pytest.mark.asyncio
-    async def test_delete_note_route(self, mock_deps, sample_case):
+    async def test_delete_note_route(self, mock_deps, mock_request, sample_case):
         from employee_help.api.casefile_routes import create_note, delete_note
 
         created = await create_note(
-            sample_case.id, CreateNoteRequest(content="Delete me")
+            sample_case.id, CreateNoteRequest(content="Delete me"), mock_request
         )
-        await delete_note(sample_case.id, created.id)
+        await delete_note(sample_case.id, created.id, mock_request)
         assert mock_deps.get_note(created.id) is None
 
     @pytest.mark.asyncio
-    async def test_delete_note_not_found(self, mock_deps, sample_case):
+    async def test_delete_note_not_found(self, mock_deps, mock_request, sample_case):
         from employee_help.api.casefile_routes import delete_note
 
         with pytest.raises(Exception) as exc_info:
-            await delete_note(sample_case.id, "nonexistent")
+            await delete_note(sample_case.id, "nonexistent", mock_request)
         assert "404" in str(exc_info.value.status_code)
 
     @pytest.mark.asyncio
-    async def test_download_file_not_found(self, mock_deps, sample_case):
+    async def test_download_file_not_found(self, mock_deps, mock_request, sample_case):
         from employee_help.api.casefile_routes import download_file
 
         with pytest.raises(Exception) as exc_info:
-            await download_file(sample_case.id, "nonexistent")
+            await download_file(sample_case.id, "nonexistent", mock_request)
         assert "404" in str(exc_info.value.status_code)
 
     @pytest.mark.asyncio
-    async def test_list_cases_filter_status(self, mock_deps):
+    async def test_list_cases_filter_status(self, mock_deps, mock_request):
         from employee_help.api.casefile_routes import create_case, list_cases
 
-        c = await create_case(CreateCaseRequest(name="Filter Case"))
+        c = await create_case(CreateCaseRequest(name="Filter Case"), mock_request)
         mock_deps.archive_case(c.id)
 
-        resp = await list_cases(status="archived")
+        resp = await list_cases(mock_request, status="archived")
         ids = [r.id for r in resp.cases]
         assert c.id in ids
 
     @pytest.mark.asyncio
-    async def test_list_cases_invalid_status(self, mock_deps):
+    async def test_list_cases_invalid_status(self, mock_deps, mock_request):
         from employee_help.api.casefile_routes import list_cases
 
         with pytest.raises(Exception) as exc_info:
-            await list_cases(status="invalid_status")
+            await list_cases(mock_request, status="invalid_status")
         assert "400" in str(exc_info.value.status_code)
+
+
+# --- Cross-user isolation tests (A2 gate) ---
+
+
+class TestCrossUserIsolation:
+    @pytest.fixture()
+    def mock_deps(self, case_storage):
+        with patch(
+            "employee_help.api.casefile_routes._get_case_storage",
+            return_value=case_storage,
+        ):
+            yield case_storage
+
+    @pytest.fixture()
+    def user_a_request(self):
+        req = MagicMock()
+        user = MagicMock()
+        user.sub = "user-a"
+        user.org = "org-a"
+        req.state.user = user
+        return req
+
+    @pytest.fixture()
+    def user_b_request(self):
+        req = MagicMock()
+        user = MagicMock()
+        user.sub = "user-b"
+        user.org = "org-b"
+        req.state.user = user
+        return req
+
+    @pytest.mark.asyncio
+    async def test_user_b_cannot_see_user_a_cases(self, mock_deps, user_a_request, user_b_request):
+        from employee_help.api.casefile_routes import create_case, list_cases
+
+        await create_case(CreateCaseRequest(name="A's Case"), user_a_request)
+        resp = await list_cases(user_b_request)
+        assert len(resp.cases) == 0
+
+    @pytest.mark.asyncio
+    async def test_user_b_gets_404_on_user_a_case(self, mock_deps, user_a_request, user_b_request):
+        from employee_help.api.casefile_routes import create_case, get_case
+
+        created = await create_case(CreateCaseRequest(name="A's Case"), user_a_request)
+        with pytest.raises(Exception) as exc_info:
+            await get_case(created.id, user_b_request)
+        assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_user_b_cannot_update_user_a_case(self, mock_deps, user_a_request, user_b_request):
+        from employee_help.api.casefile_routes import create_case, update_case
+
+        created = await create_case(CreateCaseRequest(name="A's Case"), user_a_request)
+        with pytest.raises(Exception) as exc_info:
+            await update_case(created.id, UpdateCaseRequest(name="Hacked"), user_b_request)
+        assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_user_b_cannot_archive_user_a_case(self, mock_deps, user_a_request, user_b_request):
+        from employee_help.api.casefile_routes import archive_case, create_case
+
+        created = await create_case(CreateCaseRequest(name="A's Case"), user_a_request)
+        with pytest.raises(Exception) as exc_info:
+            await archive_case(created.id, user_b_request)
+        assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_unauthenticated_request_returns_401(self, mock_deps):
+        from employee_help.api.casefile_routes import list_cases
+
+        req = MagicMock()
+        req.state.user = None
+        with pytest.raises(Exception) as exc_info:
+            await list_cases(req)
+        assert exc_info.value.status_code == 401

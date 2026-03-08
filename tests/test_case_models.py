@@ -23,7 +23,7 @@ from employee_help.storage.storage import Storage
 
 class TestCaseModel:
     def test_defaults(self):
-        case = Case(name="Smith v. Acme Corp")
+        case = Case(name="Smith v. Acme Corp", user_id="test-user", organization_id="test-org")
         assert case.name == "Smith v. Acme Corp"
         assert case.status == CaseStatus.ACTIVE
         assert case.description is None
@@ -31,12 +31,12 @@ class TestCaseModel:
         assert len(case.id) == 36  # UUID format
 
     def test_auto_uuid(self):
-        c1 = Case(name="Case A")
-        c2 = Case(name="Case B")
+        c1 = Case(name="Case A", user_id="test-user", organization_id="test-org")
+        c2 = Case(name="Case B", user_id="test-user", organization_id="test-org")
         assert c1.id != c2.id
 
     def test_explicit_id(self):
-        case = Case(name="Test", id="custom-id")
+        case = Case(name="Test", user_id="test-user", organization_id="test-org", id="custom-id")
         assert case.id == "custom-id"
 
 
@@ -151,6 +151,8 @@ class TestCaseSchema:
         cols = self._get_columns(storage, "cases")
         assert "id" in cols
         assert "name" in cols
+        assert "user_id" in cols
+        assert "organization_id" in cols
         assert "description" in cols
         assert "status" in cols
         assert "created_at" in cols
@@ -201,8 +203,8 @@ class TestCaseSchema:
         """Deleting a case should cascade-delete its files."""
         now = "2026-03-06T00:00:00+00:00"
         storage._conn.execute(
-            "INSERT INTO cases (id, name, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-            ("c1", "Test Case", "active", now, now),
+            "INSERT INTO cases (id, name, user_id, organization_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("c1", "Test Case", "test-user", "test-org", "active", now, now),
         )
         storage._conn.execute(
             "INSERT INTO case_files (id, case_id, original_filename, file_type, mime_type, "
@@ -226,8 +228,8 @@ class TestCaseSchema:
         """Deleting a file should cascade-delete its chunks."""
         now = "2026-03-06T00:00:00+00:00"
         storage._conn.execute(
-            "INSERT INTO cases (id, name, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-            ("c1", "Test Case", "active", now, now),
+            "INSERT INTO cases (id, name, user_id, organization_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("c1", "Test Case", "test-user", "test-org", "active", now, now),
         )
         storage._conn.execute(
             "INSERT INTO case_files (id, case_id, original_filename, file_type, mime_type, "
@@ -257,8 +259,8 @@ class TestCaseSchema:
         """Deleting a file should SET NULL on notes' file_id (not cascade-delete notes)."""
         now = "2026-03-06T00:00:00+00:00"
         storage._conn.execute(
-            "INSERT INTO cases (id, name, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-            ("c1", "Test Case", "active", now, now),
+            "INSERT INTO cases (id, name, user_id, organization_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("c1", "Test Case", "test-user", "test-org", "active", now, now),
         )
         storage._conn.execute(
             "INSERT INTO case_files (id, case_id, original_filename, file_type, mime_type, "
@@ -305,8 +307,8 @@ class TestCaseSchema:
         """Cases default to 'active' status."""
         now = "2026-03-06T00:00:00+00:00"
         storage._conn.execute(
-            "INSERT INTO cases (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            ("c1", "Test", now, now),
+            "INSERT INTO cases (id, name, user_id, organization_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+            ("c1", "Test", "test-user", "test-org", now, now),
         )
         storage._conn.commit()
         row = storage._conn.execute("SELECT status FROM cases WHERE id = ?", ("c1",)).fetchone()
@@ -316,8 +318,8 @@ class TestCaseSchema:
         """Case files default to 'queued' processing status."""
         now = "2026-03-06T00:00:00+00:00"
         storage._conn.execute(
-            "INSERT INTO cases (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            ("c1", "Test", now, now),
+            "INSERT INTO cases (id, name, user_id, organization_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+            ("c1", "Test", "test-user", "test-org", now, now),
         )
         storage._conn.execute(
             "INSERT INTO case_files (id, case_id, original_filename, file_type, mime_type, "

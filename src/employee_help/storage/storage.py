@@ -102,6 +102,8 @@ CREATE INDEX IF NOT EXISTS idx_sources_slug ON sources(slug);
 CREATE TABLE IF NOT EXISTS cases (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    organization_id TEXT NOT NULL,
     description TEXT,
     status TEXT NOT NULL DEFAULT 'active',
     created_at TEXT NOT NULL,
@@ -258,6 +260,13 @@ _MIGRATIONS = [
     "ALTER TABLE chunks ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1;",
     # last_refreshed_at on sources (T1-A.1)
     "ALTER TABLE sources ADD COLUMN last_refreshed_at TEXT;",
+    # A2.1: Tenant isolation — add ownership columns to cases
+    "ALTER TABLE cases ADD COLUMN user_id TEXT NOT NULL DEFAULT '';",
+    "ALTER TABLE cases ADD COLUMN organization_id TEXT NOT NULL DEFAULT '';",
+    "CREATE INDEX IF NOT EXISTS idx_cases_user_id ON cases(user_id);",
+    "CREATE INDEX IF NOT EXISTS idx_cases_org_id ON cases(organization_id);",
+    # A2.1: Clean up any anonymous cases from before auth
+    "DELETE FROM cases WHERE user_id = '';",
 ]
 
 

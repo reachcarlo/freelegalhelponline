@@ -338,7 +338,7 @@ class TestChunkAndEmbed:
         from employee_help.casefile.processing import _chunk_and_embed
         from employee_help.retrieval.embedder import EmbeddingResult
 
-        case = case_storage.create_case(Case(name="Test Case"))
+        case = case_storage.create_case(Case(name="Test Case", user_id="test-user", organization_id="test-org"))
         cf = case_storage.create_case_file(CaseFile(
             case_id=case.id,
             original_filename="report.pdf",
@@ -412,7 +412,7 @@ class TestChunkAndEmbed:
         from employee_help.casefile.processing import _chunk_and_embed
         from employee_help.retrieval.embedder import EmbeddingResult
 
-        case = case_storage.create_case(Case(name="Test"))
+        case = case_storage.create_case(Case(name="Test", user_id="test-user", organization_id="test-org"))
         cf = case_storage.create_case_file(CaseFile(
             case_id=case.id,
             original_filename="doc.txt",
@@ -465,7 +465,7 @@ class TestChunkAndEmbed:
         from employee_help.casefile.processing import _chunk_and_embed
         from employee_help.retrieval.embedder import EmbeddingResult
 
-        case = case_storage.create_case(Case(name="Test"))
+        case = case_storage.create_case(Case(name="Test", user_id="test-user", organization_id="test-org"))
         cf = case_storage.create_case_file(CaseFile(
             case_id=case.id,
             original_filename="memo.docx",
@@ -527,7 +527,7 @@ class TestProcessFileEmbedding:
         from employee_help.casefile.processing import process_file
 
         cs = self._make_case_storage(tmp_path)
-        case = cs.create_case(Case(name="Test"))
+        case = cs.create_case(Case(name="Test", user_id="test-user", organization_id="test-org"))
 
         file_path = tmp_path / "hello.txt"
         file_path.write_text("Hello world from the test file content.")
@@ -557,7 +557,7 @@ class TestProcessFileEmbedding:
         from employee_help.retrieval.embedder import EmbeddingResult
 
         cs = self._make_case_storage(tmp_path)
-        case = cs.create_case(Case(name="Test"))
+        case = cs.create_case(Case(name="Test", user_id="test-user", organization_id="test-org"))
 
         file_path = tmp_path / "content.txt"
         file_path.write_text(
@@ -595,7 +595,7 @@ class TestProcessFileEmbedding:
         from employee_help.casefile.processing import process_file
 
         cs = self._make_case_storage(tmp_path)
-        case = cs.create_case(Case(name="Test"))
+        case = cs.create_case(Case(name="Test", user_id="test-user", organization_id="test-org"))
 
         file_path = tmp_path / "test.txt"
         file_path.write_text("Some text content for embedding failure test scenario.")
@@ -633,7 +633,7 @@ class TestProcessFileEmbedding:
         from employee_help.retrieval.embedder import EmbeddingResult
 
         cs = self._make_case_storage(tmp_path)
-        case = cs.create_case(Case(name="Test"))
+        case = cs.create_case(Case(name="Test", user_id="test-user", organization_id="test-org"))
 
         file_path = tmp_path / "broadcast.txt"
         file_path.write_text("Content for the broadcast test scenario with chunks.")
