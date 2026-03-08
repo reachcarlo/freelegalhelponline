@@ -18,6 +18,7 @@ import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
+from employee_help.api.auth_routes import auth_router
 from employee_help.api.casefile_routes import casefile_router
 from employee_help.api.deps import init_services, shutdown_services
 from employee_help.api.discovery_routes import discovery_router
@@ -502,6 +503,7 @@ async def log_requests(request: Request, call_next):
 
 
 app.include_router(router)
+app.include_router(auth_router)
 app.include_router(discovery_router)
 app.include_router(objection_router)
 app.include_router(casefile_router)

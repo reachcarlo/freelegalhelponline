@@ -1,6 +1,6 @@
 # Authentication & User Accounts: Implementation Plan
 
-> **Status**: In Progress (A1.1, A1.2 complete)
+> **Status**: In Progress (A1.1, A1.2, A1.3 complete)
 > **Created**: 2026-03-07
 > **GTM Strategy**: Bottom-up PLG (individual attorneys) → enterprise upsell (their firms)
 > **Auth Providers**: Google OIDC + Microsoft OIDC (no email/password, no local credentials)
@@ -453,7 +453,7 @@ User clicks "Sign in with Google"
 
 **Gate**: Full session lifecycle test passes — create session, validate access token, expire access token, refresh, validate new access token, revoke session.
 
-### A1.3 — Auth API Routes
+### A1.3 — Auth API Routes ✅ COMPLETE (2026-03-07)
 
 **Files to create/modify:**
 - `src/employee_help/api/auth_routes.py` — Auth router with login/callback/refresh/logout/me endpoints
