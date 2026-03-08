@@ -70,6 +70,7 @@ DISCOVERY_RATE_LIMIT_MAX = int(os.environ.get("DISCOVERY_RATE_LIMIT_MAX", "20"))
 OBJECTION_PARSE_RATE_LIMIT_MAX = int(os.environ.get("OBJECTION_PARSE_RATE_LIMIT_MAX", "10"))
 OBJECTION_GENERATE_RATE_LIMIT_MAX = int(os.environ.get("OBJECTION_GENERATE_RATE_LIMIT_MAX", "5"))
 CASEFILE_UPLOAD_RATE_LIMIT_MAX = int(os.environ.get("CASEFILE_UPLOAD_RATE_LIMIT_MAX", "20"))
+CASEFILE_CHAT_RATE_LIMIT_MAX = int(os.environ.get("CASEFILE_CHAT_RATE_LIMIT_MAX", "10"))
 DAILY_QUERY_BUDGET = int(os.environ.get("DAILY_QUERY_BUDGET", "500"))
 
 # Authenticated (user-based) rate limits — higher tiers
@@ -79,6 +80,7 @@ AUTH_OBJECTION_GENERATE_RATE_LIMIT_MAX = int(os.environ.get("AUTH_OBJECTION_GENE
 AUTH_OBJECTION_PARSE_RATE_LIMIT_MAX = int(os.environ.get("AUTH_OBJECTION_PARSE_RATE_LIMIT_MAX", "30"))
 AUTH_DISCOVERY_RATE_LIMIT_MAX = int(os.environ.get("AUTH_DISCOVERY_RATE_LIMIT_MAX", "50"))
 AUTH_CASEFILE_UPLOAD_RATE_LIMIT_MAX = int(os.environ.get("AUTH_CASEFILE_UPLOAD_RATE_LIMIT_MAX", "50"))
+AUTH_CASEFILE_CHAT_RATE_LIMIT_MAX = int(os.environ.get("AUTH_CASEFILE_CHAT_RATE_LIMIT_MAX", "20"))
 AUTH_DAILY_QUERY_BUDGET = int(os.environ.get("AUTH_DAILY_QUERY_BUDGET", "2000"))
 
 # --- In-memory rate limit state ---
@@ -95,6 +97,7 @@ _discovery_rate_store: dict[str, list[float]] = defaultdict(list)
 _objection_parse_rate_store: dict[str, list[float]] = defaultdict(list)
 _objection_generate_rate_store: dict[str, list[float]] = defaultdict(list)
 _casefile_upload_rate_store: dict[str, list[float]] = defaultdict(list)
+_casefile_chat_rate_store: dict[str, list[float]] = defaultdict(list)
 _daily_budget_store: dict[str, dict] = defaultdict(
     lambda: {"date": "", "count": 0}
 )
@@ -423,6 +426,21 @@ async def rate_limit_middleware(request: Request, call_next):
                 "Please wait before uploading more files.", limit, reset_at
             )
 
+    # --- /api/cases/*/chat rate limiting ---
+    if (
+        request.method == "POST"
+        and request.url.path.startswith("/api/cases/")
+        and request.url.path.endswith("/chat")
+    ):
+        limit = AUTH_CASEFILE_CHAT_RATE_LIMIT_MAX if is_auth else CASEFILE_CHAT_RATE_LIMIT_MAX
+        allowed, _, reset_at = _check_rate_limit(
+            _casefile_chat_rate_store, key, limit, 60, now
+        )
+        if not allowed:
+            return _rate_limit_response(
+                "Please wait before sending another question.", limit, reset_at
+            )
+
     # --- /api/feedback rate limiting (public) ---
     if request.url.path == "/api/feedback" and request.method == "POST":
         allowed, _, reset_at = _check_rate_limit(
@@ -462,6 +480,17 @@ async def auth_middleware(request: Request, call_next):
         )
 
     return await call_next(request)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Add security headers to all responses."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
 
 
 @app.middleware("http")

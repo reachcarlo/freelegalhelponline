@@ -1,6 +1,6 @@
 # Authentication & User Accounts: Implementation Plan
 
-> **Status**: In Progress (A1.1–A1.6, A2.1–A2.4, A3.1–A3.2 complete)
+> **Status**: In Progress (A1.1–A1.6, A2.1–A2.4, A3.1–A3.3 complete)
 > **Created**: 2026-03-07
 > **GTM Strategy**: Bottom-up PLG (individual attorneys) → enterprise upsell (their firms)
 > **Auth Providers**: Google OIDC + Microsoft OIDC (no email/password, no local credentials)
@@ -853,6 +853,12 @@ async def security_headers(request: Request, call_next):
 3. HSTS header: set in reverse proxy (nginx/Caddy), not in application
 
 **Gate**: Response headers present on all API responses. CSP blocks inline script execution.
+
+**Status**: COMPLETE
+- Backend: `security_headers` middleware in `main.py` — X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy on all responses
+- Frontend: CSP in `next.config.ts` via `headers()` — default-src self, script-src allows plausible.io, connect-src allows plausible.io + sentry ingest, frame-ancestors none
+- HSTS: deferred to reverse proxy (nginx/Caddy) per plan
+- 8 backend tests (`test_security_headers.py`)
 
 ### A3.4 — PII Handling in Logs
 

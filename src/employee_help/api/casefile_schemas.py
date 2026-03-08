@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 from employee_help.api.sanitize import sanitize_text
@@ -143,3 +145,83 @@ class UpdateNoteRequest(BaseModel):
         if isinstance(v, str):
             return sanitize_text(v)
         return v
+
+
+# ── Chat schemas ──────────────────────────────────────────────────
+
+
+class CaseChatTurnItem(BaseModel):
+    """A single turn in the case chat conversation history."""
+
+    role: Literal["user", "assistant"]
+    content: str = Field(..., max_length=20000)
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def sanitize_content(cls, v: str) -> str:
+        if isinstance(v, str):
+            return sanitize_text(v)
+        return v
+
+
+class CaseChatRequest(BaseModel):
+    """Request body for POST /api/cases/{case_id}/chat."""
+
+    query: str = Field(..., min_length=1, max_length=2000)
+    session_id: str | None = None
+    conversation_history: list[CaseChatTurnItem] = Field(default_factory=list)
+
+    @field_validator("query", mode="before")
+    @classmethod
+    def sanitize_query(cls, v: str) -> str:
+        if isinstance(v, str):
+            return sanitize_text(v)
+        return v
+
+
+class CaseChatSourceInfo(BaseModel):
+    """A source reference in chat responses."""
+
+    source_type: str  # "case_file" | "knowledge_base"
+    title: str
+    relevance_score: float
+    file_id: str | None = None
+    chunk_id: str | None = None
+    content_category: str | None = None
+    heading_path: str | None = None
+
+
+class ChatTurnResponse(BaseModel):
+    """A single turn in chat history."""
+
+    id: str
+    session_id: str
+    turn_number: int
+    role: str
+    content: str
+    sources: dict | list | None = None
+    created_at: str
+
+
+class ChatSessionResponse(BaseModel):
+    """A chat session summary."""
+
+    id: str
+    case_id: str
+    created_at: str
+    updated_at: str
+    turn_count: int = 0
+
+
+class ChatSessionListResponse(BaseModel):
+    """Response body for GET /api/cases/{case_id}/chat/sessions."""
+
+    sessions: list[ChatSessionResponse]
+
+
+class ChatHistoryResponse(BaseModel):
+    """Response body for GET /api/cases/{case_id}/chat/{session_id}."""
+
+    session_id: str
+    case_id: str
+    turns: list[ChatTurnResponse]

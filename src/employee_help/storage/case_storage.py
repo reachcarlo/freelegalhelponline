@@ -9,6 +9,8 @@ from pathlib import Path
 
 from employee_help.storage.models import (
     Case,
+    CaseChatSession,
+    CaseChatTurn,
     CaseChunk,
     CaseFile,
     CaseNote,
@@ -421,6 +423,84 @@ class CaseStorage:
         ).fetchone()
         return row["cnt"]
 
+    # ── Chat Sessions & Turns ─────────────────────────────────
+
+    def create_chat_session(self, session: CaseChatSession) -> CaseChatSession:
+        now = datetime.now(tz=UTC).isoformat()
+        self._conn.execute(
+            """INSERT INTO case_chat_sessions (id, case_id, created_at, updated_at)
+               VALUES (?, ?, ?, ?)""",
+            (session.id, session.case_id, now, now),
+        )
+        self._conn.commit()
+        session.created_at = datetime.fromisoformat(now)
+        session.updated_at = datetime.fromisoformat(now)
+        return session
+
+    def get_chat_session(self, session_id: str) -> CaseChatSession | None:
+        row = self._conn.execute(
+            "SELECT * FROM case_chat_sessions WHERE id = ?", (session_id,)
+        ).fetchone()
+        if not row:
+            return None
+        return self._row_to_chat_session(row)
+
+    def list_chat_sessions(self, case_id: str) -> list[CaseChatSession]:
+        rows = self._conn.execute(
+            "SELECT * FROM case_chat_sessions WHERE case_id = ? ORDER BY updated_at DESC",
+            (case_id,),
+        ).fetchall()
+        return [self._row_to_chat_session(row) for row in rows]
+
+    def update_chat_session_timestamp(self, session_id: str) -> None:
+        now = datetime.now(tz=UTC).isoformat()
+        self._conn.execute(
+            "UPDATE case_chat_sessions SET updated_at = ? WHERE id = ?",
+            (now, session_id),
+        )
+        self._conn.commit()
+
+    def delete_chat_session(self, session_id: str) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM case_chat_sessions WHERE id = ?", (session_id,)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def create_chat_turn(self, turn: CaseChatTurn) -> CaseChatTurn:
+        now = datetime.now(tz=UTC).isoformat()
+        self._conn.execute(
+            """INSERT INTO case_chat_turns
+               (id, session_id, turn_number, role, content, sources, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                turn.id,
+                turn.session_id,
+                turn.turn_number,
+                turn.role,
+                turn.content,
+                turn.sources,
+                now,
+            ),
+        )
+        self._conn.commit()
+        turn.created_at = datetime.fromisoformat(now)
+        return turn
+
+    def list_chat_turns(self, session_id: str) -> list[CaseChatTurn]:
+        rows = self._conn.execute(
+            "SELECT * FROM case_chat_turns WHERE session_id = ? ORDER BY turn_number",
+            (session_id,),
+        ).fetchall()
+        return [self._row_to_chat_turn(row) for row in rows]
+
+    def get_chat_session_turn_count(self, session_id: str) -> int:
+        row = self._conn.execute(
+            "SELECT COUNT(*) AS cnt FROM case_chat_turns WHERE session_id = ?",
+            (session_id,),
+        ).fetchone()
+        return row["cnt"]
+
     # ── Private helpers ────────────────────────────────────────
 
     @staticmethod
@@ -484,5 +564,26 @@ class CaseStorage:
             token_count=row["token_count"],
             content_hash=row["content_hash"],
             is_active=bool(row["is_active"]),
+            created_at=datetime.fromisoformat(row["created_at"]),
+        )
+
+    @staticmethod
+    def _row_to_chat_session(row: sqlite3.Row) -> CaseChatSession:
+        return CaseChatSession(
+            id=row["id"],
+            case_id=row["case_id"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+            updated_at=datetime.fromisoformat(row["updated_at"]),
+        )
+
+    @staticmethod
+    def _row_to_chat_turn(row: sqlite3.Row) -> CaseChatTurn:
+        return CaseChatTurn(
+            id=row["id"],
+            session_id=row["session_id"],
+            turn_number=row["turn_number"],
+            role=row["role"],
+            content=row["content"],
+            sources=row["sources"],
             created_at=datetime.fromisoformat(row["created_at"]),
         )

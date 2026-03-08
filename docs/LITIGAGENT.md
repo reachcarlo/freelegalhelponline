@@ -1355,7 +1355,7 @@ With 100 files, total text could be 500K+ words (2M+ tokens). This doesn't fit i
 | L3.3 | Re-embedding on text edit (debounced background task) | P0 DONE |
 | L3.4 | CaseChatService: dual-context retrieval (case files + knowledge base) | P0 DONE |
 | L3.5 | casefile_system.j2 prompt template | P0 DONE |
-| L3.6 | API: case chat endpoints (SSE streaming) | P0 |
+| L3.6 | API: case chat endpoints (SSE streaming) | P0 DONE |
 | L3.7 | Frontend: chat drawer with streaming responses | P0 |
 | L3.8 | Clickable file citations in chat responses → Panel 2 navigation | P1 |
 | L3.9 | Suggested questions (contextual) | P1 |

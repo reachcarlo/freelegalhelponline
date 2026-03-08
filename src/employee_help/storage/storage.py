@@ -161,6 +161,26 @@ CREATE INDEX IF NOT EXISTS idx_case_chunks_case_id ON case_chunks(case_id);
 CREATE INDEX IF NOT EXISTS idx_case_chunks_file_id ON case_chunks(file_id);
 CREATE INDEX IF NOT EXISTS idx_case_chunks_hash ON case_chunks(content_hash);
 
+-- Case chat sessions (Phase L3.6)
+CREATE TABLE IF NOT EXISTS case_chat_sessions (
+    id TEXT PRIMARY KEY,
+    case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_case_chat_sessions_case_id ON case_chat_sessions(case_id);
+
+CREATE TABLE IF NOT EXISTS case_chat_turns (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES case_chat_sessions(id) ON DELETE CASCADE,
+    turn_number INTEGER NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    sources TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_case_chat_turns_session ON case_chat_turns(session_id);
+
 -- Authentication tables (Phase A1)
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,

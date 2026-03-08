@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import json
 import mimetypes
+import time
+import uuid
 from pathlib import Path
 
 import structlog
@@ -12,10 +14,16 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
 from employee_help.api.casefile_schemas import (
+    CaseChatRequest,
+    CaseChatSourceInfo,
     CaseFileDetailResponse,
     CaseFileResponse,
     CaseListResponse,
     CaseResponse,
+    ChatHistoryResponse,
+    ChatSessionListResponse,
+    ChatSessionResponse,
+    ChatTurnResponse,
     CreateCaseRequest,
     CreateNoteRequest,
     FileUploadResponse,
@@ -40,6 +48,8 @@ from employee_help.casefile.processing import (
 )
 from employee_help.storage.models import (
     Case,
+    CaseChatSession,
+    CaseChatTurn,
     CaseFile,
     CaseNote,
     ProcessingStatus,
@@ -612,4 +622,319 @@ async def delete_note(case_id: str, note_id: str, request: Request):
         "note.delete", request,
         resource_type="note", resource_id=note_id,
         metadata={"case_id": case_id},
+    )
+
+
+# ── Case Chat ─────────────────────────────────────────────────────
+
+MAX_CHAT_TURNS = 10
+
+
+def _get_case_chat_service():
+    """Get the CaseChatService singleton from deps."""
+    from employee_help.api.deps import get_case_chat_service
+
+    svc = get_case_chat_service()
+    if svc is None:
+        raise HTTPException(503, "Case chat service not available")
+    return svc
+
+
+def _validate_chat_history(
+    history: list, turn_number: int
+) -> str | None:
+    """Validate conversation history. Returns error message or None."""
+    expected_len = (turn_number - 1) * 2
+    if len(history) != expected_len:
+        return (
+            f"History length {len(history)} doesn't match "
+            f"turn {turn_number} (expected {expected_len})"
+        )
+    for i, turn in enumerate(history):
+        expected_role = "user" if i % 2 == 0 else "assistant"
+        if turn.role != expected_role:
+            return (
+                f"History turn {i} has role '{turn.role}', "
+                f"expected '{expected_role}'"
+            )
+    return None
+
+
+@casefile_router.post("/{case_id}/chat")
+async def case_chat(case_id: str, body: CaseChatRequest, request: Request):
+    """Stream a case chat answer via server-sent events.
+
+    SSE event types:
+      - sources: case file and KB retrieval results
+      - token: text chunk from LLM stream
+      - done: final metadata (model, tokens, cost, duration, session_id)
+      - error: error message
+    """
+    user = _require_user(request)
+    storage = _get_case_storage()
+    _require_case(case_id, user_id=user.sub)
+    chat_service = _get_case_chat_service()
+
+    start_time = time.monotonic()
+    query_id = str(uuid.uuid4())
+
+    # Determine turn number from history
+    turn_number = len(body.conversation_history) // 2 + 1
+
+    # Turn limit enforcement
+    if turn_number > MAX_CHAT_TURNS:
+        def limit_sse():
+            yield _sse_event("error", {
+                "message": "TURN_LIMIT_EXCEEDED",
+                "max_turns": MAX_CHAT_TURNS,
+            })
+        return StreamingResponse(
+            limit_sse(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+    # Validate conversation history
+    if body.conversation_history:
+        validation_error = _validate_chat_history(
+            body.conversation_history, turn_number
+        )
+        if validation_error:
+            raise HTTPException(422, validation_error)
+
+    # Resolve or create session
+    session_id = body.session_id
+    if session_id:
+        session = storage.get_chat_session(session_id)
+        if session is None or session.case_id != case_id:
+            raise HTTPException(404, f"Chat session not found: {session_id}")
+    else:
+        session = CaseChatSession(case_id=case_id)
+        session = storage.create_chat_session(session)
+        session_id = session.id
+
+    def generate_sse():
+        try:
+            # Choose single-turn or multi-turn path
+            if turn_number > 1 and body.conversation_history:
+                history = [
+                    {"role": t.role, "content": t.content}
+                    for t in body.conversation_history
+                ]
+                text_stream, case_results, kb_results, stream_metadata = (
+                    chat_service.generate_stream_multiturn(
+                        query=body.query,
+                        case_id=case_id,
+                        conversation_history=history,
+                        turn_number=turn_number,
+                        max_turns=MAX_CHAT_TURNS,
+                    )
+                )
+            else:
+                text_stream, case_results, kb_results, stream_metadata = (
+                    chat_service.generate_stream(
+                        query=body.query,
+                        case_id=case_id,
+                    )
+                )
+
+            # Emit sources
+            case_sources = [
+                CaseChatSourceInfo(
+                    source_type="case_file",
+                    title=r.original_filename,
+                    relevance_score=r.relevance_score,
+                    file_id=r.file_id,
+                    chunk_id=r.chunk_id,
+                    heading_path=r.heading_path,
+                ).model_dump()
+                for r in case_results
+            ]
+            kb_sources = [
+                CaseChatSourceInfo(
+                    source_type="knowledge_base",
+                    title=r.heading_path or r.citation or "",
+                    relevance_score=r.relevance_score,
+                    chunk_id=r.chunk_id,
+                    content_category=r.content_category,
+                    heading_path=r.heading_path,
+                ).model_dump()
+                for r in kb_results
+            ]
+            yield _sse_event("sources", {
+                "case_sources": case_sources,
+                "kb_sources": kb_sources,
+            })
+
+            # Stream LLM tokens
+            full_text_parts: list[str] = []
+            for chunk in text_stream:
+                full_text_parts.append(chunk)
+                yield _sse_event("token", {"text": chunk})
+
+            # Collect metadata
+            duration_ms = int((time.monotonic() - start_time) * 1000)
+            meta = stream_metadata[0] if stream_metadata else {}
+            model = meta.get("model", "")
+            input_tokens = meta.get("input_tokens", 0)
+            output_tokens = meta.get("output_tokens", 0)
+
+            cost = 0.0
+            if model:
+                from employee_help.generation.models import TokenUsage
+
+                usage = TokenUsage(
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    model=model,
+                )
+                cost = usage.cost_estimate
+
+            # Persist turns to DB (best-effort)
+            try:
+                full_text = "".join(full_text_parts)
+
+                # Save user turn
+                user_turn = CaseChatTurn(
+                    session_id=session_id,
+                    turn_number=turn_number,
+                    role="user",
+                    content=body.query,
+                )
+                storage.create_chat_turn(user_turn)
+
+                # Save assistant turn with sources
+                sources_json = json.dumps({
+                    "case_sources": [
+                        {"file_id": r.file_id, "filename": r.original_filename}
+                        for r in case_results
+                    ],
+                    "kb_sources": [
+                        {"chunk_id": r.chunk_id, "heading": r.heading_path}
+                        for r in kb_results
+                    ],
+                })
+                assistant_turn = CaseChatTurn(
+                    session_id=session_id,
+                    turn_number=turn_number,
+                    role="assistant",
+                    content=full_text,
+                    sources=sources_json,
+                )
+                storage.create_chat_turn(assistant_turn)
+
+                # Update session timestamp
+                storage.update_chat_session_timestamp(session_id)
+            except Exception:
+                logger.warning("chat_turn_persist_failed", exc_info=True)
+
+            is_final_turn = turn_number >= MAX_CHAT_TURNS
+
+            yield _sse_event("done", {
+                "query_id": query_id,
+                "session_id": session_id,
+                "turn_number": turn_number,
+                "max_turns": MAX_CHAT_TURNS,
+                "is_final_turn": is_final_turn,
+                "model": model,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost_estimate": round(cost, 6),
+                "duration_ms": duration_ms,
+            })
+
+            logger.info(
+                "case_chat_complete",
+                case_id=case_id,
+                session_id=session_id,
+                turn_number=turn_number,
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                duration_ms=duration_ms,
+            )
+            _audit(
+                "case.chat", request,
+                resource_type="case", resource_id=case_id,
+                metadata={
+                    "session_id": session_id,
+                    "turn_number": turn_number,
+                    "query_id": query_id,
+                },
+            )
+
+        except Exception as e:
+            logger.error("case_chat_error", error=str(e), exc_info=True)
+            yield _sse_event("error", {"message": str(e)})
+
+    return StreamingResponse(
+        generate_sse(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@casefile_router.get(
+    "/{case_id}/chat/sessions", response_model=ChatSessionListResponse
+)
+async def list_chat_sessions(case_id: str, request: Request):
+    """List chat sessions for a case."""
+    user = _require_user(request)
+    storage = _get_case_storage()
+    _require_case(case_id, user_id=user.sub)
+
+    sessions = storage.list_chat_sessions(case_id)
+    results = []
+    for s in sessions:
+        turn_count = storage.get_chat_session_turn_count(s.id)
+        # Each pair of user+assistant = 1 logical turn
+        results.append(ChatSessionResponse(
+            id=s.id,
+            case_id=s.case_id,
+            created_at=s.created_at.isoformat(),
+            updated_at=s.updated_at.isoformat(),
+            turn_count=turn_count,
+        ))
+    return ChatSessionListResponse(sessions=results)
+
+
+@casefile_router.get(
+    "/{case_id}/chat/{session_id}", response_model=ChatHistoryResponse
+)
+async def get_chat_history(case_id: str, session_id: str, request: Request):
+    """Get the full chat history for a session."""
+    user = _require_user(request)
+    storage = _get_case_storage()
+    _require_case(case_id, user_id=user.sub)
+
+    session = storage.get_chat_session(session_id)
+    if session is None or session.case_id != case_id:
+        raise HTTPException(404, f"Chat session not found: {session_id}")
+
+    turns = storage.list_chat_turns(session_id)
+    turn_responses = []
+    for t in turns:
+        sources = None
+        if t.sources:
+            try:
+                sources = json.loads(t.sources)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        turn_responses.append(ChatTurnResponse(
+            id=t.id,
+            session_id=t.session_id,
+            turn_number=t.turn_number,
+            role=t.role,
+            content=t.content,
+            sources=sources,
+            created_at=t.created_at.isoformat(),
+        ))
+
+    return ChatHistoryResponse(
+        session_id=session_id,
+        case_id=case_id,
+        turns=turn_responses,
     )

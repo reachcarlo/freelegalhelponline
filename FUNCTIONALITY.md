@@ -1,6 +1,6 @@
 # Employee Help — Functionality Inventory
 
-> **Last updated**: 2026-03-07
+> **Last updated**: 2026-03-08
 > **Platform**: AI-powered California employment rights legal guidance
 > **Tech stack**: Python 3.12 / FastAPI / Next.js 16 / SQLite / LanceDB / Claude API
 
@@ -13,10 +13,11 @@
 3. [Consumer Assessment Tools](#3-consumer-assessment-tools)
 4. [Discovery Document Generation](#4-discovery-document-generation)
 5. [Web Application](#5-web-application)
-6. [Analytics, Feedback & Quality Assurance](#6-analytics-feedback--quality-assurance)
-7. [CLI Tooling](#7-cli-tooling)
-8. [Cross-Product Integration Map](#8-cross-product-integration-map)
-9. [Test Suite Summary](#9-test-suite-summary)
+6. [Authentication & Security](#6-authentication--security)
+7. [Analytics, Feedback & Quality Assurance](#7-analytics-feedback--quality-assurance)
+8. [CLI Tooling](#8-cli-tooling)
+9. [Cross-Product Integration Map](#9-cross-product-integration-map)
+10. [Test Suite Summary](#10-test-suite-summary)
 
 ---
 
@@ -607,11 +608,27 @@ Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML
 | `/api/cases/{id}/status-stream` | GET | SSE file processing status | — |
 | `/api/cases/{id}/notes` | POST/GET | Notes CRUD | — |
 | `/api/cases/{id}/notes/{nid}` | PATCH/DELETE | Note update/delete | — |
+| `/api/auth/login/google` | GET | Google OAuth redirect | — |
+| `/api/auth/callback/google` | GET | Google OAuth callback | — |
+| `/api/auth/login/microsoft` | GET | Microsoft OAuth redirect | — |
+| `/api/auth/callback/microsoft` | GET | Microsoft OAuth callback | — |
+| `/api/auth/refresh` | POST | Token refresh (rotation) | — |
+| `/api/auth/logout` | POST | Logout (revoke session) | — |
+| `/api/auth/me` | GET | Current user profile | — |
+| `/api/auth/sessions` | GET | List active sessions | Auth |
+| `/api/auth/sessions/{id}` | DELETE | Revoke specific session | Auth |
+| `/api/auth/sessions` | DELETE | Revoke all other sessions | Auth |
+| `/api/auth/audit-log` | GET | Paginated audit log | Auth |
 
 ### Security
 
 - CORS middleware (configurable origins)
-- Per-IP rate limiting with sliding window + daily budget for LLM endpoints
+- Dual-mode rate limiting: per-IP for anonymous (5/min, 500/day), per-user for authenticated (20/min, 2000/day)
+- Security headers middleware: X-Content-Type-Options (nosniff), X-Frame-Options (DENY), Referrer-Policy, Permissions-Policy
+- Content Security Policy (CSP) via Next.js headers: script-src restricted, frame-ancestors none
+- Auth middleware: validates JWT access tokens, protects `/api/cases`, `/api/discovery`, `/api/objections`
+- HttpOnly cookies for access and refresh tokens (no localStorage token storage)
+- Refresh token rotation with replay detection (reuse → all sessions revoked)
 - Prompt injection detection (regex-based pattern flagging)
 - HTML/control character sanitization
 - Safe filename generation for downloads
@@ -668,7 +685,97 @@ Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML
 
 ---
 
-## 6. Analytics, Feedback & Quality Assurance
+## 6. Authentication & Security
+
+### What It Does
+
+Google and Microsoft OAuth authentication with JWT session management, security headers, audit logging, and session management UI. Protects attorney-only tools (LITIGAGENT, Discovery, Objection Drafter) behind authentication while keeping consumer tools (chat, calculators, intake) public.
+
+### User
+
+All users (authentication required for attorney tools).
+
+### Features
+
+#### OAuth Login
+
+- Google OIDC + Microsoft OIDC (no email/password, no local credentials)
+- Two-button login page: "Sign in with Google" / "Sign in with Microsoft"
+- CSRF protection via HttpOnly state cookie with 5-min TTL
+- Post-login redirect to originally requested page
+
+#### Session Management
+
+- JWT access tokens (HS256, 15-min TTL) in HttpOnly cookies
+- Refresh token rotation: SHA-256 hashed, old session revoked on refresh
+- Replay detection: reused refresh token → all user sessions revoked
+- Account page (`/account`) with profile info and active sessions list
+- Individual session revocation and "revoke all others" bulk action
+- Device info display (browser, OS, IP address) parsed from User-Agent
+
+#### Auth Middleware
+
+- Validates access token on every request, sets `request.state.user`
+- Protected paths: `/api/cases`, `/api/discovery`, `/api/objections` → 401 without valid token
+- Public paths: `/api/ask`, calculators, intake, feedback, auth endpoints → pass through
+- Frontend proxy (`proxy.ts`) redirects unauthenticated users to `/login?redirect=`
+
+#### Dual-Mode Rate Limiting
+
+- Anonymous: per-IP sliding window (5/min LLM, 20/min tools, 500/day budget)
+- Authenticated: per-user higher limits (20/min LLM, 50/min tools, 2000/day budget)
+
+#### Audit Logging
+
+- Append-only audit log in SQLite (17 event types)
+- Events: case/file/note CRUD, auth login/logout/refresh, discovery generate, objection generate
+- `GET /api/auth/audit-log` — paginated, own entries only
+- Stores user_id + action (PII joined at query time, never duplicated)
+
+#### Security Headers
+
+- Backend middleware: X-Content-Type-Options (nosniff), X-Frame-Options (DENY), Referrer-Policy (strict-origin-when-cross-origin), Permissions-Policy (camera/microphone/geolocation disabled)
+- Frontend CSP via Next.js `headers()`: default-src self, script-src restricted (self + plausible.io), connect-src (self + plausible.io + sentry ingest), frame-ancestors none, base-uri self, form-action self
+- HSTS: deferred to reverse proxy (nginx/Caddy)
+
+### Key Files
+
+- Auth providers: `src/employee_help/auth/providers.py`
+- Auth models: `src/employee_help/auth/models.py`
+- Auth storage: `src/employee_help/auth/storage.py`
+- Token management: `src/employee_help/auth/tokens.py`
+- Session manager: `src/employee_help/auth/session.py`
+- Audit logger: `src/employee_help/auth/audit.py`
+- Auth routes: `src/employee_help/api/auth_routes.py`
+- Auth middleware: `src/employee_help/api/main.py` (auth_middleware, security_headers)
+- Frontend auth: `frontend/lib/auth-context.tsx`
+- Login page: `frontend/app/login/page.tsx`
+- Account page: `frontend/app/account/`
+- Active sessions: `frontend/components/active-sessions.tsx`
+- Auth guard: `frontend/components/auth-guard.tsx`
+- User menu: `frontend/components/user-menu.tsx`
+- Proxy middleware: `frontend/proxy.ts`
+
+### Test Suite
+
+| Test File | Tests | What It Covers |
+|-----------|-------|----------------|
+| `test_auth_providers.py` | 25 | Google/Microsoft OIDC JWT validation |
+| `test_auth_storage.py` | 32 | User, org, membership, session CRUD |
+| `test_auth_tokens.py` | 10 | JWT create/validate, claims |
+| `test_session_manager.py` | 23 | Session lifecycle, refresh rotation, replay detection |
+| `test_auth_routes.py` | 35 | OAuth login/callback, refresh, logout, me |
+| `test_auth_middleware.py` | 39 | Protected paths, rate limit key, dual-mode |
+| `test_auth_env.py` | 10 | Environment config, fail-fast |
+| `test_session_management.py` | 29 | Session list/revoke endpoints, sid claim, UA parsing |
+| `test_audit_log.py` | 32 | Audit logger, events, pagination |
+| `test_security_headers.py` | 8 | Security headers on all responses |
+| `test_dual_rate_limit.py` | 31 | Authenticated vs anonymous rate limits |
+| E2E: `session-management.spec.ts` | 11 | Account page, active sessions, revocation |
+
+---
+
+## 7. Analytics, Feedback & Quality Assurance
 
 ### What It Does
 
@@ -773,7 +880,7 @@ Multi-turn conversation sessions logged:
 
 ---
 
-## 7. CLI Tooling
+## 8. CLI Tooling
 
 ### What It Does
 
@@ -810,7 +917,7 @@ Developer/operator.
 
 ---
 
-## 8. Cross-Product Integration Map
+## 9. Cross-Product Integration Map
 
 ```
                     ┌─────────────────────────────────────┐
@@ -866,17 +973,19 @@ Developer/operator.
 | Pipeline (Caselaw) | Citation Extractor | Eyecite extraction → CitationLink table |
 | Pipeline (Caselaw) | Storage | `resolve_citation_targets()` bidirectional linking |
 | Feedback | Analytics | Query logging → daily stats, approval rate |
-| All LLM Endpoints | Rate Limiter | 5/min per IP + 500/day budget |
+| All LLM Endpoints | Rate Limiter | Anon: 5/min per IP + 500/day; Auth: 20/min per user + 2000/day |
+| Protected Tools | Auth Middleware | JWT access token validation, 401 on missing/expired |
+| Auth Events | Audit Logger | 17 event types logged to append-only audit_log table |
 
 ---
 
-## 9. Test Suite Summary
+## 10. Test Suite Summary
 
 ### Overall Numbers
 
-- **Total passing tests**: ~1,535
-- **Deselected (slow/live/llm/eval markers)**: ~74
-- **Total test files**: ~72 Python + 9 Playwright E2E specs
+- **Total passing tests**: ~3,188
+- **Deselected (slow/live/llm/eval markers)**: ~95
+- **Total test files**: ~101 Python + 18 Playwright E2E specs
 - **Evaluation datasets**: 8 YAML files
 
 ### Pytest Markers
@@ -900,7 +1009,7 @@ Developer/operator.
 | Slow (ML models) | ~50 | Real BGE embedding, LanceDB operations |
 | Live (external services) | ~100 | Government websites, CourtListener, Claude API |
 | Evaluation | ~50+ | Retrieval metrics, citation accuracy |
-| E2E (Playwright) | 80 tests / 15 specs | Discovery wizard flows, PDF/DOCX content validation, mobile, cross-tool, LITIGAGENT upload + text panel + Gate L1 |
+| E2E (Playwright) | ~167 tests / 18 specs | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT, auth, sessions |
 
 ### Running Tests
 
@@ -937,13 +1046,13 @@ uv run pytest -m ""
 | Documents ingested | ~20,871 |
 | Chunks (all active) | ~24,106 |
 | Content categories | 12 |
-| API endpoints | 27 |
+| API endpoints | 40 |
 | CLI commands | 16 |
 | Assessment tools | 5 |
 | Discovery document types | 6 |
 | Request bank items | 177 role-aware (SROGs + RFPDs + RFAs) |
 | Topic pages (SSG) | 11 |
 | Employment claim types | 19 |
-| Test files | ~95 (80 Python + 15 E2E) |
-| Passing tests | ~2,690 |
+| Test files | ~119 (101 Python + 18 E2E) |
+| Passing tests | ~3,188 |
 | Evaluation questions | 60+ |

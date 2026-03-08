@@ -218,6 +218,37 @@ class CaseNote:
 
 
 @dataclass
+class CaseChatSession:
+    case_id: str
+    id: str = field(default_factory=lambda: "")
+    created_at: datetime = field(default_factory=_utcnow)
+    updated_at: datetime = field(default_factory=_utcnow)
+
+    def __post_init__(self) -> None:
+        if not self.id:
+            import uuid
+
+            self.id = str(uuid.uuid4())
+
+
+@dataclass
+class CaseChatTurn:
+    session_id: str
+    turn_number: int
+    role: str  # "user" | "assistant"
+    content: str
+    id: str = field(default_factory=lambda: "")
+    sources: str | None = None  # JSON array of cited references
+    created_at: datetime = field(default_factory=_utcnow)
+
+    def __post_init__(self) -> None:
+        if not self.id:
+            import uuid
+
+            self.id = str(uuid.uuid4())
+
+
+@dataclass
 class CaseChunk:
     file_id: str
     case_id: str
