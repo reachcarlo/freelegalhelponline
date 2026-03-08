@@ -15,7 +15,7 @@ import time
 import uuid
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from employee_help.api.schemas import (
@@ -52,6 +52,18 @@ _SAFE_FILENAME_RE = re.compile(r"[^a-zA-Z0-9_\-.]")
 def _safe_filename(raw: str) -> str:
     """Sanitize a string for use in Content-Disposition filenames."""
     return _SAFE_FILENAME_RE.sub("_", raw)[:100]
+
+
+def _audit_log(action: str, request, **kwargs) -> None:
+    """Best-effort audit log. Never raises."""
+    try:
+        from employee_help.api.deps import get_audit_logger
+
+        audit = get_audit_logger()
+        if audit is not None:
+            audit.log_from_request(action, request, **kwargs)
+    except Exception:
+        logger.warning("audit_log_failed", action=action, exc_info=True)
 
 
 # ---------------------------------------------------------------------------
@@ -381,7 +393,7 @@ async def suggest_discovery(request: DiscoverySuggestRequest):
 
 
 @discovery_router.post("/generate")
-async def generate_discovery(request: DiscoveryGenerateRequest):
+async def generate_discovery(request: DiscoveryGenerateRequest, http_request: Request):
     """Generate a discovery document and return it as a file download."""
     start = time.monotonic()
     generation_id = str(uuid.uuid4())
@@ -457,6 +469,11 @@ async def generate_discovery(request: DiscoveryGenerateRequest):
             tool_type=tool,
             file_size=len(file_bytes),
             duration_ms=duration_ms,
+        )
+        _audit_log(
+            "discovery.generate", http_request,
+            resource_type="discovery", resource_id=generation_id,
+            metadata={"tool_type": tool},
         )
 
         return StreamingResponse(

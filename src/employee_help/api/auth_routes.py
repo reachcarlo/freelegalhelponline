@@ -27,6 +27,22 @@ auth_router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 logger = structlog.get_logger(__name__)
 
+
+def _audit(action: str, request=None, **kwargs) -> None:
+    """Best-effort audit log. Never raises."""
+    try:
+        from employee_help.api.deps import get_audit_logger
+
+        audit = get_audit_logger()
+        if audit is None:
+            return
+        if request is not None and hasattr(request, "headers"):
+            audit.log_from_request(action, request, **kwargs)
+        else:
+            audit.log(action, **kwargs)
+    except Exception:
+        logger.warning("audit_log_failed", action=action, exc_info=True)
+
 # Cookie settings — configurable via env vars
 _SECURE_COOKIES = os.environ.get("AUTH_COOKIE_SECURE", "true").lower() == "true"
 _COOKIE_DOMAIN = os.environ.get("AUTH_COOKIE_DOMAIN")  # None = current domain
@@ -206,6 +222,10 @@ async def _handle_oauth_callback(
     stored_state = request.cookies.get("oauth_state")
     if not stored_state or not secrets.compare_digest(stored_state, state):
         logger.warning("oauth_state_mismatch", provider=provider_name)
+        _audit(
+            "auth.login_failed", request,
+            metadata={"provider": provider_name, "reason": "state_mismatch"},
+        )
         return RedirectResponse(url=f"{_FRONTEND_URL}/login?error=invalid_state", status_code=302)
 
     # Exchange code for identity
@@ -214,6 +234,10 @@ async def _handle_oauth_callback(
         auth_result: AuthResult = await provider.handle_callback(code, redirect_uri)
     except AuthError as e:
         logger.warning("oauth_callback_failed", provider=provider_name, error=str(e))
+        _audit(
+            "auth.login_failed", request,
+            metadata={"provider": provider_name, "reason": "callback_error"},
+        )
         return RedirectResponse(url=f"{_FRONTEND_URL}/login?error=auth_failed", status_code=302)
 
     auth_storage = get_auth_storage()
@@ -250,6 +274,11 @@ async def _handle_oauth_callback(
         user_id=user.id,
         provider=provider_name,
         email=auth_result.email,
+    )
+    _audit(
+        "auth.login", request,
+        user_id=user.id, organization_id=org.id,
+        metadata={"provider": provider_name},
     )
 
     # Set cookies and redirect to frontend
@@ -351,6 +380,7 @@ async def refresh_tokens(
         _clear_auth_cookies(response)
         return response
 
+    _audit("auth.session_refresh", request)
     response = JSONResponse(content={"status": "ok"})
     _set_auth_cookies(response, new_access, new_refresh)
     return response
@@ -379,6 +409,10 @@ async def logout(
             # For now, just revoke all sessions — logout means logout.
             session_manager.revoke_all_sessions(claims.sub)
             logger.info("user_logged_out", user_id=claims.sub)
+            _audit(
+                "auth.logout", request,
+                user_id=claims.sub, organization_id=claims.org,
+            )
 
     response = JSONResponse(content={"status": "ok"})
     _clear_auth_cookies(response)
@@ -424,6 +458,47 @@ async def get_current_user(
             "plan_tier": org.plan_tier,
         } if org else None,
         "role": claims.role,
+    })
+
+
+# ── Helpers ─────────────────────────────────────────────────────
+
+
+@auth_router.get("/audit-log")
+async def get_audit_log(
+    request: Request,
+    limit: int = 50,
+    offset: int = 0,
+    action: str | None = None,
+    access_token: str | None = Cookie(default=None),
+) -> JSONResponse:
+    """Return the current user's audit log entries (paginated)."""
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    from employee_help.api.deps import get_audit_logger, get_session_manager
+
+    session_manager = get_session_manager()
+    claims = session_manager.validate(access_token)
+    if claims is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    audit = get_audit_logger()
+    if audit is None:
+        raise HTTPException(status_code=503, detail="Audit logging not available")
+
+    # Clamp limit to reasonable bounds
+    limit = max(1, min(limit, 200))
+    offset = max(0, offset)
+
+    entries = audit.get_user_log(claims.sub, limit=limit, offset=offset, action=action)
+    total = audit.count_user_entries(claims.sub, action=action)
+
+    return JSONResponse(content={
+        "entries": entries,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
     })
 
 

@@ -57,6 +57,18 @@ def _get_case_storage():
     return get_case_storage()
 
 
+def _audit(action: str, request, **kwargs) -> None:
+    """Best-effort audit log. Never raises."""
+    try:
+        from employee_help.api.deps import get_audit_logger
+
+        audit = get_audit_logger()
+        if audit is not None:
+            audit.log_from_request(action, request, **kwargs)
+    except Exception:
+        logger.warning("audit_log_failed", action=action, exc_info=True)
+
+
 def _get_embedding_deps():
     """Get embedding service + case vector store (may be None)."""
     from employee_help.api.deps import get_case_vector_store, get_embedding_service
@@ -169,6 +181,7 @@ async def create_case(body: CreateCaseRequest, request: Request):
     )
     case = storage.create_case(case)
     logger.info("case_created", case_id=case.id, name=case.name)
+    _audit("case.create", request, resource_type="case", resource_id=case.id)
     return _case_response(case)
 
 
@@ -235,6 +248,7 @@ async def archive_case(case_id: str, request: Request):
     if not success:
         raise HTTPException(404, f"Case not found: {case_id}")
     logger.info("case_archived", case_id=case_id)
+    _audit("case.archive", request, resource_type="case", resource_id=case_id)
 
 
 # ── File management ──────────────────────────────────────────────
@@ -319,6 +333,11 @@ async def upload_files(case_id: str, request: Request, files: list[UploadFile] =
             filename=filename,
             size=len(file_bytes),
         )
+        _audit(
+            "file.upload", request,
+            resource_type="file", resource_id=cf.id,
+            metadata={"case_id": case_id, "filename": filename},
+        )
 
     return FileUploadResponse(files=results)
 
@@ -401,6 +420,11 @@ async def delete_file(case_id: str, file_id: str, request: Request):
     storage.delete_case_chunks_for_file(file_id)
     storage.delete_case_file(file_id)
     logger.info("file_deleted", case_id=case_id, file_id=file_id)
+    _audit(
+        "file.delete", request,
+        resource_type="file", resource_id=file_id,
+        metadata={"case_id": case_id},
+    )
 
 
 @casefile_router.post(
@@ -429,6 +453,11 @@ async def reprocess_file(case_id: str, file_id: str, request: Request):
     # Refetch for response
     cf = storage.get_case_file(file_id)
     logger.info("file_reprocessing", case_id=case_id, file_id=file_id)
+    _audit(
+        "file.reprocess", request,
+        resource_type="file", resource_id=file_id,
+        metadata={"case_id": case_id},
+    )
     return _file_response(cf)
 
 
@@ -447,6 +476,11 @@ async def download_file(case_id: str, file_id: str, request: Request):
     if not storage_path.exists():
         raise HTTPException(404, "Original file no longer available on disk")
 
+    _audit(
+        "file.download", request,
+        resource_type="file", resource_id=file_id,
+        metadata={"case_id": case_id},
+    )
     return FileResponse(
         path=str(storage_path),
         filename=cf.original_filename,
@@ -517,6 +551,11 @@ async def create_note(case_id: str, body: CreateNoteRequest, request: Request):
     )
     note = storage.create_note(note)
     logger.info("note_created", case_id=case_id, note_id=note.id)
+    _audit(
+        "note.create", request,
+        resource_type="note", resource_id=note.id,
+        metadata={"case_id": case_id},
+    )
     return _note_response(note)
 
 
@@ -548,6 +587,11 @@ async def update_note(case_id: str, note_id: str, body: UpdateNoteRequest, reque
         raise HTTPException(404, f"Note not found: {note_id}")
 
     logger.info("note_updated", case_id=case_id, note_id=note_id)
+    _audit(
+        "note.update", request,
+        resource_type="note", resource_id=note_id,
+        metadata={"case_id": case_id},
+    )
     return _note_response(updated)
 
 
@@ -564,3 +608,8 @@ async def delete_note(case_id: str, note_id: str, request: Request):
 
     storage.delete_note(note_id)
     logger.info("note_deleted", case_id=case_id, note_id=note_id)
+    _audit(
+        "note.delete", request,
+        resource_type="note", resource_id=note_id,
+        metadata={"case_id": case_id},
+    )

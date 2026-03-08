@@ -7,7 +7,7 @@ import json
 from typing import Any, Literal
 
 import structlog
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
@@ -23,6 +23,18 @@ from employee_help.discovery.objections.models import (
 logger = structlog.get_logger(__name__)
 
 objection_router = APIRouter(prefix="/api/objections", tags=["objections"])
+
+
+def _audit_log(action: str, request, **kwargs) -> None:
+    """Best-effort audit log. Never raises."""
+    try:
+        from employee_help.api.deps import get_audit_logger
+
+        audit = get_audit_logger()
+        if audit is not None:
+            audit.log_from_request(action, request, **kwargs)
+    except Exception:
+        logger.warning("audit_log_failed", action=action, exc_info=True)
 
 # ---------------------------------------------------------------------------
 # Pydantic schemas
@@ -268,7 +280,7 @@ async def parse_requests(body: ParseRequest):
 
 
 @objection_router.post("/generate", response_model=GenerateResponse)
-async def generate_objections(body: GenerateRequest):
+async def generate_objections(body: GenerateRequest, http_request: Request):
     """Generate objections for parsed discovery requests."""
     from employee_help.discovery.objections.models import (
         ObjectionRequest,
@@ -368,6 +380,11 @@ async def generate_objections(body: GenerateRequest):
         model=batch_result.model_used,
         cost=f"${batch_result.cost_estimate:.4f}",
         duration_ms=batch_result.duration_ms,
+    )
+    _audit_log(
+        "objection.generate", http_request,
+        resource_type="objection",
+        metadata={"request_count": len(requests)},
     )
 
     return GenerateResponse(

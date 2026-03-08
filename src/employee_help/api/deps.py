@@ -20,10 +20,12 @@ _feedback_store = None
 _case_storage = None
 _embedding_service = None
 _case_vector_store = None
+_case_chat_service = None
 _auth_storage = None
 _session_manager = None
 _google_provider = None
 _microsoft_provider = None
+_audit_logger = None
 
 
 def _load_rag_config() -> dict:
@@ -38,7 +40,7 @@ def _load_rag_config() -> dict:
 def init_services() -> None:
     """Initialize all services. Called once at FastAPI startup."""
     global _retrieval_service, _answer_service, _feedback_store, _case_storage
-    global _embedding_service, _case_vector_store
+    global _embedding_service, _case_vector_store, _case_chat_service
 
     from employee_help.generation.llm import LLMClient
     from employee_help.generation.prompts import PromptBuilder
@@ -144,6 +146,18 @@ def init_services() -> None:
         db_path=vs_cfg.get("path", "data/lancedb"),
     )
 
+    # Initialize case chat service (LITIGAGENT L3.4)
+    from employee_help.casefile.chat import CaseChatService
+
+    _case_chat_service = CaseChatService(
+        case_vector_store=_case_vector_store,
+        embedding_service=embedding_service,
+        retrieval_service=_retrieval_service,
+        llm_client=llm_client,
+        prompt_builder=prompt_builder,
+        case_storage=_case_storage,
+    )
+
     # Initialize auth services
     _init_auth_services()
 
@@ -160,14 +174,17 @@ def _init_auth_services() -> None:
     If AUTH_JWT_SECRET is not set, auth services are skipped and the server
     starts without authentication support. Protected routes will return 401.
     """
-    global _auth_storage, _session_manager, _google_provider, _microsoft_provider
+    global _auth_storage, _session_manager, _google_provider, _microsoft_provider, _audit_logger
 
     import os
 
     from employee_help.auth.storage import AuthStorage
 
+    from employee_help.auth.audit import AuditLogger
+
     # AuthStorage shares the same DB as case storage
     _auth_storage = AuthStorage(db_path="data/employee_help.db")
+    _audit_logger = AuditLogger(db_path="data/employee_help.db")
 
     jwt_secret = os.environ.get("AUTH_JWT_SECRET")
     if not jwt_secret:
@@ -222,24 +239,29 @@ def _init_auth_services() -> None:
 def shutdown_services() -> None:
     """Clean up services. Called at FastAPI shutdown."""
     global _retrieval_service, _answer_service, _feedback_store, _case_storage
-    global _embedding_service, _case_vector_store
+    global _embedding_service, _case_vector_store, _case_chat_service
     global _auth_storage, _session_manager, _google_provider, _microsoft_provider
+    global _audit_logger
     if _feedback_store is not None:
         _feedback_store.close()
     if _case_storage is not None:
         _case_storage.close()
     if _auth_storage is not None:
         _auth_storage.close()
+    if _audit_logger is not None:
+        _audit_logger.close()
     _retrieval_service = None
     _answer_service = None
     _feedback_store = None
     _case_storage = None
     _embedding_service = None
     _case_vector_store = None
+    _case_chat_service = None
     _auth_storage = None
     _session_manager = None
     _google_provider = None
     _microsoft_provider = None
+    _audit_logger = None
     logger.info("services_shutdown")
 
 
@@ -279,6 +301,11 @@ def get_case_vector_store():
     return _case_vector_store
 
 
+def get_case_chat_service():
+    """Return the CaseChatService singleton (may be None)."""
+    return _case_chat_service
+
+
 def get_conversation_config() -> dict:
     """Return conversation config from rag.yaml."""
     config = _load_rag_config()
@@ -312,3 +339,8 @@ def get_google_provider():
 def get_microsoft_provider():
     """Return the Microsoft OIDC provider (None if not configured)."""
     return _microsoft_provider
+
+
+def get_audit_logger():
+    """Return the AuditLogger singleton (may be None)."""
+    return _audit_logger
