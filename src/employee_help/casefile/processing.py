@@ -11,11 +11,13 @@ from typing import Any
 import structlog
 
 from employee_help.casefile.extractors.base import ExtractionResult
+from employee_help.casefile.extractors.csv_ext import CSVExtractor
 from employee_help.casefile.extractors.docx import DocxExtractor
 from employee_help.casefile.extractors.email import EmailExtractor
 from employee_help.casefile.extractors.pdf import PDFExtractor
 from employee_help.casefile.extractors.registry import ExtractorRegistry
 from employee_help.casefile.extractors.text import PlainTextExtractor
+from employee_help.casefile.extractors.xlsx import ExcelExtractor
 from employee_help.storage.case_storage import CaseStorage
 from employee_help.storage.models import FileType, ProcessingStatus
 
@@ -72,6 +74,8 @@ def get_registry() -> ExtractorRegistry:
         _registry = ExtractorRegistry()
         _registry.register(PDFExtractor())
         _registry.register(DocxExtractor())
+        _registry.register(ExcelExtractor())
+        _registry.register(CSVExtractor())
         _registry.register(PlainTextExtractor())
         _registry.register(EmailExtractor())
     return _registry

@@ -1334,7 +1334,7 @@ With 100 files, total text could be 500K+ words (2M+ tokens). This doesn't fit i
 | L2.3 | Frontend: notes panel (Panel 3) with case notes + file-specific notes | P0 DONE (L1.9) |
 | L2.4 | API: notes CRUD endpoints | P0 DONE (L1.8) |
 | L2.5 | Frontend: click-to-navigate (Panel 1 → Panel 2) with smooth scroll | P0 DONE (L1.11) |
-| L2.6 | ExcelExtractor (XLSX/CSV as markdown tables) | P1 |
+| L2.6 | ExcelExtractor (XLSX/CSV as markdown tables) | P1 DONE |
 | L2.7 | ImageExtractor (OCR with confidence reporting) | P1 |
 | L2.8 | OCR confidence indicators in Panel 2 | P1 |
 | L2.9 | Frontend: file search and filter in Panel 1 | P1 |

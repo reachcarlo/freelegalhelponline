@@ -38,6 +38,7 @@ web = [
     "pypdf>=6.7,<7.0",
     "PyPDFForm>=4.7,<5.0",
     "docxtpl>=0.20,<1.0",
+    "PyJWT[crypto]>=2.8",
 ]
 discovery = [
     "pypdf>=6.7,<7.0",
@@ -48,6 +49,7 @@ casefile = [
     "pytesseract>=0.3",
     "Pillow>=9.0",
     "extract-msg>=0.48",
+    "openpyxl>=3.1,<4.0",
 ]
 
 [project.scripts]
