@@ -136,10 +136,11 @@ export default function CaseList() {
             </h2>
             <div className="mt-4 space-y-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-text-secondary">
+                <label htmlFor="new_case_name" className="mb-1 block text-xs font-medium text-text-secondary">
                   Case Name *
                 </label>
                 <input
+                  id="new_case_name"
                   type="text"
                   className={inputCls}
                   placeholder="e.g., Johnson v. Acme Corp"

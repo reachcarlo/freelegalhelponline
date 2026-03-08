@@ -86,13 +86,8 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
     };
   }, [caseId]);
 
-  // Scroll to file in text panel when selected
   const handleSelectFile = useCallback((fileId: string) => {
     setSelectedFileId(fileId);
-    const el = document.getElementById(`file-${fileId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
   }, []);
 
   // Add newly uploaded files to the list
@@ -212,6 +207,7 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
 
         {/* Panel 2: Extracted text */}
         <TextPanel
+          caseId={caseId}
           files={files}
           selectedFileId={selectedFileId}
         />

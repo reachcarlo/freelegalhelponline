@@ -1,14 +1,70 @@
 "use client";
 
-import { CaseFileInfo } from "@/lib/litigagent-api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CaseFileInfo, getFile } from "@/lib/litigagent-api";
 
 interface TextPanelProps {
+  caseId: string;
   files: CaseFileInfo[];
   selectedFileId: string | null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default function TextPanel({ files, selectedFileId }: TextPanelProps) {
+export default function TextPanel({ caseId, files, selectedFileId }: TextPanelProps) {
+  // Cache of fetched text: fileId → extracted/edited text
+  const [textCache, setTextCache] = useState<Record<string, string>>({});
+  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+  const [errorIds, setErrorIds] = useState<Set<string>>(new Set());
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Fetch text for "ready" files not yet in cache
+  const fetchFileText = useCallback(
+    async (fileId: string) => {
+      setLoadingIds((prev) => new Set(prev).add(fileId));
+      setErrorIds((prev) => {
+        const next = new Set(prev);
+        next.delete(fileId);
+        return next;
+      });
+      try {
+        const detail = await getFile(caseId, fileId);
+        const text = detail.edited_text || detail.extracted_text || "";
+        setTextCache((prev) => ({ ...prev, [fileId]: text }));
+      } catch {
+        setErrorIds((prev) => new Set(prev).add(fileId));
+      } finally {
+        setLoadingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(fileId);
+          return next;
+        });
+      }
+    },
+    [caseId]
+  );
+
+  // Fetch text when files become "ready" and aren't cached yet
+  useEffect(() => {
+    for (const f of files) {
+      if (
+        f.processing_status === "ready" &&
+        !(f.id in textCache) &&
+        !loadingIds.has(f.id) &&
+        !errorIds.has(f.id)
+      ) {
+        fetchFileText(f.id);
+      }
+    }
+  }, [files, textCache, loadingIds, errorIds, fetchFileText]);
+
+  // Scroll to selected file
+  useEffect(() => {
+    if (!selectedFileId) return;
+    const el = document.getElementById(`file-${selectedFileId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedFileId]);
+
   if (files.length === 0) {
     return (
       <div className="flex h-full flex-1 flex-col items-center justify-center bg-background px-8 text-center">
@@ -36,10 +92,9 @@ export default function TextPanel({ files, selectedFileId }: TextPanelProps) {
     );
   }
 
-  // Placeholder rendering — L1.11 will implement full text display
   return (
     <div className="flex h-full flex-1 flex-col bg-background">
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6 py-4">
         {files.map((f) => (
           <div
             key={f.id}
@@ -48,7 +103,7 @@ export default function TextPanel({ files, selectedFileId }: TextPanelProps) {
             role="region"
             aria-label={`Content from ${f.original_filename}`}
           >
-            {/* File section header */}
+            {/* File section header — sticky */}
             <div className="sticky top-0 z-10 mb-3 rounded-lg border border-border bg-surface px-4 py-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -77,34 +132,104 @@ export default function TextPanel({ files, selectedFileId }: TextPanelProps) {
               </div>
             </div>
 
-            {/* Content placeholder */}
-            {f.processing_status === "processing" && (
-              <div className="flex items-center gap-2 px-4 py-8 text-sm text-text-tertiary">
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-                Extracting text...
-              </div>
-            )}
-            {f.processing_status === "error" && (
-              <div className="rounded-lg border border-error-border bg-error-bg px-4 py-3 text-sm text-error-text">
-                {f.error_message || "Failed to extract text from this file."}
-              </div>
-            )}
-            {f.processing_status === "queued" && (
-              <div className="px-4 py-8 text-sm text-text-tertiary">
-                Queued for processing...
-              </div>
-            )}
-            {f.processing_status === "ready" && (
-              <div className="px-4 py-2 text-sm leading-relaxed text-text-secondary font-mono whitespace-pre-wrap">
-                {/* L1.11 will render actual extracted text here */}
-                <span className="text-text-tertiary italic">
-                  Text extracted. Full display coming in L1.11.
-                </span>
-              </div>
-            )}
+            {/* Content area */}
+            <FileContent
+              file={f}
+              text={textCache[f.id]}
+              isLoading={loadingIds.has(f.id)}
+              hasError={errorIds.has(f.id)}
+              onRetry={() => fetchFileText(f.id)}
+            />
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Renders the content area for a single file based on its status. */
+function FileContent({
+  file,
+  text,
+  isLoading,
+  hasError,
+  onRetry,
+}: {
+  file: CaseFileInfo;
+  text: string | undefined;
+  isLoading: boolean;
+  hasError: boolean;
+  onRetry: () => void;
+}) {
+  const status = file.processing_status;
+
+  if (status === "processing") {
+    return (
+      <div className="flex items-center gap-2 px-4 py-8 text-sm text-text-tertiary">
+        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+        Extracting text...
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="rounded-lg border border-error-border bg-error-bg px-4 py-3 text-sm text-error-text">
+        {file.error_message || "Failed to extract text from this file."}
+      </div>
+    );
+  }
+
+  if (status === "queued") {
+    return (
+      <div className="px-4 py-8 text-sm text-text-tertiary">
+        Queued for processing...
+      </div>
+    );
+  }
+
+  // status === "ready"
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-8 text-sm text-text-tertiary">
+        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+        Loading text...
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="rounded-lg border border-error-border bg-error-bg px-4 py-3 text-sm">
+        <span className="text-error-text">Failed to load extracted text. </span>
+        <button onClick={onRetry} className="text-accent underline">
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (text === undefined) {
+    // Not fetched yet — will be triggered by useEffect
+    return (
+      <div className="flex items-center gap-2 px-4 py-8 text-sm text-text-tertiary">
+        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+        Loading text...
+      </div>
+    );
+  }
+
+  if (text.length === 0) {
+    return (
+      <div className="px-4 py-6 text-sm italic text-text-tertiary">
+        No text content extracted from this file.
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 py-2 text-sm leading-relaxed text-text-secondary font-mono whitespace-pre-wrap">
+      {text}
     </div>
   );
 }

@@ -549,13 +549,13 @@ Statically generated at build time for SEO. Topics: wages, discrimination, retal
 - Responsive Tailwind classes
 - Mobile discovery wizard adaptation
 
-#### LITIGAGENT — Case File Ingestion Engine (Phases L1.1–L1.10)
+#### LITIGAGENT — Case File Ingestion Engine (Phases L1.1–L1.11)
 
 Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML, MSG, TXT, XLSX, CSV, images, PPTX), extract text via format-specific extractors, and manage case notes — all in a three-panel layout.
 
 **Three-Panel Layout** (`/tools/litigagent/[caseId]`):
 - **Panel 1 (Files, 280px)**: Drag-and-drop file upload with full-panel drop zone overlay, click-to-browse fallback, file list with type badges and status indicators (processing/ready/error/OCR warning), inline delete on hover
-- **Panel 2 (Text, fluid)**: Extracted text display with sticky file section headers, page count, OCR confidence (read-only in L1, editable in L2)
+- **Panel 2 (Text, fluid)**: Extracted text display with sticky file section headers (type badge, filename, page count, OCR confidence, status badge), lazy-loaded text via `getFile()` API, auto-fetches on SSE "ready" transition, scroll-to-file on Panel 1 selection, retry on fetch error (read-only in L1, editable in L2)
 - **Panel 3 (Notes, 320px, collapsible)**: Case-scoped and file-scoped notes with inline CRUD, keyboard shortcuts (Cmd/Ctrl+Enter)
 
 **Case Management** (`/tools/litigagent`):
@@ -663,7 +663,7 @@ Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML
 | `test_casefile_docx_extractor.py` | 19 | Word document extraction |
 | `test_casefile_text_extractor.py` | 22 | Plain text + encoding detection |
 | `test_casefile_email_extractor.py` | 45 | EML, MSG, MBOX extraction |
-| E2E (Playwright): 13 spec files | 69 | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT upload |
+| E2E (Playwright): 14 spec files | 77 | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT upload + text panel |
 
 ---
 
@@ -899,7 +899,7 @@ Developer/operator.
 | Slow (ML models) | ~50 | Real BGE embedding, LanceDB operations |
 | Live (external services) | ~100 | Government websites, CourtListener, Claude API |
 | Evaluation | ~50+ | Retrieval metrics, citation accuracy |
-| E2E (Playwright) | 69 tests / 13 specs | Discovery wizard flows, PDF/DOCX content validation, mobile, cross-tool, LITIGAGENT upload |
+| E2E (Playwright) | 77 tests / 14 specs | Discovery wizard flows, PDF/DOCX content validation, mobile, cross-tool, LITIGAGENT upload + text panel |
 
 ### Running Tests
 
@@ -943,6 +943,6 @@ uv run pytest -m ""
 | Request bank items | 177 role-aware (SROGs + RFPDs + RFAs) |
 | Topic pages (SSG) | 11 |
 | Employment claim types | 19 |
-| Test files | ~92 (79 Python + 13 E2E) |
+| Test files | ~93 (79 Python + 14 E2E) |
 | Passing tests | ~2,690 |
 | Evaluation questions | 60+ |
