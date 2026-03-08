@@ -87,13 +87,26 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
   }, [caseId]);
 
   // Scroll to file in text panel when selected
-  const handleSelectFile = (fileId: string) => {
+  const handleSelectFile = useCallback((fileId: string) => {
     setSelectedFileId(fileId);
     const el = document.getElementById(`file-${fileId}`);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  };
+  }, []);
+
+  // Add newly uploaded files to the list
+  const handleFilesAdded = useCallback((newFiles: CaseFileInfo[]) => {
+    setFiles((prev) => [...prev, ...newFiles]);
+  }, []);
+
+  // Remove a deleted file from the list
+  const handleFileDeleted = useCallback((fileId: string) => {
+    setFiles((prev) => prev.filter((f) => f.id !== fileId));
+    if (selectedFileId === fileId) {
+      setSelectedFileId(null);
+    }
+  }, [selectedFileId]);
 
   const processingCount = files.filter(
     (f) => f.processing_status === "processing"
@@ -188,9 +201,12 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
       <div className="flex flex-1 overflow-hidden">
         {/* Panel 1: Files */}
         <FilePanel
+          caseId={caseId}
           files={files}
           selectedFileId={selectedFileId}
           onSelectFile={handleSelectFile}
+          onFilesAdded={handleFilesAdded}
+          onFileDeleted={handleFileDeleted}
           processingCount={processingCount}
         />
 

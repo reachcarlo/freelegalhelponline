@@ -1,6 +1,6 @@
 # Employee Help — Functionality Inventory
 
-> **Last updated**: 2026-03-03
+> **Last updated**: 2026-03-07
 > **Platform**: AI-powered California employment rights legal guidance
 > **Tech stack**: Python 3.12 / FastAPI / Next.js 16 / SQLite / LanceDB / Claude API
 
@@ -549,6 +549,34 @@ Statically generated at build time for SEO. Topics: wages, discrimination, retal
 - Responsive Tailwind classes
 - Mobile discovery wizard adaptation
 
+#### LITIGAGENT — Case File Ingestion Engine (Phases L1.1–L1.10)
+
+Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML, MSG, TXT, XLSX, CSV, images, PPTX), extract text via format-specific extractors, and manage case notes — all in a three-panel layout.
+
+**Three-Panel Layout** (`/tools/litigagent/[caseId]`):
+- **Panel 1 (Files, 280px)**: Drag-and-drop file upload with full-panel drop zone overlay, click-to-browse fallback, file list with type badges and status indicators (processing/ready/error/OCR warning), inline delete on hover
+- **Panel 2 (Text, fluid)**: Extracted text display with sticky file section headers, page count, OCR confidence (read-only in L1, editable in L2)
+- **Panel 3 (Notes, 320px, collapsible)**: Case-scoped and file-scoped notes with inline CRUD, keyboard shortcuts (Cmd/Ctrl+Enter)
+
+**Case Management** (`/tools/litigagent`):
+- Case list with create, archive, and navigation
+- Per-case file isolation
+
+**File Processing Pipeline**:
+- Background extraction via `asyncio.create_task()` (non-blocking upload)
+- ExtractorRegistry (Strategy pattern): PDFExtractor (pdfplumber + OCR fallback via pytesseract), DocxExtractor (python-docx), PlainTextExtractor (charset_normalizer encoding detection), EmailExtractor (stdlib email/mailbox + extract-msg)
+- SSE status stream for real-time processing updates
+- File validation: 17 accepted extensions, 50MB per-file limit
+
+**File Upload** (L1.10):
+- Full-panel drag-and-drop zone with dashed border overlay on drag-over
+- Folder drop support via recursive `webkitGetAsEntry` traversal
+- Click-to-browse fallback (hidden file input)
+- Client-side validation (extension allowlist, size limit, empty file check)
+- Upload button with loading state
+- Error banner with dismiss
+- Inline delete button (hover-reveal) per file
+
 ### API Endpoints
 
 | Endpoint | Method | Purpose | Rate Limit |
@@ -568,6 +596,17 @@ Statically generated at build time for SEO. Topics: wages, discrimination, retal
 | `/api/discovery/definitions` | GET | Legal definitions | 20/min |
 | `/api/discovery/generate` | POST | Document generation (PDF/DOCX) | 20/min |
 | `/api/discovery/generate-pos` | POST | Proof of Service (DOCX) | 20/min |
+| `/api/cases` | POST | Create case | — |
+| `/api/cases` | GET | List cases | — |
+| `/api/cases/{id}` | GET/PATCH/DELETE | Case CRUD | — |
+| `/api/cases/{id}/files` | POST | Upload files (multipart batch) | 20/min |
+| `/api/cases/{id}/files` | GET | List case files | — |
+| `/api/cases/{id}/files/{fid}` | GET/PATCH/DELETE | File CRUD | — |
+| `/api/cases/{id}/files/{fid}/reprocess` | POST | Re-extract text | — |
+| `/api/cases/{id}/files/{fid}/download` | GET | Download original file | — |
+| `/api/cases/{id}/status-stream` | GET | SSE file processing status | — |
+| `/api/cases/{id}/notes` | POST/GET | Notes CRUD | — |
+| `/api/cases/{id}/notes/{nid}` | PATCH/DELETE | Note update/delete | — |
 
 ### Security
 
@@ -589,10 +628,17 @@ Statically generated at build time for SEO. Topics: wages, discrimination, retal
 - Frontend app: `frontend/app/` (15 pages)
 - Components: `frontend/components/` (29 TSX files)
 - Hooks: `frontend/lib/use-conversation.ts`
-- API clients: `frontend/lib/api.ts`, `frontend/lib/discovery-api.ts`
+- API clients: `frontend/lib/api.ts`, `frontend/lib/discovery-api.ts`, `frontend/lib/litigagent-api.ts`
 - Topics data: `frontend/lib/topics.ts`
 - Claims data: `frontend/lib/claims.ts`
 - Calculator libs: `frontend/lib/calculators/`
+- LITIGAGENT routes: `src/employee_help/api/casefile_routes.py`
+- LITIGAGENT schemas: `src/employee_help/api/casefile_schemas.py`
+- Case storage: `src/employee_help/storage/case_storage.py`
+- Case models: `src/employee_help/storage/models.py`
+- File extractors: `src/employee_help/casefile/extractors/`
+- File processing: `src/employee_help/casefile/processing.py`
+- LITIGAGENT frontend: `frontend/components/litigagent/` (6 TSX files)
 
 ### Test Suite
 
@@ -610,7 +656,14 @@ Statically generated at build time for SEO. Topics: wages, discrimination, retal
 | `test_discovery_api.py` | — | Discovery endpoints |
 | `test_sanitize.py` | — | Input sanitization, injection detection |
 | `test_sentry.py` | — | Error tracking integration |
-| E2E (Playwright): 9 spec files | 49 | Full wizard flows, PDF/DOCX validation, mobile, cross-tool |
+| `test_casefile_api.py` | 94 | LITIGAGENT API: case CRUD, file upload, SSE, notes |
+| `test_case_storage.py` | 45 | CaseStorage CRUD, cascade deletes, FK constraints |
+| `test_case_models.py` | 27 | Domain models, enums, SQLite schema |
+| `test_casefile_pdf_extractor.py` | 23 | PDF text + OCR extraction |
+| `test_casefile_docx_extractor.py` | 19 | Word document extraction |
+| `test_casefile_text_extractor.py` | 22 | Plain text + encoding detection |
+| `test_casefile_email_extractor.py` | 45 | EML, MSG, MBOX extraction |
+| E2E (Playwright): 13 spec files | 69 | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT upload |
 
 ---
 
@@ -846,7 +899,7 @@ Developer/operator.
 | Slow (ML models) | ~50 | Real BGE embedding, LanceDB operations |
 | Live (external services) | ~100 | Government websites, CourtListener, Claude API |
 | Evaluation | ~50+ | Retrieval metrics, citation accuracy |
-| E2E (Playwright) | 49 tests / 9 specs | Discovery wizard flows, PDF/DOCX content validation, mobile, cross-tool |
+| E2E (Playwright) | 69 tests / 13 specs | Discovery wizard flows, PDF/DOCX content validation, mobile, cross-tool, LITIGAGENT upload |
 
 ### Running Tests
 
@@ -883,13 +936,13 @@ uv run pytest -m ""
 | Documents ingested | ~20,871 |
 | Chunks (all active) | ~24,106 |
 | Content categories | 12 |
-| API endpoints | 15 |
+| API endpoints | 27 |
 | CLI commands | 16 |
 | Assessment tools | 5 |
 | Discovery document types | 6 |
 | Request bank items | 177 role-aware (SROGs + RFPDs + RFAs) |
 | Topic pages (SSG) | 11 |
 | Employment claim types | 19 |
-| Test files | ~81 (72 Python + 9 E2E) |
-| Passing tests | ~1,535 |
+| Test files | ~92 (79 Python + 13 E2E) |
+| Passing tests | ~2,690 |
 | Evaluation questions | 60+ |

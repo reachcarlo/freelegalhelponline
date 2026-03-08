@@ -1318,7 +1318,7 @@ With 100 files, total text could be 500K+ words (2M+ tokens). This doesn't fit i
 | L1.7 | EmailExtractor (EML + MSG + MBOX) | P0 DONE |
 | L1.8 | API routes: case CRUD, file upload, file status SSE | P0 DONE |
 | L1.9 | Frontend: case list page, three-panel layout shell | P0 DONE |
-| L1.10 | Frontend: drag-and-drop file upload + file list (Panel 1) | P0 |
+| L1.10 | Frontend: drag-and-drop file upload + file list (Panel 1) | P0 DONE |
 | L1.11 | Frontend: extracted text display with file headers (Panel 2, read-only) | P0 |
 | L1.12 | Tests: extractors (unit), API (integration), frontend (e2e) | P0 |
 
