@@ -330,15 +330,16 @@ class TestRouteAuditIntegration:
         from employee_help.api.main import auth_middleware, rate_limit_middleware
         from employee_help.auth.tokens import create_access_token
 
-        # Create a shared connection (check_same_thread=False for TestClient)
+        # Create schema via Storage (creates its own connection)
         db_path = tmp_path / "test.db"
+        s = Storage(db_path=db_path)
+        s.close()
+
+        # Reopen with check_same_thread=False for TestClient
         conn = sqlite3.connect(str(db_path), check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
-
-        # Create schema via Storage
-        s = Storage(conn=conn)
 
         # Create test user + org in DB for FK constraints
         _create_test_user(conn, "test-user", org_id="test-org")
@@ -398,7 +399,6 @@ class TestRouteAuditIntegration:
         yield SimpleNamespace(
             client=client,
             audit=audit,
-            storage=s,
             case_storage=cs,
             token=token,
         )

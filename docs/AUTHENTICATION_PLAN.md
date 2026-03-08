@@ -1,6 +1,6 @@
 # Authentication & User Accounts: Implementation Plan
 
-> **Status**: In Progress (A1.1–A1.6, A2.1–A2.4 complete)
+> **Status**: In Progress (A1.1–A1.6, A2.1–A2.4, A3.1 complete)
 > **Created**: 2026-03-07
 > **GTM Strategy**: Bottom-up PLG (individual attorneys) → enterprise upsell (their firms)
 > **Auth Providers**: Google OIDC + Microsoft OIDC (no email/password, no local credentials)
@@ -782,6 +782,16 @@ MICROSOFT_REDIRECT_URI=http://localhost:3000/api/auth/microsoft/callback
 5. Write tests for audit log integrity
 
 **Gate**: Every case/file operation creates an audit log entry. Audit log entries cannot be modified or deleted through the API.
+
+**Status: COMPLETE** (2026-03-08)
+
+**Implementation details:**
+- `AuditLogger` class (`src/employee_help/auth/audit.py`): `log()`, `log_from_request()` (extracts user/IP/UA from FastAPI Request), `get_user_log()`, `count_user_entries()`. Append-only — no update/delete methods.
+- `_audit()` best-effort helper in each route module wraps `get_audit_logger()` in try/except (never fails the parent operation).
+- `GET /api/auth/audit-log` endpoint: paginated (limit/offset/action filter), user can only view their own entries, requires auth (validates access_token cookie).
+- 17 audit events implemented across 4 route modules: `casefile_routes.py` (9 events), `auth_routes.py` (4 events + endpoint), `discovery_routes.py` (1 event), `objection_routes.py` (1 event).
+- AuditLogger singleton in `deps.py`, shares `data/employee_help.db` with `check_same_thread=False`.
+- 32 tests: 6 basic log, 6 log_from_request, 8 query/pagination, 2 append-only, 4 route integration, 6 endpoint.
 
 ### A3.2 — Session Management UI
 
