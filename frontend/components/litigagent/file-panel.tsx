@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { CaseFileInfo, uploadFiles, deleteFile } from "@/lib/litigagent-api";
 
 const FILE_ICONS: Record<string, string> = {
@@ -14,6 +14,46 @@ const FILE_ICONS: Record<string, string> = {
   image: "IMG",
   pptx: "PPT",
 };
+
+// ── Filter / Sort constants ───────────────────────────────────
+
+type FileTypeGroup = "pdf" | "email" | "spreadsheet" | "word" | "image" | "other";
+type StatusFilter = "all" | "ready" | "processing" | "error";
+type SortKey = "upload_order" | "alphabetical" | "file_size" | "page_count";
+
+const FILE_TYPE_GROUP_LABELS: Record<FileTypeGroup, string> = {
+  pdf: "PDF",
+  email: "Email",
+  spreadsheet: "Spreadsheet",
+  word: "Word",
+  image: "Image",
+  other: "Other",
+};
+
+const STATUS_LABELS: Record<StatusFilter, string> = {
+  all: "All",
+  ready: "Ready",
+  processing: "Processing",
+  error: "Errors",
+};
+
+const SORT_LABELS: Record<SortKey, string> = {
+  upload_order: "Upload order",
+  alphabetical: "Alphabetical",
+  file_size: "File size",
+  page_count: "Page count",
+};
+
+function getFileTypeGroup(fileType: string): FileTypeGroup {
+  switch (fileType) {
+    case "pdf": return "pdf";
+    case "eml": case "msg": return "email";
+    case "xlsx": case "csv": return "spreadsheet";
+    case "docx": return "word";
+    case "image": return "image";
+    default: return "other";
+  }
+}
 
 const ACCEPTED_EXTENSIONS = new Set([
   "pdf", "docx", "xlsx", "csv", "tsv", "eml", "msg", "mbox",
@@ -119,7 +159,74 @@ export default function FilePanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCountRef = useRef(0);
 
+  // Filter / search state
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilters, setTypeFilters] = useState<Set<FileTypeGroup>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sortBy, setSortBy] = useState<SortKey>("upload_order");
+
   const errorCount = files.filter((f) => f.processing_status === "error").length;
+
+  const hasActiveFilters = searchQuery !== "" || typeFilters.size > 0 || statusFilter !== "all" || sortBy !== "upload_order";
+
+  const toggleTypeFilter = useCallback((group: FileTypeGroup) => {
+    setTypeFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setSearchQuery("");
+    setTypeFilters(new Set());
+    setStatusFilter("all");
+    setSortBy("upload_order");
+  }, []);
+
+  const filteredFiles = useMemo(() => {
+    let result = files;
+
+    // Search by filename
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((f) => f.original_filename.toLowerCase().includes(q));
+    }
+
+    // Filter by type group
+    if (typeFilters.size > 0) {
+      result = result.filter((f) => typeFilters.has(getFileTypeGroup(f.file_type)));
+    }
+
+    // Filter by status
+    if (statusFilter !== "all") {
+      if (statusFilter === "processing") {
+        result = result.filter((f) => f.processing_status === "processing" || f.processing_status === "queued");
+      } else {
+        result = result.filter((f) => f.processing_status === statusFilter);
+      }
+    }
+
+    // Sort
+    if (sortBy !== "upload_order") {
+      result = [...result].sort((a, b) => {
+        switch (sortBy) {
+          case "alphabetical":
+            return a.original_filename.localeCompare(b.original_filename);
+          case "file_size":
+            return b.file_size_bytes - a.file_size_bytes;
+          case "page_count":
+            return (b.page_count ?? 0) - (a.page_count ?? 0);
+          default:
+            return 0;
+        }
+      });
+    }
+
+    return result;
+  }, [files, searchQuery, typeFilters, statusFilter, sortBy]);
 
   const validateFiles = useCallback((fileList: File[]): { valid: File[]; errors: string[] } => {
     const valid: File[] = [];
@@ -275,9 +382,38 @@ export default function FilePanel({
 
       {/* Header */}
       <div className="border-b border-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-text-primary">Files</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-text-primary">Files</h2>
+          {files.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((o) => !o)}
+              className={`rounded p-1 transition-colors ${
+                filtersOpen || hasActiveFilters
+                  ? "bg-accent-surface text-accent"
+                  : "text-text-tertiary hover:bg-accent-surface/50 hover:text-text-secondary"
+              }`}
+              title={filtersOpen ? "Hide filters" : "Search & filter"}
+              aria-label={filtersOpen ? "Hide filters" : "Search & filter"}
+              aria-expanded={filtersOpen}
+              data-testid="filter-toggle"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+            </button>
+          )}
+        </div>
         <p className="mt-0.5 text-xs text-text-tertiary">
-          {files.length} {files.length === 1 ? "file" : "files"}
+          {hasActiveFilters ? (
+            <>
+              {filteredFiles.length} of {files.length} {files.length === 1 ? "file" : "files"}
+            </>
+          ) : (
+            <>
+              {files.length} {files.length === 1 ? "file" : "files"}
+            </>
+          )}
           {processingCount > 0 && (
             <span className="text-accent"> ({processingCount} processing)</span>
           )}
@@ -286,6 +422,92 @@ export default function FilePanel({
           )}
         </p>
       </div>
+
+      {/* Collapsible filter panel */}
+      {filtersOpen && (
+        <div className="border-b border-border px-3 py-2 space-y-2" data-testid="filter-panel">
+          {/* Search input */}
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search files..."
+            className="w-full rounded border border-border bg-background px-2 py-1 text-xs text-text-primary placeholder:text-text-tertiary focus:border-accent/50 focus:outline-none"
+            data-testid="file-search-input"
+          />
+
+          {/* File type filters */}
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">Type</p>
+            <div className="flex flex-wrap gap-1">
+              {(Object.keys(FILE_TYPE_GROUP_LABELS) as FileTypeGroup[]).map((group) => (
+                <button
+                  key={group}
+                  type="button"
+                  onClick={() => toggleTypeFilter(group)}
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                    typeFilters.has(group)
+                      ? "bg-accent text-white"
+                      : "bg-badge-bg text-badge-text hover:bg-accent-surface"
+                  }`}
+                  data-testid={`type-filter-${group}`}
+                >
+                  {FILE_TYPE_GROUP_LABELS[group]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Status filter */}
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">Status</p>
+            <div className="flex flex-wrap gap-1">
+              {(Object.keys(STATUS_LABELS) as StatusFilter[]).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatusFilter(s)}
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                    statusFilter === s
+                      ? "bg-accent text-white"
+                      : "bg-badge-bg text-badge-text hover:bg-accent-surface"
+                  }`}
+                  data-testid={`status-filter-${s}`}
+                >
+                  {STATUS_LABELS[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Sort */}
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">Sort</p>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortKey)}
+              className="w-full rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:border-accent/50 focus:outline-none"
+              data-testid="sort-select"
+            >
+              {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                <option key={key} value={key}>{SORT_LABELS[key]}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Clear filters */}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-[10px] text-accent underline"
+              data-testid="clear-filters"
+            >
+              Clear all filters
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Upload error banner */}
       {uploadError && (
@@ -328,9 +550,22 @@ export default function FilePanel({
               PDF, DOCX, TXT, EML, MSG, and more
             </p>
           </button>
+        ) : filteredFiles.length === 0 ? (
+          <div className="flex flex-col items-center justify-center px-6 py-8 text-center">
+            <p className="text-sm text-text-tertiary">No files match filters</p>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="mt-2 text-xs text-accent underline"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
         ) : (
           <div className="py-1">
-            {files.map((f) => (
+            {filteredFiles.map((f) => (
               <div
                 key={f.id}
                 role="option"
