@@ -10,9 +10,9 @@ test.describe("Mobile viewport (375x812)", () => {
       page.getByRole("heading", { level: 1 })
     ).toBeVisible();
 
-    // All 5 tool cards should be visible (may need scrolling)
+    // All 6 tool cards should be visible (may need scrolling)
     const cards = page.locator('a[href^="/tools/discovery/"]');
-    await expect(cards).toHaveCount(5);
+    await expect(cards).toHaveCount(6);
   });
 
   test("wizard stepper shows mobile step text", async ({ page }) => {

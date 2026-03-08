@@ -732,7 +732,7 @@ test.describe("Objection Drafter", () => {
       page.getByText("Upload .docx or .pdf")
     ).toBeVisible();
     await expect(
-      page.getByText("or paste text")
+      page.getByText("or paste text", { exact: true })
     ).toBeVisible();
   });
 
@@ -753,7 +753,7 @@ test.describe("Objection Drafter", () => {
 
     // Textarea and divider should be hidden
     await expect(page.getByLabel("Discovery request text")).not.toBeVisible();
-    await expect(page.getByText("or paste text")).not.toBeVisible();
+    await expect(page.getByText("or paste text", { exact: true })).not.toBeVisible();
   });
 
   test("remove file restores textarea", async ({ page }) => {

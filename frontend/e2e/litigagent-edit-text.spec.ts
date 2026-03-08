@@ -12,9 +12,9 @@ function createTempFile(name: string, content: string): string {
 
 async function createCaseAndNavigate(page: Page, name: string): Promise<string> {
   await page.goto("/tools/litigagent");
-  await page.getByRole("button", { name: /new case/i }).click();
-  await page.getByPlaceholder(/case name/i).fill(name);
-  await page.getByRole("button", { name: /^create$/i }).click();
+  await page.getByRole("button", { name: /new case/i }).first().click();
+  await page.getByLabel(/case name/i).fill(name);
+  await page.getByRole("button", { name: /create case/i }).click();
   await page.waitForURL(/\/tools\/litigagent\/[a-f0-9-]+/);
   return page.url().split("/").pop()!;
 }

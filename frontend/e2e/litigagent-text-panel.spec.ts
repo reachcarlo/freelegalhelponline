@@ -12,9 +12,9 @@ function createTempFile(name: string, content: string): string {
 
 async function createCaseAndNavigate(page: Page, name: string): Promise<string> {
   await page.goto("/tools/litigagent");
-  await page.getByRole("button", { name: /new case/i }).click();
-  await page.getByPlaceholder(/case name/i).fill(name);
-  await page.getByRole("button", { name: /^create$/i }).click();
+  await page.getByRole("button", { name: /new case/i }).first().click();
+  await page.getByLabel(/case name/i).fill(name);
+  await page.getByRole("button", { name: /create case/i }).click();
   await page.waitForURL(/\/tools\/litigagent\/[a-f0-9-]+/);
   return page.url().split("/").pop()!;
 }
@@ -62,8 +62,9 @@ test.describe("LITIGAGENT Text Panel (L1.11)", () => {
 
     await uploadFile(page, tempFile);
 
-    // Wait for file to appear and reach ready status
-    await expect(page.getByText("display-test.txt")).toBeVisible({ timeout: 10_000 });
+    // Wait for file to appear in Panel 1 and reach ready status
+    const filePanel = page.locator('[aria-label="Case files"]');
+    await expect(filePanel.getByText("display-test.txt")).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('[aria-label="Ready"]')).toBeVisible({ timeout: 15_000 });
 
     // The extracted text should appear in the editable textarea
@@ -117,8 +118,9 @@ test.describe("LITIGAGENT Text Panel (L1.11)", () => {
 
     await uploadFile(page, tempFile);
 
-    // File should appear in the file list first
-    await expect(page.getByText("processing-test.txt")).toBeVisible({ timeout: 10_000 });
+    // File should appear in the file list first (scope to Panel 1 to avoid strict mode)
+    const filePanel = page.locator('[aria-label="Case files"]');
+    await expect(filePanel.getByText("processing-test.txt")).toBeVisible({ timeout: 10_000 });
 
     // The text panel should show "Extracting text..." or "Processing" at some point
     // (may be very fast for .txt files, so we just verify no error occurs)
@@ -140,9 +142,10 @@ test.describe("LITIGAGENT Text Panel (L1.11)", () => {
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(files);
 
-    // Wait for both files to be ready
-    await expect(page.getByText("first.txt")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("second.txt")).toBeVisible();
+    // Wait for both files to appear in Panel 1
+    const filePanel = page.locator('[aria-label="Case files"]');
+    await expect(filePanel.getByText("first.txt")).toBeVisible({ timeout: 10_000 });
+    await expect(filePanel.getByText("second.txt")).toBeVisible();
 
     // Both regions should exist
     const firstRegion = page.locator('[role="region"][aria-label="Content from first.txt"]');
@@ -171,9 +174,10 @@ test.describe("LITIGAGENT Text Panel (L1.11)", () => {
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(files);
 
-    // Wait for ready
-    await expect(page.getByText("scroll-a.txt")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("scroll-b.txt")).toBeVisible();
+    // Wait for files to appear in Panel 1
+    const filePanel = page.locator('[aria-label="Case files"]');
+    await expect(filePanel.getByText("scroll-a.txt")).toBeVisible({ timeout: 10_000 });
+    await expect(filePanel.getByText("scroll-b.txt")).toBeVisible();
 
     // Wait for text to load
     await expectTextInPanel(page, "Content B.");

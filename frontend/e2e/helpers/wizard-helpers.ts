@@ -161,8 +161,8 @@ export async function interceptGenerateResponse(
 
   await triggerGenerate();
 
-  // Wait for the UI to confirm download succeeded
-  await expect(page.getByText("Downloaded!")).toBeVisible({ timeout: 30_000 });
+  // Wait for the UI to confirm download succeeded (60s for CI under load)
+  await expect(page.getByText("Downloaded!")).toBeVisible({ timeout: 60_000 });
 
   // Clean up the route handler
   await page.unroute("**/api/discovery/generate**");

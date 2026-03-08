@@ -74,7 +74,7 @@ test.describe("Defendant-side discovery flows", () => {
     await clickNext(page);
 
     // Production instructions
-    await expect(page.getByText("Production Instructions")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Production Instructions" })).toBeVisible();
     await clickNext(page);
 
     // Definitions
@@ -117,7 +117,7 @@ test.describe("Defendant-side discovery flows", () => {
     await waitForBankLoaded(page);
 
     // Should have fact/genuineness counter
-    await expect(page.getByText(/fact/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/\d+ fact \+ \d+ genuineness/)).toBeVisible({ timeout: 10_000 });
 
     // Should have category pills
     const categoryButtons = page

@@ -72,9 +72,10 @@ test.describe("LITIGAGENT Gate L1", () => {
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(files);
 
-    // Wait for all files to appear in Panel 1
+    // Wait for all files to appear in Panel 1 (scope to file panel to avoid strict mode)
+    const filePanel = page.locator('[aria-label="Case files"]');
     for (const f of ["case_notes.txt", "termination_letter.txt", "performance_review.txt", "witness_statement.txt", "manager_email.eml"]) {
-      await expect(page.getByText(f)).toBeVisible({ timeout: 10_000 });
+      await expect(filePanel.getByText(f)).toBeVisible({ timeout: 10_000 });
     }
 
     // Verify file count in header
@@ -172,8 +173,9 @@ test.describe("LITIGAGENT Gate L1", () => {
     // Reload the page
     await page.reload();
 
-    // File should still be there
-    await expect(page.getByText("persist-test.txt")).toBeVisible({ timeout: 10_000 });
+    // File should still be there (scope to file panel to avoid strict mode)
+    const filePanel = page.locator('[aria-label="Case files"]');
+    await expect(filePanel.getByText("persist-test.txt")).toBeVisible({ timeout: 10_000 });
 
     // Extracted text should reload in textarea
     await expectTextInPanel(page, "This text should persist after reload.");

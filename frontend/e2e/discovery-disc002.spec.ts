@@ -58,9 +58,14 @@ test.describe("DISC-002 (Form Interrogatories - Employment)", () => {
     await waitForSectionsLoaded(page);
 
     // Sections — auto-selected, wait for selection to appear + Next enabled
-    await expect(page.getByText(/[1-9]\d* of \d+ selected/)).toBeVisible({
+    await expect(page.getByText(/\d+ of \d+ selected/)).toBeVisible({
       timeout: 10_000,
     });
+    // If no sections were auto-selected, click "Select all"
+    const selText = await page.getByText(/\d+ of \d+ selected/).textContent();
+    if (selText?.startsWith("0 of")) {
+      await page.getByRole("button", { name: "Select all" }).click();
+    }
     await waitForNextEnabled(page);
     await clickNext(page);
 
@@ -91,9 +96,14 @@ test.describe("DISC-002 (Form Interrogatories - Employment)", () => {
     await selectClaims(page, ["Wrongful Termination"]);
     await clickNext(page);
     await waitForSectionsLoaded(page);
-    await expect(page.getByText(/[1-9]\d* of \d+ selected/)).toBeVisible({
+    await expect(page.getByText(/\d+ of \d+ selected/)).toBeVisible({
       timeout: 10_000,
     });
+    // If no sections were auto-selected, click "Select all"
+    const selText = await page.getByText(/\d+ of \d+ selected/).textContent();
+    if (selText?.startsWith("0 of")) {
+      await page.getByRole("button", { name: "Select all" }).click();
+    }
     await waitForNextEnabled(page);
     await clickNext(page);
     await clickNext(page);

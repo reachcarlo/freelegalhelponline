@@ -61,8 +61,9 @@ test.describe("LITIGAGENT File Upload (L1.10)", () => {
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(tempFile);
 
-    // File should appear in the list
-    await expect(page.getByText("test-doc.txt")).toBeVisible({ timeout: 10_000 });
+    // File should appear in the list (scope to file panel to avoid strict mode)
+    const filePanel = page.locator('[aria-label="Case files"]');
+    await expect(filePanel.getByText("test-doc.txt")).toBeVisible({ timeout: 10_000 });
 
     // File count should update
     await expect(page.locator("text=1 file")).toBeVisible();
@@ -85,10 +86,11 @@ test.describe("LITIGAGENT File Upload (L1.10)", () => {
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(files);
 
-    // All three files should appear
-    await expect(page.getByText("alpha.txt")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("beta.txt")).toBeVisible();
-    await expect(page.getByText("gamma.txt")).toBeVisible();
+    // All three files should appear in file panel
+    const filePanel = page.locator('[aria-label="Case files"]');
+    await expect(filePanel.getByText("alpha.txt")).toBeVisible({ timeout: 10_000 });
+    await expect(filePanel.getByText("beta.txt")).toBeVisible();
+    await expect(filePanel.getByText("gamma.txt")).toBeVisible();
 
     // File count should show 3
     await expect(page.locator("text=3 files")).toBeVisible();
@@ -107,8 +109,9 @@ test.describe("LITIGAGENT File Upload (L1.10)", () => {
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(tempFile);
 
-    // Wait for file to appear and reach ready status (checkmark)
-    await expect(page.getByText("status-test.txt")).toBeVisible({ timeout: 10_000 });
+    // Wait for file to appear in file panel (scope to avoid strict mode)
+    const filePanel = page.locator('[aria-label="Case files"]');
+    await expect(filePanel.getByText("status-test.txt")).toBeVisible({ timeout: 10_000 });
 
     // Should eventually show a ready checkmark (via SSE)
     await expect(page.locator('[aria-label="Ready"]')).toBeVisible({ timeout: 15_000 });
@@ -126,10 +129,11 @@ test.describe("LITIGAGENT File Upload (L1.10)", () => {
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(tempFile);
 
-    await expect(page.getByText("select-test.txt")).toBeVisible({ timeout: 10_000 });
+    const filePanel = page.locator('[aria-label="Case files"]');
+    await expect(filePanel.getByText("select-test.txt")).toBeVisible({ timeout: 10_000 });
 
-    // Click the file to select it
-    await page.getByText("select-test.txt").click();
+    // Click the file to select it (in file panel)
+    await filePanel.getByText("select-test.txt").click();
 
     // The file item should have aria-selected=true
     const option = page.locator('[role="option"][aria-selected="true"]');
@@ -149,7 +153,8 @@ test.describe("LITIGAGENT File Upload (L1.10)", () => {
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(tempFile);
 
-    await expect(page.getByText("to-delete.txt")).toBeVisible({ timeout: 10_000 });
+    const filePanel = page.locator('[aria-label="Case files"]');
+    await expect(filePanel.getByText("to-delete.txt")).toBeVisible({ timeout: 10_000 });
 
     // Hover over the file to reveal delete button
     const fileRow = page.locator('[role="option"]').filter({ hasText: "to-delete.txt" });
@@ -172,8 +177,8 @@ test.describe("LITIGAGENT File Upload (L1.10)", () => {
   test("header shows file count and processing status", async ({ page }) => {
     await createCaseAndNavigate(page, "Count Test");
 
-    // Initially 0 files in header
-    const headerInfo = page.locator("text=0 files");
+    // Initially 0 files in header (use .first() — file panel header + text panel may both show count)
+    const headerInfo = page.locator("text=0 files").first();
     await expect(headerInfo).toBeVisible();
 
     const tempFile = createTempFile("count-test.txt", "Count test content.");
@@ -200,7 +205,8 @@ test.describe("LITIGAGENT File Upload (L1.10)", () => {
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(tempFile);
 
-    await expect(page.getByText("empty-click.txt")).toBeVisible({ timeout: 10_000 });
+    const filePanel = page.locator('[aria-label="Case files"]');
+    await expect(filePanel.getByText("empty-click.txt")).toBeVisible({ timeout: 10_000 });
 
     fs.unlinkSync(tempFile);
   });
@@ -215,7 +221,8 @@ test.describe("LITIGAGENT File Upload (L1.10)", () => {
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(tempFile);
 
-    await expect(page.getByText("badge-test.txt")).toBeVisible({ timeout: 10_000 });
+    const filePanel = page.locator('[aria-label="Case files"]');
+    await expect(filePanel.getByText("badge-test.txt")).toBeVisible({ timeout: 10_000 });
 
     // Should show TXT badge
     const badge = page.locator('[role="option"]').filter({ hasText: "badge-test.txt" }).locator("text=TXT");
@@ -247,10 +254,14 @@ test.describe("LITIGAGENT File Upload (L1.10)", () => {
   test("drag over shows drop zone overlay", async ({ page }) => {
     await createCaseAndNavigate(page, "Drag Over Test");
 
-    // Simulate dragenter on the file panel
+    // Simulate dragenter on the file panel via evaluate (DragEvent needs real DataTransfer)
     const panel = page.locator(".flex.h-full.w-\\[280px\\]");
-    await panel.dispatchEvent("dragenter", {
-      dataTransfer: { types: ["Files"] },
+    await panel.evaluate((el) => {
+      const event = new DragEvent("dragenter", { bubbles: true, cancelable: true });
+      Object.defineProperty(event, "dataTransfer", {
+        value: { types: ["Files"], items: [], files: [] },
+      });
+      el.dispatchEvent(event);
     });
 
     // The overlay should appear with "Drop files here" text
