@@ -50,6 +50,12 @@ const tools = [
     description:
       "Generate employment law discovery documents — Form Interrogatories (DISC-001/002), Special Interrogatories, Requests for Production, and Requests for Admission.",
   },
+  {
+    href: "/tools/litigagent",
+    title: "LITIGAGENT Case File Analyzer",
+    description:
+      "Upload case files (PDF, Word, email, text), extract text automatically, and organize with notes. Your AI associate that reads every document and remembers every detail.",
+  },
 ];
 
 export default function ToolsIndex() {
