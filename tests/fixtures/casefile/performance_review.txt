@@ -1,0 +1,37 @@
+ANNUAL PERFORMANCE REVIEW
+Employee: David Johnson
+Title: Senior Engineer
+Department: Engineering - Sacramento
+Review Period: January 1, 2024 - December 31, 2024
+Reviewer: Robert Williams, VP Engineering
+
+OVERALL RATING: Exceeds Expectations (4.2 / 5.0)
+
+TECHNICAL COMPETENCY: 4.5/5
+David continues to demonstrate strong technical skills across our platform.
+He led the migration of our legacy authentication system to OAuth 2.0,
+completing the project 2 weeks ahead of schedule with zero production incidents.
+
+TEAMWORK & COLLABORATION: 4.0/5
+David mentors junior engineers effectively and participates actively in
+code reviews. He could improve cross-team communication with the product team.
+
+LEADERSHIP: 4.0/5
+David took ownership of the on-call rotation redesign, reducing after-hours
+pages by 40%. He represents the team well in architecture discussions.
+
+AREAS FOR IMPROVEMENT:
+- Documentation of architectural decisions could be more thorough
+- Consider presenting at internal tech talks to share knowledge more broadly
+
+GOALS FOR 2025:
+1. Lead the API gateway modernization project
+2. Mentor at least 2 junior engineers
+3. Obtain cloud architecture certification
+
+MANAGER COMMENTS:
+David is a valuable senior contributor. His consistent high performance
+and deep institutional knowledge make him essential to the team.
+
+Employee Signature: David Johnson     Date: February 15, 2025
+Manager Signature: Robert Williams    Date: February 14, 2025

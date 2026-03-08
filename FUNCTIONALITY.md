@@ -549,7 +549,7 @@ Statically generated at build time for SEO. Topics: wages, discrimination, retal
 - Responsive Tailwind classes
 - Mobile discovery wizard adaptation
 
-#### LITIGAGENT — Case File Ingestion Engine (Phases L1.1–L1.11)
+#### LITIGAGENT — Case File Ingestion Engine (Phases L1.1–L1.12)
 
 Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML, MSG, TXT, XLSX, CSV, images, PPTX), extract text via format-specific extractors, and manage case notes — all in a three-panel layout.
 
@@ -663,7 +663,8 @@ Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML
 | `test_casefile_docx_extractor.py` | 19 | Word document extraction |
 | `test_casefile_text_extractor.py` | 22 | Plain text + encoding detection |
 | `test_casefile_email_extractor.py` | 45 | EML, MSG, MBOX extraction |
-| E2E (Playwright): 14 spec files | 77 | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT upload + text panel |
+| `test_casefile_fixtures.py` | 11 | Extractor + registry + hashing with realistic case fixtures |
+| E2E (Playwright): 15 spec files | 80 | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT upload + text panel + Gate L1 |
 
 ---
 
@@ -899,7 +900,7 @@ Developer/operator.
 | Slow (ML models) | ~50 | Real BGE embedding, LanceDB operations |
 | Live (external services) | ~100 | Government websites, CourtListener, Claude API |
 | Evaluation | ~50+ | Retrieval metrics, citation accuracy |
-| E2E (Playwright) | 77 tests / 14 specs | Discovery wizard flows, PDF/DOCX content validation, mobile, cross-tool, LITIGAGENT upload + text panel |
+| E2E (Playwright) | 80 tests / 15 specs | Discovery wizard flows, PDF/DOCX content validation, mobile, cross-tool, LITIGAGENT upload + text panel + Gate L1 |
 
 ### Running Tests
 
@@ -943,6 +944,6 @@ uv run pytest -m ""
 | Request bank items | 177 role-aware (SROGs + RFPDs + RFAs) |
 | Topic pages (SSG) | 11 |
 | Employment claim types | 19 |
-| Test files | ~93 (79 Python + 14 E2E) |
+| Test files | ~95 (80 Python + 15 E2E) |
 | Passing tests | ~2,690 |
 | Evaluation questions | 60+ |
