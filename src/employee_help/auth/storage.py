@@ -256,6 +256,17 @@ class AuthStorage:
         self._conn.commit()
         return cur.rowcount
 
+    def get_user_sessions(self, user_id: str) -> list[AuthSession]:
+        """Get all active (non-revoked, non-expired) sessions for a user."""
+        now = datetime.now(tz=UTC).isoformat()
+        rows = self._conn.execute(
+            """SELECT * FROM sessions
+               WHERE user_id = ? AND is_revoked = 0 AND expires_at > ?
+               ORDER BY last_used_at DESC""",
+            (user_id, now),
+        ).fetchall()
+        return [self._row_to_session(r) for r in rows]
+
     def cleanup_expired_sessions(self) -> int:
         """Delete expired and revoked sessions. Returns count deleted."""
         now = datetime.now(tz=UTC).isoformat()

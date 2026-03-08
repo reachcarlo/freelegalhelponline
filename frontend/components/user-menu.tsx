@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth, type AuthUser } from "@/lib/auth-context";
 
@@ -90,6 +91,13 @@ export default function UserMenu() {
             <p className="text-xs text-text-tertiary truncate">{user.email}</p>
           </div>
           <div className="p-1">
+            <Link
+              href="/account"
+              onClick={() => setOpen(false)}
+              className="block w-full rounded-md px-3 py-2 text-left text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
+            >
+              Account
+            </Link>
             <button
               onClick={() => {
                 setOpen(false);

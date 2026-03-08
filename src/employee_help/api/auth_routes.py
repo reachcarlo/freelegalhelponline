@@ -395,19 +395,17 @@ async def logout(
     access_token: str | None = Cookie(default=None),
 ) -> JSONResponse:
     """Revoke current session and clear cookies."""
-    from employee_help.api.deps import get_auth_storage, get_session_manager
+    from employee_help.api.deps import get_session_manager
 
     session_manager = get_session_manager()
 
     if access_token:
         claims = session_manager.validate(access_token)
         if claims:
-            # Find the session by the refresh token and revoke it
-            # Since we don't have the refresh token here, revoke all sessions
-            # for this user to be safe. A more targeted approach would require
-            # storing session_id in the access token claims.
-            # For now, just revoke all sessions — logout means logout.
-            session_manager.revoke_all_sessions(claims.sub)
+            if claims.sid:
+                session_manager.revoke_session(claims.sid)
+            else:
+                session_manager.revoke_all_sessions(claims.sub)
             logger.info("user_logged_out", user_id=claims.sub)
             _audit(
                 "auth.logout", request,
@@ -500,6 +498,155 @@ async def get_audit_log(
         "limit": limit,
         "offset": offset,
     })
+
+
+# ── Session Management ──────────────────────────────────────────
+
+
+def _parse_user_agent(ua: str | None) -> dict:
+    """Extract device/browser info from a user-agent string."""
+    if not ua:
+        return {"browser": "Unknown", "os": "Unknown", "device": "Unknown"}
+
+    # Simple parser — good enough for display purposes
+    browser = "Unknown"
+    if "Firefox/" in ua:
+        browser = "Firefox"
+    elif "Edg/" in ua:
+        browser = "Edge"
+    elif "Chrome/" in ua:
+        browser = "Chrome"
+    elif "Safari/" in ua:
+        browser = "Safari"
+
+    os_name = "Unknown"
+    if "iPhone" in ua or "iPad" in ua:
+        os_name = "iOS"
+    elif "Android" in ua:
+        os_name = "Android"
+    elif "Windows" in ua:
+        os_name = "Windows"
+    elif "Mac OS" in ua or "Macintosh" in ua:
+        os_name = "macOS"
+    elif "Linux" in ua:
+        os_name = "Linux"
+
+    device = "Desktop"
+    if "Mobile" in ua or "iPhone" in ua or "Android" in ua:
+        device = "Mobile"
+    elif "iPad" in ua or "Tablet" in ua:
+        device = "Tablet"
+
+    return {"browser": browser, "os": os_name, "device": device}
+
+
+@auth_router.get("/sessions")
+async def list_sessions(
+    request: Request,
+    access_token: str | None = Cookie(default=None),
+) -> JSONResponse:
+    """List all active sessions for the current user."""
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    from employee_help.api.deps import get_auth_storage, get_session_manager
+
+    session_manager = get_session_manager()
+    claims = session_manager.validate(access_token)
+    if claims is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    auth_storage = get_auth_storage()
+    sessions = auth_storage.get_user_sessions(claims.sub)
+
+    items = []
+    for s in sessions:
+        ua_info = _parse_user_agent(s.user_agent)
+        items.append({
+            "id": s.id,
+            "ip_address": s.ip_address,
+            "browser": ua_info["browser"],
+            "os": ua_info["os"],
+            "device": ua_info["device"],
+            "created_at": s.created_at.isoformat(),
+            "last_used_at": s.last_used_at.isoformat(),
+            "expires_at": s.expires_at.isoformat(),
+            "is_current": s.id == claims.sid,
+        })
+
+    return JSONResponse(content={"sessions": items})
+
+
+@auth_router.delete("/sessions/{session_id}")
+async def revoke_session(
+    session_id: str,
+    request: Request,
+    access_token: str | None = Cookie(default=None),
+) -> JSONResponse:
+    """Revoke a specific session (must belong to current user)."""
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    from employee_help.api.deps import get_auth_storage, get_session_manager
+
+    session_manager = get_session_manager()
+    claims = session_manager.validate(access_token)
+    if claims is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    # Cannot revoke current session via this endpoint (use logout instead)
+    if session_id == claims.sid:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot revoke current session. Use logout instead.",
+        )
+
+    # Verify the session belongs to the current user
+    auth_storage = get_auth_storage()
+    session = auth_storage.get_session(session_id)
+    if session is None or session.user_id != claims.sub:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session_manager.revoke_session(session_id)
+    _audit(
+        "auth.session_revoked", request,
+        resource_type="session", resource_id=session_id,
+    )
+
+    return JSONResponse(content={"status": "ok"})
+
+
+@auth_router.delete("/sessions")
+async def revoke_all_other_sessions(
+    request: Request,
+    access_token: str | None = Cookie(default=None),
+) -> JSONResponse:
+    """Revoke all sessions except the current one."""
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    from employee_help.api.deps import get_auth_storage, get_session_manager
+
+    session_manager = get_session_manager()
+    claims = session_manager.validate(access_token)
+    if claims is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    auth_storage = get_auth_storage()
+    sessions = auth_storage.get_user_sessions(claims.sub)
+
+    revoked = 0
+    for s in sessions:
+        if s.id != claims.sid:
+            auth_storage.revoke_session(s.id)
+            revoked += 1
+
+    _audit(
+        "auth.session_revoked", request,
+        metadata={"revoked_count": revoked, "action": "revoke_all_others"},
+    )
+
+    return JSONResponse(content={"status": "ok", "revoked_count": revoked})
 
 
 # ── Helpers ─────────────────────────────────────────────────────

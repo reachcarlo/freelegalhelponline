@@ -18,6 +18,7 @@ class AccessTokenClaims:
     email: str
     iat: int
     exp: int
+    sid: str = ""  # session_id (empty for legacy tokens)
 
 
 def create_access_token(
@@ -28,6 +29,7 @@ def create_access_token(
     email: str,
     secret: str,
     ttl: int = 900,
+    session_id: str = "",
 ) -> str:
     """Create a signed HS256 JWT access token.
 
@@ -38,6 +40,7 @@ def create_access_token(
         email: User's email address.
         secret: HS256 signing secret (AUTH_JWT_SECRET).
         ttl: Token time-to-live in seconds (default: 15 minutes).
+        session_id: Server-side session UUID (for targeted revocation).
 
     Returns:
         Encoded JWT string.
@@ -51,6 +54,8 @@ def create_access_token(
         "iat": now,
         "exp": now + ttl,
     }
+    if session_id:
+        payload["sid"] = session_id
     return jwt.encode(payload, secret, algorithm="HS256")
 
 
@@ -70,6 +75,7 @@ def validate_access_token(token: str, secret: str) -> AccessTokenClaims | None:
             email=payload["email"],
             iat=payload["iat"],
             exp=payload["exp"],
+            sid=payload.get("sid", ""),
         )
     except (jwt.InvalidTokenError, KeyError):
         return None

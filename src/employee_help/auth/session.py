@@ -73,6 +73,7 @@ class SessionManager:
             email=user.email,
             secret=self._secret,
             ttl=self._access_ttl,
+            session_id=session.id,
         )
         return access_token, refresh_token
 
@@ -149,6 +150,7 @@ class SessionManager:
             email=user.email,
             secret=self._secret,
             ttl=self._access_ttl,
+            session_id=new_session.id,
         )
         return access_token, new_refresh_token
 

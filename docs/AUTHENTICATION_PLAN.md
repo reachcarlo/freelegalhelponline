@@ -1,6 +1,6 @@
 # Authentication & User Accounts: Implementation Plan
 
-> **Status**: In Progress (A1.1–A1.6, A2.1–A2.4, A3.1 complete)
+> **Status**: In Progress (A1.1–A1.6, A2.1–A2.4, A3.1–A3.2 complete)
 > **Created**: 2026-03-07
 > **GTM Strategy**: Bottom-up PLG (individual attorneys) → enterprise upsell (their firms)
 > **Auth Providers**: Google OIDC + Microsoft OIDC (no email/password, no local credentials)
@@ -814,6 +814,19 @@ This gives attorneys visible control over their access — a concrete security f
 4. Write E2E tests for session revocation
 
 **Gate**: User can see active sessions. Revoking a session invalidates that session's refresh token.
+
+**Status: COMPLETE** (2026-03-08)
+
+**Implementation details:**
+- Added `sid` (session_id) claim to JWT access tokens — enables identifying the current session for targeted revocation and session highlighting.
+- `AuthStorage.get_user_sessions()`: lists active (non-revoked, non-expired) sessions ordered by last_used_at DESC.
+- `GET /api/auth/sessions`: returns user's active sessions with parsed device info (browser, OS, device type from user-agent), IP address, timestamps, and `is_current` flag.
+- `DELETE /api/auth/sessions/{id}`: revokes a specific non-current session (validates ownership, prevents revoking current session).
+- `DELETE /api/auth/sessions`: revokes all sessions except the current one (returns revoked count).
+- Logout now revokes only the current session (not all sessions) thanks to `sid` claim.
+- `_parse_user_agent()`: simple UA parser for Chrome/Firefox/Edge/Safari, macOS/Windows/Linux/iOS/Android, Desktop/Mobile/Tablet.
+- Frontend: `/account` page with profile info + `ActiveSessions` component (session list, revoke buttons, "Revoke all other sessions"). UserMenu dropdown gains "Account" link. `/account` added to proxy route protection.
+- 29 backend tests (4 token sid, 5 storage, 5 list endpoint, 4 revoke single, 3 revoke all, 1 logout, 6 UA parser). 11 Playwright E2E tests.
 
 ### A3.3 — Security Headers
 

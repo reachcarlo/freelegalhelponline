@@ -25,5 +25,7 @@ export const config = {
     "/tools/litigagent/:path*",
     "/tools/discovery",
     "/tools/discovery/:path*",
+    "/account",
+    "/account/:path*",
   ],
 };
