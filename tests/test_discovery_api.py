@@ -26,22 +26,34 @@ def client():
     """Create a test client that bypasses RAG service init."""
     from unittest.mock import MagicMock, patch
 
+    from employee_help.auth.tokens import AccessTokenClaims
+
     mock_retrieval = MagicMock()
     mock_retrieval.embedding_service = MagicMock()
     mock_retrieval.vector_store = MagicMock()
     mock_answer = MagicMock()
 
+    # Mock session manager that accepts any token
+    mock_sm = MagicMock()
+    mock_sm.validate.return_value = AccessTokenClaims(
+        sub="test-user", org="test-org", role="owner",
+        email="test@example.com", iat=0, exp=999999999999,
+    )
+
     with (
         patch("employee_help.api.deps._retrieval_service", mock_retrieval),
         patch("employee_help.api.deps._answer_service", mock_answer),
         patch("employee_help.api.deps._feedback_store", MagicMock()),
+        patch("employee_help.api.deps._session_manager", mock_sm),
     ):
         from employee_help.api import main as main_mod
 
         # Reset discovery rate limit store to avoid 429s
         main_mod._discovery_rate_store.clear()
 
-        yield TestClient(main_mod.app)
+        tc = TestClient(main_mod.app)
+        tc.cookies.set("access_token", "test-token")
+        yield tc
 
 
 SAMPLE_CASE_INFO = {

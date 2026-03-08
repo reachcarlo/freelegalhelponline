@@ -1,6 +1,6 @@
 # Authentication & User Accounts: Implementation Plan
 
-> **Status**: In Progress (A1.1, A1.2, A1.3 complete)
+> **Status**: In Progress (A1.1, A1.2, A1.3, A1.4 complete)
 > **Created**: 2026-03-07
 > **GTM Strategy**: Bottom-up PLG (individual attorneys) → enterprise upsell (their firms)
 > **Auth Providers**: Google OIDC + Microsoft OIDC (no email/password, no local credentials)
@@ -486,7 +486,7 @@ User clicks "Sign in with Google"
 
 **Gate**: Can complete full login flow with mocked Google/Microsoft responses. `/api/auth/me` returns user profile. Logout clears cookies and revokes session.
 
-### A1.4 — Auth Middleware
+### A1.4 — Auth Middleware ✅ COMPLETE (2026-03-07)
 
 **Files to modify:**
 - `src/employee_help/api/main.py` — Add authentication middleware

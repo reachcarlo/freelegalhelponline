@@ -131,6 +131,29 @@ def _rate_limit_headers(
     }
 
 
+# ── Auth middleware configuration ─────────────────────────────
+
+# Paths requiring authentication — all others are public.
+_PROTECTED_PATH_PREFIXES = (
+    "/api/cases",       # LITIGAGENT — private case files
+    "/api/discovery",   # Discovery tools — private case data
+    "/api/objections",  # Objection drafter — private case data
+)
+
+
+def _requires_auth(path: str) -> bool:
+    """Check if a request path requires authentication."""
+    return any(path.startswith(prefix) for prefix in _PROTECTED_PATH_PREFIXES)
+
+
+def _get_rate_limit_key(request: Request) -> str:
+    """Rate limit key: user_id for authenticated users, client IP for anonymous."""
+    user = getattr(request.state, "user", None)
+    if user is not None:
+        return f"user:{user.sub}"
+    return _get_client_ip(request)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load services at startup, clean up at shutdown."""
@@ -163,7 +186,7 @@ app.add_middleware(
 async def rate_limit_middleware(request: Request, call_next):
     """Rate limiting for /api/ask and /api/feedback."""
     now = time.time()
-    client_ip = _get_client_ip(request)
+    client_ip = _get_rate_limit_key(request)
 
     # --- /api/ask rate limiting ---
     if request.url.path == "/api/ask" and request.method == "POST":
@@ -481,6 +504,34 @@ async def rate_limit_middleware(request: Request, call_next):
 
         if len(_feedback_rate_store) > 100:
             _prune_stale_entries(_feedback_rate_store, 60)
+
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    """Validate access token for protected paths, set request.state.user."""
+    # Always initialize user state for downstream handlers and rate limiting
+    request.state.user = None
+
+    # Try to extract user from access token cookie
+    access_token = request.cookies.get("access_token")
+    if access_token:
+        try:
+            from employee_help.api.deps import get_session_manager
+
+            session_manager = get_session_manager()
+            request.state.user = session_manager.validate(access_token)
+        except RuntimeError:
+            pass  # Auth services not initialized
+
+    # Protected paths require a valid access token
+    if _requires_auth(request.url.path) and request.state.user is None:
+        return Response(
+            content='{"detail":"Authentication required"}',
+            status_code=401,
+            media_type="application/json",
+        )
 
     return await call_next(request)
 
