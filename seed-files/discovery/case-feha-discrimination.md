@@ -2,6 +2,8 @@
 
 Use for: Any discovery tool (DISC-001, DISC-002, SROGs, RFPDs, RFAs)
 
+> **Variable resolution**: Request templates use `{EMPLOYEE}`, `{EMPLOYER}`, `{PROPOUNDING_PARTY}`, `{RESPONDING_PARTY}` etc. These resolve automatically based on party role and case info. As plaintiff, `{EMPLOYEE}` → "Maria Garcia", `{EMPLOYER}` → "Westside Tech Solutions Inc".
+
 ---
 
 ## Case Info (Step 0)
@@ -35,11 +37,11 @@ Select these claims:
 
 **DISC-002:** Sections 200.1, 200.4, 201.1, 201.4-201.6, 202.1-202.2, 210.1-210.6, 212.1-212.7, 214.1, 215.1-215.2, 216.1
 
-**SROGs:** Select "Employment Relationship" + "Discrimination" + "Damages" categories (auto-suggested). Keep under 35.
+**SROGs:** Select from "Adverse Employment Actions" + "Comparator / Similarly Situated" + "Decision Makers" + "Investigation and Complaints" + "Damages" + "Contention Interrogatories" categories (auto-suggested for FEHA). 36 requests available. Keep under 35 to avoid Declaration of Necessity.
 
-**RFPDs:** Select "Personnel File" + "Discrimination" + "Communications" categories (no limit).
+**RFPDs:** Select from "Personnel Records" + "Investigation Documents" + "Communications" + "Comparator Documents" + "Discipline and Corrective Actions" categories (no limit). 30 requests available.
 
-**RFAs:** Select "Fact" type requests from "Employment Relationship" + "Discrimination" categories.
+**RFAs:** Select "Fact" type requests from "Discrimination Facts" + "Adverse Action Facts" + "Comparator Facts" + "Complaint Facts" categories. 34 requests available (fact + genuineness).
 
 ## Case Background (for context)
 

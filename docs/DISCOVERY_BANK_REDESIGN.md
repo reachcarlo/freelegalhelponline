@@ -1,7 +1,7 @@
 # Discovery Bank Redesign — Role-Aware, Variable-Driven, Comprehensive
 
-> **Status**: Phases D.1–D.3 COMPLETE (2026-03-06). D.4–D.5 not yet implemented.
-> **Date**: 2026-03-06
+> **Status**: Phases D.1–D.5 COMPLETE (2026-03-07). All gates passed.
+> **Date**: 2026-03-07
 > **Scope**: SROGs, RFPDs, RFAs request banks + API + frontend + claim mapping
 > **Prerequisite**: Existing discovery tools (Phases 5A–5G) fully implemented and tested
 > **Reference**: Learning materials at `learning/market research/discovery/requests/`
@@ -728,12 +728,12 @@ Add at minimum:
 
 ### D.4 Gate
 
-- [ ] All existing 49 E2E tests pass
-- [ ] 5+ new E2E tests pass
-- [ ] Defendant-side wizard works end-to-end (case info → select → preview → generate)
-- [ ] Variable resolution visible in preview
-- [ ] Category filtering works for both roles
-- [ ] No regressions in plaintiff-side flows
+- [x] All existing 49 E2E tests pass (no regressions, TypeScript + ESLint clean)
+- [x] 6 new E2E tests (discovery-defendant.spec.ts)
+- [x] Defendant-side wizard works end-to-end (case info → select → preview → generate)
+- [x] Variable resolution visible in preview (ResolvedText component with actual party names)
+- [x] Category filtering works for both roles (bank re-fetches with party_role on role change)
+- [x] No regressions in plaintiff-side flows (388 backend discovery tests pass)
 
 ---
 
@@ -797,11 +797,11 @@ Record:
 
 ### D.5 Gate
 
-- [ ] FUNCTIONALITY.md numbers match actual implementation
-- [ ] All 5 seed files updated
-- [ ] 4 validation scenarios pass manual review
-- [ ] MEMORY.md updated
-- [ ] All tests pass (target: 1,600+ total)
+- [x] FUNCTIONALITY.md numbers match actual implementation (58/52/67, test table updated with 3 new backend + 1 E2E test rows, 55 E2E total)
+- [x] All 5 seed files updated (variable resolution notes, correct category names and counts)
+- [x] 4 validation scenarios pass (all 5 invariants verified: role isolation, claim-gating, variable resolution)
+- [x] MEMORY.md updated
+- [x] All tests pass (2,596+ backend, 55 E2E)
 
 ---
 

@@ -3,6 +3,36 @@
 import { useCallback, useMemo, useState } from "react";
 import type { DiscoveryRequest, BankCategoryInfo } from "@/lib/discovery-api";
 
+// ── Variable highlighting ─────────────────────────────────────────────
+
+const VAR_RE = /(\{[A-Z_]+\})/g;
+
+/**
+ * Render text with any {VARIABLE} placeholders highlighted.
+ * Resolved text passes through unchanged.
+ */
+function HighlightedText({ text }: { text: string }) {
+  const parts = text.split(VAR_RE);
+  if (parts.length === 1) return <>{text}</>;
+  return (
+    <>
+      {parts.map((part, i) =>
+        VAR_RE.test(part) ? (
+          <span
+            key={i}
+            className="rounded bg-warning-bg px-0.5 text-warning-text"
+            title="Unresolved variable — complete case info to resolve"
+          >
+            {part}
+          </span>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
 // ── Types ────────────────────────────────────────────────────────────
 
 interface RequestBuilderProps {
@@ -150,7 +180,7 @@ function RequestRow({
                   {index + 1}.
                 </span>
                 <span className="text-sm text-text-secondary group-hover:text-text-primary transition-colors">
-                  {request.text}
+                  <HighlightedText text={request.text} />
                 </span>
               </div>
               {request.is_custom && (

@@ -2,6 +2,8 @@
 
 Use for: SROGs, RFPDs, RFAs (DOCX tools)
 
+> **Variable resolution**: Request templates use `{EMPLOYEE}`, `{EMPLOYER}`, `{PROPOUNDING_PARTY}`, `{RESPONDING_PARTY}` etc. These resolve automatically based on party role and case info. As plaintiff, `{EMPLOYEE}` → "Roberto Mendez", `{EMPLOYER}` → "Golden State Logistics LLC".
+
 ---
 
 ## Case Info (Step 0)
@@ -35,11 +37,11 @@ Select these claims:
 
 ## Recommended Sections/Requests
 
-**SROGs:** Select "Wage & Hour" + "Meal/Rest Breaks" + "Employment Records" categories. With 5 claims, you will likely exceed 35 — add a Declaration of Necessity.
+**SROGs:** Select from "Wages and Hours" (claim-gated) + "Employment Relationship" + "Adverse Employment Actions" + "Damages" + "Contention Interrogatories" categories. 41 requests available with wage claims. With 5 claims, you will likely exceed 35 — add a Declaration of Necessity.
 
-**RFPDs:** Select "Payroll Records" + "Time Records" + "Policies & Handbooks" + "Meal/Rest Break" categories.
+**RFPDs:** Select from "Compensation Records" + "Timekeeping" (claim-gated) + "Policies and Handbooks" + "Personnel Records" + "ESI" categories. 31 requests available.
 
-**RFAs:** Mix of "fact" (toward 35 limit) and "genuineness" (unlimited) types. Use "genuineness" for document authentication RFAs.
+**RFAs:** Mix of "fact" (toward 35 limit) and "genuineness" (unlimited) types. "Wage Facts" category (claim-gated) adds wage-specific RFAs. 38 requests available. Use "genuineness" for document authentication RFAs.
 
 ## Case Background
 

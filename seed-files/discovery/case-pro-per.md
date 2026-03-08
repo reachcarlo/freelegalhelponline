@@ -2,6 +2,8 @@
 
 Use for: Any discovery tool (demos the self-represented workflow)
 
+> **Variable resolution**: Request templates use `{EMPLOYEE}`, `{EMPLOYER}`, `{PROPOUNDING_PARTY}`, `{RESPONDING_PARTY}` etc. These resolve automatically based on party role and case info. As plaintiff, `{EMPLOYEE}` → "Angela Martinez", `{EMPLOYER}` → "QuickServe Restaurant Group LLC".
+
 ---
 
 ## Case Info (Step 0)
@@ -31,9 +33,9 @@ Select these claims:
 
 ## Recommended Sections/Requests
 
-**SROGs:** Select "Wage & Hour" + "Meal/Rest Breaks" + "Retaliation" categories. Keep at or under 35 to avoid needing a Declaration of Necessity.
+**SROGs:** Select from "Wages and Hours" (claim-gated) + "Employment Relationship" + "Adverse Employment Actions" + "Damages" categories. Keep at or under 35 to avoid needing a Declaration of Necessity.
 
-**RFPDs:** Select "Payroll Records" + "Time Records" + "Policies & Handbooks" categories.
+**RFPDs:** Select from "Compensation Records" + "Timekeeping" (claim-gated) + "Policies and Handbooks" + "Personnel Records" categories.
 
 ## Case Background
 

@@ -443,6 +443,8 @@ Request banks are curated legal content (not from the RAG knowledge base). The A
 - POS builder: `src/employee_help/discovery/generator/pos_builder.py`
 - Pleading template: `src/employee_help/discovery/generator/pleading_template.py`
 - Request banks: `src/employee_help/discovery/banks/srogs.py`, `rfpds.py`, `rfas.py`, `frogs_general.py`, `frogs_employment.py`
+- Role/claim filters: `src/employee_help/discovery/filters.py`
+- Variable resolver: `src/employee_help/discovery/resolver.py`
 - Claim mapping: `src/employee_help/discovery/claim_mapping.py`
 - API routes: `src/employee_help/api/discovery_routes.py`
 - Templates: `src/employee_help/discovery/generator/templates/pleading_paper.docx`, `pos_template.docx`
@@ -458,16 +460,20 @@ Request banks are curated legal content (not from the RAG knowledge base). The A
 | `test_discovery_limits.py` | CCP request limit tracking |
 | `test_discovery_suggestions.py` | Claim-to-discovery mapping |
 | `test_discovery_api.py` | API endpoints |
+| `test_discovery_filters.py` | Role/claim filtering |
+| `test_discovery_resolver.py` | Variable resolution |
+| `test_discovery_bank_integrity.py` | Bank integrity (role/claim annotations, variable patterns) |
 | E2E: `discovery-disc001.spec.ts` | 7 tests | Full wizard flow, PDF form field validation, auto-selected sections |
 | E2E: `discovery-disc002.spec.ts` | 4 tests | Employment interrogatories, entity checkbox, PDF generation |
 | E2E: `discovery-srogs.spec.ts` | 7 tests | 35-limit counter, select/deselect, custom requests, DOCX validation |
 | E2E: `discovery-rfpds.spec.ts` | 5 tests | 7-step wizard, production instructions, DOCX validation |
 | E2E: `discovery-rfas.spec.ts` | 5 tests | Fact limit, type badges, fact/genuineness radio, DOCX validation |
+| E2E: `discovery-defendant.spec.ts` | 6 tests | Defendant flows, role switch, variable resolution, DOCX validation |
 | E2E: `discovery-cross-tool.spec.ts` | 4 tests | sessionStorage persistence, case info/claims/party role across tools |
 | E2E: `discovery-limits.spec.ts` | 4 tests | Declaration of Necessity warnings, CCP section citations |
 | E2E: `discovery-mobile.spec.ts` | 6 tests | 375x812 viewport, 44px touch targets, step counter |
 | E2E: `discovery-index.spec.ts` | 5 tests | 5 tool cards, format badges, breadcrumb, legal disclaimer |
-| **E2E Total** | **49 tests** | **Full coverage of all 5 discovery workflows + cross-tool + mobile** |
+| **E2E Total** | **55 tests** | **Full coverage of all 5 discovery workflows + defendant flows + cross-tool + mobile** |
 
 ---
 

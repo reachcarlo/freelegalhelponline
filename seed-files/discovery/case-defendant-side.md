@@ -2,6 +2,8 @@
 
 Use for: Any discovery tool (demos the Defendant party role)
 
+> **Variable resolution**: Request templates use `{EMPLOYEE}`, `{EMPLOYER}`, `{PROPOUNDING_PARTY}`, `{RESPONDING_PARTY}` etc. These resolve automatically based on party role and case info. As defendant propounding, `{PROPOUNDING_PARTY}` → defendant name, `{RESPONDING_PARTY}` → plaintiff name.
+
 ---
 
 ## Case Info (Step 0)
@@ -34,9 +36,11 @@ Select these claims (these are what the plaintiff alleged):
 
 **DISC-001:** Focus on sections 6.1-6.7 (injuries), 10.1-10.3 (medical history), 11.1-11.2 (prior claims), 8.1-8.8 (lost income), 15.1 (denials/affirmative defenses).
 
-**SROGs from defense perspective:** Select "Medical History" + "Prior Claims" + "Mitigation" + "Damages" categories. Defense interrogatories focus on undermining plaintiff's claims.
+**SROGs (defendant categories):** Select from "Factual Basis for Claims" + "Emotional Distress and Medical" + "Mitigation of Damages" + "Prior Employment and Claims" + "Social Media, Communications, Recordings" + "Employment Relationship" (shared). 19 requests available for defendant role.
 
-**RFAs from defense:** Use "fact" RFAs to narrow disputed issues. Use "genuineness" RFAs for medical records authentication.
+**RFPDs (defendant categories):** Select from "Medical Records" + "Financial Records" + "Job Search Documents" + "Prior Employment Documents" + "Personal Records" + "Social Media Documents" + "Government Agency Documents". 18 requests available for defendant role.
+
+**RFAs (defendant categories):** Select from "Legitimate Reasons" + "Policies Compliance" + "Performance Facts" + "Damages Limitations" + "Mitigation Facts" + "Prior Claims" + "Direct Evidence" + shared categories. 37 requests available for defendant role. Use "genuineness" RFAs for medical records authentication.
 
 ## Case Background
 

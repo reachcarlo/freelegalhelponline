@@ -203,6 +203,8 @@ export interface BankItemInfo {
   category: string;
   order: number;
   rfa_type: string | null;
+  applicable_roles: string[] | null;
+  applicable_claims: string[] | null;
 }
 
 export interface BankCategoryInfo {
@@ -220,12 +222,17 @@ export interface BankResponse {
 }
 
 /**
- * Get the complete request bank for a discovery tool.
+ * Get the request bank for a discovery tool, optionally filtered by party role.
+ *
+ * When partyRole is provided, the backend filters to role-appropriate items
+ * and resolves template variables with default labels.
  */
 export async function getRequestBank(
-  tool: DiscoveryToolType
+  tool: DiscoveryToolType,
+  partyRole?: PartyRole
 ): Promise<BankResponse> {
-  const response = await fetch(`/api/discovery/banks/${tool}`);
+  const params = partyRole ? `?party_role=${partyRole}` : "";
+  const response = await fetch(`/api/discovery/banks/${tool}${params}`);
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
@@ -235,6 +242,51 @@ export async function getRequestBank(
   }
 
   return response.json();
+}
+
+// ── Variable resolution ──────────────────────────────────────────────
+
+const VARIABLE_PATTERN = /\{([A-Z_]+)\}/g;
+
+/**
+ * Resolve {PLACEHOLDER} variables in text using case info.
+ *
+ * Replaces PROPOUNDING_PARTY, RESPONDING_PARTY, PROPOUNDING_DESIGNATION,
+ * RESPONDING_DESIGNATION, EMPLOYEE, EMPLOYER. Unknown variables pass through.
+ */
+export function resolveVariables(text: string, caseInfo: CaseInfo): string {
+  const plaintiffName =
+    caseInfo.plaintiffs[0]?.name || "Plaintiff";
+  const defendantName =
+    caseInfo.defendants[0]?.name || "Defendant";
+
+  const vars: Record<string, string> =
+    caseInfo.party_role === "plaintiff"
+      ? {
+          PROPOUNDING_PARTY: plaintiffName,
+          RESPONDING_PARTY: defendantName,
+          PROPOUNDING_DESIGNATION: "Plaintiff",
+          RESPONDING_DESIGNATION: "Defendant",
+          EMPLOYEE: plaintiffName,
+          EMPLOYER: defendantName,
+        }
+      : {
+          PROPOUNDING_PARTY: defendantName,
+          RESPONDING_PARTY: plaintiffName,
+          PROPOUNDING_DESIGNATION: "Defendant",
+          RESPONDING_DESIGNATION: "Plaintiff",
+          EMPLOYEE: plaintiffName,
+          EMPLOYER: defendantName,
+        };
+
+  return text.replace(VARIABLE_PATTERN, (match, key) => vars[key] ?? match);
+}
+
+/**
+ * Check if text contains unresolved {VARIABLE} placeholders.
+ */
+export function hasUnresolvedVariables(text: string): boolean {
+  return VARIABLE_PATTERN.test(text);
 }
 
 // ── Definitions ──────────────────────────────────────────────────────

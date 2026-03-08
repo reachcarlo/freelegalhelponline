@@ -7,7 +7,7 @@ import type {
   DiscoveryRequest,
   DiscoveryToolType,
 } from "@/lib/discovery-api";
-import { TOOL_LABELS } from "@/lib/discovery-api";
+import { TOOL_LABELS, resolveVariables, hasUnresolvedVariables } from "@/lib/discovery-api";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -28,6 +28,33 @@ interface PreviewPanelProps {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
+
+const VAR_RE = /(\{[A-Z_]+\})/g;
+
+function ResolvedText({ text, caseInfo }: { text: string; caseInfo: CaseInfo }) {
+  const resolved = resolveVariables(text, caseInfo);
+  if (!hasUnresolvedVariables(resolved)) {
+    return <span>{resolved}</span>;
+  }
+  const parts = resolved.split(VAR_RE);
+  return (
+    <>
+      {parts.map((part, i) =>
+        VAR_RE.test(part) ? (
+          <span
+            key={i}
+            className="rounded bg-warning-bg px-0.5 text-warning-text"
+            title="Unresolved — complete case info to resolve"
+          >
+            {part}
+          </span>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
 
 function SectionRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
@@ -181,7 +208,7 @@ export default function PreviewPanel({
                   {i + 1}.
                 </span>
                 <span className="text-text-secondary line-clamp-2">
-                  {req.text}
+                  <ResolvedText text={req.text} caseInfo={caseInfo} />
                 </span>
               </div>
             ))}

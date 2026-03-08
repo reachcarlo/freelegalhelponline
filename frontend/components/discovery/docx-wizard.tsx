@@ -81,6 +81,8 @@ export default function DocxWizard({
   const [bankLoading, setBankLoading] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [defsLoaded, setDefsLoaded] = useState(false);
+  // Track the role used for the last bank fetch so we re-fetch on role change
+  const [bankFetchedRole, setBankFetchedRole] = useState<string | null>(null);
 
   // Production instructions (RFPDs)
   const [productionInstructions, setProductionInstructions] = useState("");
@@ -118,32 +120,40 @@ export default function DocxWizard({
     setToolType(toolType);
   }, [toolType, setToolType]);
 
-  // Load bank when entering requests step
+  // Load bank when entering requests step, or re-fetch if party role changed
   useEffect(() => {
-    if (state.currentStep === stepIndex["Requests"] && categories.length === 0) {
-      setBankLoading(true);
-      getRequestBank(toolType)
-        .then((data) => {
-          setCategories(data.categories);
-          // Convert bank items to DiscoveryRequest format with is_selected=false initially
-          if (state.selectedRequests.length === 0) {
-            const reqs: DiscoveryRequest[] = data.items.map((item) => ({
-              id: item.id,
-              text: item.text,
-              category: item.category,
-              is_selected: false,
-              is_custom: false,
-              order: item.order,
-              notes: null,
-              rfa_type: item.rfa_type || null,
-            }));
-            setSelectedRequests(reqs);
-          }
-        })
-        .catch(() => {})
-        .finally(() => setBankLoading(false));
-    }
-  }, [state.currentStep, toolType, categories.length, stepIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+    const needsFetch =
+      state.currentStep === stepIndex["Requests"] &&
+      (categories.length === 0 || bankFetchedRole !== state.partyRole);
+    if (!needsFetch) return;
+
+    setBankLoading(true);
+    getRequestBank(toolType, state.partyRole)
+      .then((data) => {
+        setCategories(data.categories);
+        setBankFetchedRole(state.partyRole);
+        // Convert bank items to DiscoveryRequest format
+        // Preserve selection state when re-fetching for role change
+        const prevSelected = new Set(
+          state.selectedRequests.filter((r) => r.is_selected).map((r) => r.id)
+        );
+        const reqs: DiscoveryRequest[] = data.items.map((item) => ({
+          id: item.id,
+          text: item.text,
+          category: item.category,
+          is_selected: prevSelected.has(item.id),
+          is_custom: false,
+          order: item.order,
+          notes: null,
+          rfa_type: item.rfa_type || null,
+        }));
+        // Keep any custom requests the user added
+        const customReqs = state.selectedRequests.filter((r) => r.is_custom);
+        setSelectedRequests([...reqs, ...customReqs]);
+      })
+      .catch(() => {})
+      .finally(() => setBankLoading(false));
+  }, [state.currentStep, toolType, state.partyRole, categories.length, bankFetchedRole, stepIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load suggestions when entering requests step
   useEffect(() => {
