@@ -48,7 +48,6 @@ export default function FilePanel({
   onSelectFile,
   processingCount,
 }: FilePanelProps) {
-  const readyCount = files.filter((f) => f.processing_status === "ready").length;
   const errorCount = files.filter((f) => f.processing_status === "error").length;
 
   return (

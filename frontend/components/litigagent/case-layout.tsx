@@ -38,8 +38,8 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
       ]);
       setCaseInfo(c);
       setFiles(f);
-    } catch (e: any) {
-      setError(e.message || "Failed to load case");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load case");
     } finally {
       setLoading(false);
     }

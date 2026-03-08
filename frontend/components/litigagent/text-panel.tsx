@@ -7,6 +7,7 @@ interface TextPanelProps {
   selectedFileId: string | null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function TextPanel({ files, selectedFileId }: TextPanelProps) {
   if (files.length === 0) {
     return (

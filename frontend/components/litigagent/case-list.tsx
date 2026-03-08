@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   CaseInfo,
   createCase,
@@ -45,8 +46,8 @@ export default function CaseList() {
       setError(null);
       const data = await listCases("active");
       setCases(data.cases);
-    } catch (e: any) {
-      setError(e.message || "Failed to load cases");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load cases");
     } finally {
       setLoading(false);
     }
@@ -65,8 +66,8 @@ export default function CaseList() {
       setNewName("");
       setNewDesc("");
       router.push(`/tools/litigagent/${c.id}`);
-    } catch (e: any) {
-      setError(e.message || "Failed to create case");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to create case");
     } finally {
       setCreating(false);
     }
@@ -78,8 +79,8 @@ export default function CaseList() {
     try {
       await archiveCase(caseId);
       setCases((prev) => prev.filter((c) => c.id !== caseId));
-    } catch (e: any) {
-      setError(e.message || "Failed to archive case");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to archive case");
     }
   };
 
@@ -91,13 +92,13 @@ export default function CaseList() {
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="mb-6 text-sm text-text-tertiary">
-          <a href="/" className="hover:text-accent">
+          <Link href="/" className="hover:text-accent">
             Home
-          </a>
+          </Link>
           {" / "}
-          <a href="/tools" className="hover:text-accent">
+          <Link href="/tools" className="hover:text-accent">
             Tools
-          </a>
+          </Link>
           {" / "}
           <span className="text-text-primary">LITIGAGENT</span>
         </nav>
