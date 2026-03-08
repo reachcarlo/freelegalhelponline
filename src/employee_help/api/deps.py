@@ -157,16 +157,13 @@ def init_services() -> None:
 def _init_auth_services() -> None:
     """Initialize auth-related services (providers, storage, session manager).
 
-    Raises:
-        RuntimeError: If AUTH_JWT_SECRET is not set. This is a required
-            environment variable — the application cannot serve authenticated
-            requests without it.
+    If AUTH_JWT_SECRET is not set, auth services are skipped and the server
+    starts without authentication support. Protected routes will return 401.
     """
     global _auth_storage, _session_manager, _google_provider, _microsoft_provider
 
     import os
 
-    from employee_help.auth.session import SessionManager
     from employee_help.auth.storage import AuthStorage
 
     # AuthStorage shares the same DB as case storage
@@ -174,10 +171,14 @@ def _init_auth_services() -> None:
 
     jwt_secret = os.environ.get("AUTH_JWT_SECRET")
     if not jwt_secret:
-        raise RuntimeError(
-            "AUTH_JWT_SECRET is required but not set. "
-            'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
+        logger.warning(
+            "auth_disabled",
+            msg="AUTH_JWT_SECRET is not set — auth services disabled. "
+            'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"',
         )
+        return
+
+    from employee_help.auth.session import SessionManager
 
     access_ttl = int(os.environ.get("AUTH_ACCESS_TOKEN_TTL", "900"))
     refresh_ttl = int(os.environ.get("AUTH_REFRESH_TOKEN_TTL", "604800"))
