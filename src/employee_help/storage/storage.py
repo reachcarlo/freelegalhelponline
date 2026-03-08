@@ -158,6 +158,75 @@ CREATE TABLE IF NOT EXISTS case_chunks (
 CREATE INDEX IF NOT EXISTS idx_case_chunks_case_id ON case_chunks(case_id);
 CREATE INDEX IF NOT EXISTS idx_case_chunks_file_id ON case_chunks(file_id);
 CREATE INDEX IF NOT EXISTS idx_case_chunks_hash ON case_chunks(content_hash);
+
+-- Authentication tables (Phase A1)
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    provider_user_id TEXT NOT NULL,
+    email TEXT NOT NULL,
+    display_name TEXT,
+    avatar_url TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    last_login_at TEXT NOT NULL,
+    UNIQUE(provider, provider_user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_provider ON users(provider, provider_user_id);
+
+CREATE TABLE IF NOT EXISTS organizations (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    plan_tier TEXT NOT NULL DEFAULT 'individual',
+    sso_provider TEXT,
+    sso_config TEXT,
+    max_seats INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS memberships (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'member',
+    created_at TEXT NOT NULL,
+    UNIQUE(user_id, organization_id)
+);
+CREATE INDEX IF NOT EXISTS idx_memberships_user ON memberships(user_id);
+CREATE INDEX IF NOT EXISTS idx_memberships_org ON memberships(organization_id);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    refresh_token_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    last_used_at TEXT NOT NULL,
+    ip_address TEXT,
+    user_agent TEXT,
+    is_revoked INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    organization_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
+    resource_type TEXT,
+    resource_id TEXT,
+    ip_address TEXT,
+    user_agent TEXT,
+    metadata TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
 """
 
 # Migrations for upgrading from Phase 1 schema to Phase 1.5 schema.
