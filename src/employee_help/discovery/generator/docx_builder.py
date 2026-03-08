@@ -17,8 +17,6 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
-from docxtpl import DocxTemplate
-
 from ..case_info import (
     defendant_block,
     document_title,
@@ -288,6 +286,8 @@ def build_discovery_docx(
     }
 
     # Render the template
+    from docxtpl import DocxTemplate
+
     template_path = _get_or_create_template()
     tpl = DocxTemplate(str(template_path))
     tpl.render(context)

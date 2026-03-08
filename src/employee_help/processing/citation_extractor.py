@@ -10,14 +10,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import structlog
-from eyecite import clean_text, get_citations, resolve_citations
-from eyecite.models import (
-    FullCaseCitation,
-    FullLawCitation,
-    IdCitation,
-    ShortCaseCitation,
-    SupraCitation,
-)
+
+try:
+    from eyecite import clean_text, get_citations, resolve_citations
+    from eyecite.models import (
+        FullCaseCitation,
+        FullLawCitation,
+        IdCitation,
+        ShortCaseCitation,
+        SupraCitation,
+    )
+except ImportError:
+    _EYECITE_AVAILABLE = False
+else:
+    _EYECITE_AVAILABLE = True
 
 logger = structlog.get_logger(__name__)
 
@@ -248,6 +254,12 @@ def extract_citations(
     Returns:
         List of extracted citations ordered by position in text.
     """
+    if not _EYECITE_AVAILABLE:
+        raise ImportError(
+            "eyecite is required for citation extraction. "
+            "Install with: uv sync --extra rag"
+        )
+
     if not text or not text.strip():
         return []
 
@@ -328,6 +340,12 @@ def resolve_short_citations(
         Dict mapping the full citation text to a list of all citations
         (including short forms) that reference the same resource.
     """
+    if not _EYECITE_AVAILABLE:
+        raise ImportError(
+            "eyecite is required for citation extraction. "
+            "Install with: uv sync --extra rag"
+        )
+
     if not text or not text.strip():
         return {}
 

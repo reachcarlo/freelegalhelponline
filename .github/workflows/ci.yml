@@ -22,6 +22,10 @@
 # Required repo variables (Settings > Variables > Repository variables):
 #   BACKEND_URL  - Production backend URL (e.g. https://api.example.com)
 #   FRONTEND_URL - Production frontend URL (e.g. https://example.com)
+#
+# Pre-commit hooks:
+#   Local enforcement via .githooks/pre-commit (runs tsc, eslint, pytest
+#   on staged files). Activate: git config core.hooksPath .githooks
 # =============================================================================
 
 name: CI
@@ -115,6 +119,34 @@ jobs:
             "${{ vars.FRONTEND_URL }}" || echo "000")
           if [ "$STATUS" != "200" ]; then
             echo "::warning::Frontend health check returned $STATUS"
+          fi
+
+  ci-failure-summary:
+    name: CI Failure Summary
+    needs: [backend-tests, frontend-checks]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize failures
+        run: |
+          echo "## CI Failure Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Author:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Failed Jobs" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Tests | ${{ needs.backend-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Checks | ${{ needs.frontend-checks.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Fix Guide" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.backend-tests.result }}" = "failure" ]; then
+            echo "- **Backend**: Run \`uv run pytest --tb=short\` locally" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ needs.frontend-checks.result }}" = "failure" ]; then
+            echo "- **Frontend**: Run \`cd frontend && npx tsc --noEmit && npx eslint . && npm run build\`" >> $GITHUB_STEP_SUMMARY
           fi
 
   e2e-tests:

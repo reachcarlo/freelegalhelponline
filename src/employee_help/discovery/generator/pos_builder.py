@@ -16,8 +16,6 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
-from docxtpl import DocxTemplate
-
 from ..case_info import (
     defendant_block,
     plaintiff_block,
@@ -305,6 +303,8 @@ def build_proof_of_service(
         "service_date": service_date.strftime("%B %d, %Y"),
         "documents_served": documents_served,
     }
+
+    from docxtpl import DocxTemplate
 
     template_path = _get_or_create_template()
     tpl = DocxTemplate(str(template_path))

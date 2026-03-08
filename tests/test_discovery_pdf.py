@@ -9,7 +9,9 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-from pypdf import PdfReader
+
+pypdf = pytest.importorskip("pypdf", reason="pypdf required for PDF tests")
+PdfReader = pypdf.PdfReader
 import io
 
 from employee_help.discovery.models import (

@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Pre-commit hook: catches lint, type, and test failures BEFORE they reach CI.
+# Install: git config core.hooksPath .githooks
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
+errors=0
+
+# --- Frontend checks (only if frontend files are staged) ---
+frontend_changed=$(git diff --cached --name-only -- 'frontend/**/*.ts' 'frontend/**/*.tsx' 'frontend/**/*.js' 'frontend/**/*.jsx' 2>/dev/null | head -1)
+
+if [ -n "$frontend_changed" ]; then
+    echo -e "${YELLOW}[pre-commit]${NC} Frontend files changed — running checks..."
+
+    # TypeScript type-check
+    echo -n "  tsc --noEmit... "
+    if (cd frontend && npx tsc --noEmit) > /dev/null 2>&1; then
+        echo -e "${GREEN}OK${NC}"
+    else
+        echo -e "${RED}FAIL${NC}"
+        echo -e "${RED}  Run 'cd frontend && npx tsc --noEmit' to see errors${NC}"
+        errors=$((errors + 1))
+    fi
+
+    # ESLint
+    echo -n "  eslint... "
+    if (cd frontend && npx eslint .) > /dev/null 2>&1; then
+        echo -e "${GREEN}OK${NC}"
+    else
+        echo -e "${RED}FAIL${NC}"
+        echo -e "${RED}  Run 'cd frontend && npx eslint .' to see errors${NC}"
+        errors=$((errors + 1))
+    fi
+fi
+
+# --- Backend checks (only if Python files are staged) ---
+backend_changed=$(git diff --cached --name-only -- 'src/**/*.py' 'tests/**/*.py' 2>/dev/null | head -1)
+
+if [ -n "$backend_changed" ]; then
+    echo -e "${YELLOW}[pre-commit]${NC} Python files changed — running tests..."
+
+    echo -n "  pytest... "
+    if uv run python -m pytest --tb=line -q --no-header > /dev/null 2>&1; then
+        echo -e "${GREEN}OK${NC}"
+    else
+        echo -e "${RED}FAIL${NC}"
+        echo -e "${RED}  Run 'uv run pytest --tb=short' to see failures${NC}"
+        errors=$((errors + 1))
+    fi
+fi
+
+# --- Result ---
+if [ "$errors" -gt 0 ]; then
+    echo -e "\n${RED}[pre-commit] $errors check(s) failed. Commit aborted.${NC}"
+    echo -e "${YELLOW}Tip: use 'git commit --no-verify' to bypass (not recommended).${NC}"
+    exit 1
+fi
+
+if [ -n "$frontend_changed" ] || [ -n "$backend_changed" ]; then
+    echo -e "${GREEN}[pre-commit] All checks passed.${NC}"
+fi
