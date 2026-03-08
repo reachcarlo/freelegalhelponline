@@ -2,6 +2,7 @@ import { test, expect, Page } from "@playwright/test";
 import path from "path";
 import fs from "fs";
 import os from "os";
+import { setupAuth } from "./helpers/wizard-helpers";
 
 /**
  * Gate L1 E2E Test
@@ -49,6 +50,10 @@ async function expectTextInPanel(page: Page, text: string, timeout = 15_000) {
 }
 
 test.describe("LITIGAGENT Gate L1", () => {
+  test.beforeEach(async ({ page }) => {
+    await setupAuth(page);
+  });
+
   test("full journey: upload multiple files, see text, navigate between files", async ({ page }) => {
     test.slow(); // This test uploads multiple files and waits for extraction
 

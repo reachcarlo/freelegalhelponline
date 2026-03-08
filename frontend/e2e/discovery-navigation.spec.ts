@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import {
+  setupAuth,
   fillCaseInfo,
   clickNext,
   clickBack,
@@ -11,6 +12,10 @@ import {
 } from "./helpers/wizard-helpers";
 
 test.describe("Discovery navigation", () => {
+  test.beforeEach(async ({ page }) => {
+    await setupAuth(page);
+  });
+
   test("breadcrumb visible in FROG wizard", async ({ page }) => {
     await page.goto("/tools/discovery/frogs-general");
     await expect(page.getByTestId("breadcrumb-discovery")).toBeVisible();

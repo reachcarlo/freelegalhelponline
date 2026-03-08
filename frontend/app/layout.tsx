@@ -3,7 +3,9 @@ import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ConsentProvider } from "@/lib/consent-context";
 import { ModeProvider } from "@/lib/mode-context";
+import { AuthProvider } from "@/lib/auth-context";
 import Disclaimer from "@/components/disclaimer";
+import UserMenu from "@/components/user-menu";
 import "./globals.css";
 
 const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
@@ -65,10 +67,13 @@ export default function RootLayout({
       >
         <ConsentProvider>
           <ModeProvider>
-            <div className="flex h-dvh flex-col overflow-hidden">
-              <main className="flex-1 flex flex-col min-h-0">{children}</main>
-              <Disclaimer />
-            </div>
+            <AuthProvider>
+              <div className="flex h-dvh flex-col overflow-hidden">
+                <UserMenu />
+                <main className="flex-1 flex flex-col min-h-0">{children}</main>
+                <Disclaimer />
+              </div>
+            </AuthProvider>
           </ModeProvider>
         </ConsentProvider>
       </body>

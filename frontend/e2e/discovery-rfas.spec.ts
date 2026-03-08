@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import {
+  setupAuth,
   fillCaseInfo,
   clickNext,
   selectClaims,
@@ -17,6 +18,7 @@ import {
 
 test.describe("Requests for Admission (RFAs)", () => {
   test.beforeEach(async ({ page }) => {
+    await setupAuth(page);
     await page.goto("/tools/discovery/request-admission");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       "Requests for Admission"

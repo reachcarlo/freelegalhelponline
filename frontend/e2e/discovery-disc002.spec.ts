@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import {
+  setupAuth,
   fillCaseInfo,
   clickNext,
   selectClaims,
@@ -17,6 +18,7 @@ import {
 
 test.describe("DISC-002 (Form Interrogatories - Employment)", () => {
   test.beforeEach(async ({ page }) => {
+    await setupAuth(page);
     await page.goto("/tools/discovery/frogs-employment");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       "Form Interrogatories"

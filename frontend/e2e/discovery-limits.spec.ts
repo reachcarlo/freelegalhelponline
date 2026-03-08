@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import {
+  setupAuth,
   fillCaseInfo,
   clickNext,
   selectClaims,
@@ -11,6 +12,10 @@ import {
 import { isDocx, getDocxPlainText } from "./helpers/doc-validator";
 
 test.describe("35-limit enforcement and Declaration of Necessity", () => {
+  test.beforeEach(async ({ page }) => {
+    await setupAuth(page);
+  });
+
   test("SROGs: selecting all categories shows declaration warning when over 35", async ({
     page,
   }) => {

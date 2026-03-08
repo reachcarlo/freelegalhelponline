@@ -1,8 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { fillCaseInfo, clickNext, selectClaims } from "./helpers/wizard-helpers";
+import { setupAuth, fillCaseInfo, clickNext, selectClaims } from "./helpers/wizard-helpers";
 
 test.describe("Mobile viewport (375x812)", () => {
   test.use({ viewport: { width: 375, height: 812 } });
+
+  test.beforeEach(async ({ page }) => {
+    await setupAuth(page);
+  });
 
   test("discovery index page displays correctly", async ({ page }) => {
     await page.goto("/tools/discovery");

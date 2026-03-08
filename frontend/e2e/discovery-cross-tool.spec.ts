@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import {
+  setupAuth,
   fillCaseInfo,
   clickNext,
   selectClaims,
@@ -7,6 +8,10 @@ import {
 } from "./helpers/wizard-helpers";
 
 test.describe("Cross-tool state reset", () => {
+  test.beforeEach(async ({ page }) => {
+    await setupAuth(page);
+  });
+
   test("navigating to a new tool starts with empty case info", async ({
     page,
   }) => {

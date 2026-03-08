@@ -2,6 +2,7 @@ import { test, expect, Page } from "@playwright/test";
 import path from "path";
 import fs from "fs";
 import os from "os";
+import { setupAuth } from "./helpers/wizard-helpers";
 
 function createTempFile(name: string, content: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "litigagent-e2e-"));
@@ -45,6 +46,10 @@ async function expectTextInPanel(page: Page, text: string, timeout = 15_000) {
 }
 
 test.describe("LITIGAGENT Text Panel (L1.11)", () => {
+  test.beforeEach(async ({ page }) => {
+    await setupAuth(page);
+  });
+
   test("shows empty state when no files uploaded", async ({ page }) => {
     await createCaseAndNavigate(page, "TextPanel Empty Test");
 

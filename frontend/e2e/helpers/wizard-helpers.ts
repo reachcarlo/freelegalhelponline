@@ -2,7 +2,46 @@
  * Shared helpers for interacting with discovery wizard UI in E2E tests.
  */
 
-import { type Page, expect } from "@playwright/test";
+import { type Page, type BrowserContext, expect } from "@playwright/test";
+
+/** Mock user for authenticated E2E tests. */
+const MOCK_AUTH_USER = {
+  id: "e2e-test-user",
+  email: "e2e@lawfirm.com",
+  display_name: "E2E Attorney",
+  avatar_url: null,
+  provider: "google",
+  organization: {
+    id: "e2e-test-org",
+    name: "E2E Attorney",
+    slug: "user-e2e00001",
+    plan_tier: "individual",
+  },
+  role: "owner",
+};
+
+/**
+ * Set up an authenticated session for E2E tests.
+ * Mocks /api/auth/me and sets the access_token cookie so the proxy passes.
+ */
+export async function setupAuth(page: Page): Promise<void> {
+  await page.route("**/api/auth/me", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(MOCK_AUTH_USER),
+    })
+  );
+
+  await page.context().addCookies([
+    {
+      name: "access_token",
+      value: "e2e-mock-token",
+      domain: "localhost",
+      path: "/",
+    },
+  ]);
+}
 
 /** Standard case info for all wizard tests. */
 export const TEST_CASE_INFO = {

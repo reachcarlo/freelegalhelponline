@@ -2,6 +2,7 @@ import { test, expect, Page } from "@playwright/test";
 import path from "path";
 import fs from "fs";
 import os from "os";
+import { setupAuth } from "./helpers/wizard-helpers";
 
 /**
  * Helper: create a temporary file with given name and content.
@@ -32,6 +33,10 @@ async function createCaseAndNavigate(page: Page, name: string): Promise<string> 
 }
 
 test.describe("LITIGAGENT File Upload (L1.10)", () => {
+  test.beforeEach(async ({ page }) => {
+    await setupAuth(page);
+  });
+
   test("shows empty state with upload prompt", async ({ page }) => {
     await createCaseAndNavigate(page, "Empty Upload Test");
 

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { setupAuth } from "./helpers/wizard-helpers";
 
 /**
  * Mock API responses for the objection drafter wizard.
@@ -173,6 +174,7 @@ State your total income for the past five years.`;
 
 test.describe("Objection Drafter", () => {
   test.beforeEach(async ({ page }) => {
+    await setupAuth(page);
     await page.goto("/tools/discovery/objection-drafter");
   });
 

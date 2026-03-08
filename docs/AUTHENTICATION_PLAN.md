@@ -1,6 +1,6 @@
 # Authentication & User Accounts: Implementation Plan
 
-> **Status**: In Progress (A1.1, A1.2, A1.3, A1.4 complete)
+> **Status**: In Progress (A1.1, A1.2, A1.3, A1.4, A1.5 complete)
 > **Created**: 2026-03-07
 > **GTM Strategy**: Bottom-up PLG (individual attorneys) → enterprise upsell (their firms)
 > **Auth Providers**: Google OIDC + Microsoft OIDC (no email/password, no local credentials)
@@ -552,7 +552,7 @@ async def auth_middleware(request: Request, call_next):
 
 **Gate**: Unauthenticated request to `/api/cases` returns 401. Authenticated request to `/api/cases` succeeds. Unauthenticated request to `/api/ask` succeeds (public).
 
-### A1.5 — Frontend Auth Flow
+### A1.5 — Frontend Auth Flow ✅ COMPLETE (2026-03-07)
 
 **Files to create/modify:**
 - `frontend/app/login/page.tsx` — Login page with Google/Microsoft buttons

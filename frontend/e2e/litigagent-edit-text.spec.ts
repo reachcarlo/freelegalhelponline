@@ -2,6 +2,7 @@ import { test, expect, Page } from "@playwright/test";
 import path from "path";
 import fs from "fs";
 import os from "os";
+import { setupAuth } from "./helpers/wizard-helpers";
 
 function createTempFile(name: string, content: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "litigagent-edit-"));
@@ -28,6 +29,10 @@ async function uploadFileAndWaitReady(page: Page, filePath: string): Promise<voi
 }
 
 test.describe("LITIGAGENT Editable Text Panel (L2.1)", () => {
+  test.beforeEach(async ({ page }) => {
+    await setupAuth(page);
+  });
+
   test("text area is editable for ready files", async ({ page }) => {
     await createCaseAndNavigate(page, "Edit Text Test");
     const tempFile = createTempFile("editable.txt", "Original content here.");

@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import {
+  setupAuth,
   fillCaseInfo,
   clickNext,
   clickBack,
@@ -23,6 +24,10 @@ async function selectDefendantRole(page: import("@playwright/test").Page) {
 }
 
 test.describe("Defendant-side discovery flows", () => {
+  test.beforeEach(async ({ page }) => {
+    await setupAuth(page);
+  });
+
   test("defendant SROGs — defendant categories appear, bank loads", async ({
     page,
   }) => {
