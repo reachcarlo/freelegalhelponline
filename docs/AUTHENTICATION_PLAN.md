@@ -1,6 +1,6 @@
 # Authentication & User Accounts: Implementation Plan
 
-> **Status**: In Progress (A1.1 complete)
+> **Status**: In Progress (A1.1, A1.2 complete)
 > **Created**: 2026-03-07
 > **GTM Strategy**: Bottom-up PLG (individual attorneys) → enterprise upsell (their firms)
 > **Auth Providers**: Google OIDC + Microsoft OIDC (no email/password, no local credentials)
@@ -406,7 +406,7 @@ No Google SDK, no Microsoft SDK, no MSAL. Pure OIDC. The protocol is standardize
 
 **Gate**: Unit tests pass for both providers (mocked). `AuthStorage` CRUD tests pass against test SQLite.
 
-### A1.2 — Session Management
+### A1.2 — Session Management ✅ COMPLETE (2026-03-07)
 
 **Files to create/modify:**
 - `src/employee_help/auth/session.py` — `SessionManager` class

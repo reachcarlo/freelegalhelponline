@@ -223,6 +223,14 @@ class AuthStorage:
         ).fetchone()
         return self._row_to_session(row) if row else None
 
+    def find_session_by_refresh_hash(self, token_hash: str) -> AuthSession | None:
+        """Find a session by its refresh token hash."""
+        row = self._conn.execute(
+            "SELECT * FROM sessions WHERE refresh_token_hash = ?",
+            (token_hash,),
+        ).fetchone()
+        return self._row_to_session(row) if row else None
+
     def update_session_last_used(self, session_id: str) -> None:
         """Update the last_used_at timestamp for a session."""
         now = datetime.now(tz=UTC).isoformat()
