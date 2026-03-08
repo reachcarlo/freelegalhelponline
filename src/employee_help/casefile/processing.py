@@ -6,7 +6,7 @@ import asyncio
 import hashlib
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -20,7 +20,11 @@ from employee_help.casefile.extractors.registry import ExtractorRegistry
 from employee_help.casefile.extractors.text import PlainTextExtractor
 from employee_help.casefile.extractors.xlsx import ExcelExtractor
 from employee_help.storage.case_storage import CaseStorage
-from employee_help.storage.models import FileType, ProcessingStatus
+from employee_help.storage.models import CaseChunk, FileType, ProcessingStatus
+
+if TYPE_CHECKING:
+    from employee_help.casefile.case_vector_store import CaseVectorStore
+    from employee_help.retrieval.embedder import EmbeddingService
 
 logger = structlog.get_logger(__name__)
 
@@ -125,19 +129,103 @@ def unregister_sse_client(case_id: str, q: asyncio.Queue) -> None:
         _status_queues.pop(case_id, None)
 
 
+async def _chunk_and_embed(
+    text: str,
+    filename: str,
+    file_type: FileType,
+    file_id: str,
+    case_id: str,
+    case_storage: CaseStorage,
+    embedder: EmbeddingService,
+    case_vector_store: CaseVectorStore,
+) -> int:
+    """Chunk text, embed chunks, store in SQLite + LanceDB.
+
+    SQLite operations run in the async thread (same thread as the connection).
+    CPU-intensive embedding runs in a thread pool executor.
+    Returns the number of chunks created.
+    """
+    from employee_help.casefile.case_vector_store import CaseChunkEmbedding
+    from employee_help.casefile.chunker import chunk_case_file
+
+    chunk_results = chunk_case_file(
+        edited_text=text,
+        filename=filename,
+        file_type=file_type,
+    )
+
+    if not chunk_results:
+        return 0
+
+    # Convert ChunkResult → CaseChunk for SQLite
+    case_chunks: list[CaseChunk] = []
+    for cr in chunk_results:
+        case_chunks.append(
+            CaseChunk(
+                file_id=file_id,
+                case_id=case_id,
+                chunk_index=cr.chunk_index,
+                content=cr.content,
+                heading_path=cr.heading_path,
+                token_count=cr.token_count,
+                content_hash=cr.content_hash,
+            )
+        )
+
+    # SQLite operations (in async thread — safe for same-thread connection)
+    case_storage.delete_case_chunks_for_file(file_id)
+    case_storage.insert_case_chunks(case_chunks)
+
+    # Embed all chunks (CPU-intensive — run in thread pool)
+    texts = [c.content for c in case_chunks]
+    loop = asyncio.get_event_loop()
+    embedding_results = await loop.run_in_executor(
+        None, embedder.embed_batch, texts
+    )
+
+    # Build LanceDB records
+    file_type_str = file_type.value if hasattr(file_type, "value") else str(file_type)
+    case_embeddings: list[CaseChunkEmbedding] = []
+    for chunk, emb_result in zip(case_chunks, embedding_results):
+        case_embeddings.append(
+            CaseChunkEmbedding(
+                chunk_id=chunk.id,
+                file_id=file_id,
+                case_id=case_id,
+                content=chunk.content,
+                heading_path=chunk.heading_path,
+                dense_vector=emb_result.dense_vector,
+                content_hash=chunk.content_hash,
+                is_active=True,
+                file_type=file_type_str,
+                original_filename=filename,
+            )
+        )
+
+    # Delete old embeddings, upsert new ones, rebuild FTS
+    case_vector_store.delete_file_embeddings(file_id)
+    case_vector_store.upsert_embeddings(case_embeddings)
+    case_vector_store.rebuild_fts_index()
+
+    return len(case_chunks)
+
+
 async def process_file(
     case_storage: CaseStorage,
     file_id: str,
     case_id: str,
+    embedder: EmbeddingService | None = None,
+    case_vector_store: CaseVectorStore | None = None,
 ) -> None:
-    """Background task: extract text from an uploaded file.
+    """Background task: extract text from an uploaded file, then chunk + embed.
 
     1. Update status to PROCESSING
     2. Read file from disk
     3. Resolve extractor via registry
     4. Extract text
     5. Store extracted_text + edited_text (status: READY)
-    6. Broadcast SSE event
+    6. Chunk + embed + store in LanceDB (if embedder provided)
+    7. Broadcast SSE event
     """
     log = logger.bind(file_id=file_id, case_id=case_id)
 
@@ -212,11 +300,39 @@ async def process_file(
             warnings=result.warnings,
         )
 
+        # Chunk + embed (if embedding services are available)
+        chunk_count = 0
+        if text and embedder is not None and case_vector_store is not None:
+            try:
+                chunk_count = await _chunk_and_embed(
+                    text,
+                    cf.original_filename,
+                    cf.file_type,
+                    file_id,
+                    case_id,
+                    case_storage,
+                    embedder,
+                    case_vector_store,
+                )
+                log.info(
+                    "file_embedded",
+                    filename=cf.original_filename,
+                    chunk_count=chunk_count,
+                )
+            except Exception as emb_exc:
+                # Embedding failure doesn't block file readiness
+                log.error(
+                    "file_embedding_failed",
+                    error=str(emb_exc),
+                    exc_info=True,
+                )
+
         await broadcast_status(case_id, {
             "file_id": file_id,
             "status": "ready",
             "ocr_confidence": result.ocr_confidence,
             "page_count": result.page_count,
+            "chunk_count": chunk_count,
         })
 
     except Exception as exc:

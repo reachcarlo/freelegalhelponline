@@ -8,7 +8,7 @@ import mimetypes
 from pathlib import Path
 
 import structlog
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
 from employee_help.api.casefile_schemas import (
@@ -54,6 +54,13 @@ def _get_case_storage():
     from employee_help.api.deps import get_case_storage
 
     return get_case_storage()
+
+
+def _get_embedding_deps():
+    """Get embedding service + case vector store (may be None)."""
+    from employee_help.api.deps import get_case_vector_store, get_embedding_service
+
+    return get_embedding_service(), get_case_vector_store()
 
 
 # ── Helpers ───────────────────────────────────────────────────────
@@ -124,10 +131,18 @@ def _note_response(note: CaseNote) -> NoteResponse:
     )
 
 
-def _require_case(case_id: str) -> Case:
-    """Fetch a case or raise 404."""
+def _require_user(request: Request):
+    """Extract authenticated user from request or raise 401."""
+    user = getattr(request.state, "user", None)
+    if user is None:
+        raise HTTPException(401, "Authentication required")
+    return user
+
+
+def _require_case(case_id: str, *, user_id: str | None = None) -> Case:
+    """Fetch a case owned by user_id, or raise 404 (never 403 — don't leak existence)."""
     storage = _get_case_storage()
-    case = storage.get_case(case_id)
+    case = storage.get_case(case_id, user_id=user_id)
     if case is None:
         raise HTTPException(404, f"Case not found: {case_id}")
     return case
@@ -141,20 +156,27 @@ def _sse_event(event: str, data: dict) -> str:
 
 
 @casefile_router.post("", response_model=CaseResponse, status_code=201)
-async def create_case(body: CreateCaseRequest):
+async def create_case(body: CreateCaseRequest, request: Request):
     """Create a new case."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    case = Case(name=body.name, description=body.description)
+    case = Case(
+        name=body.name,
+        user_id=user.sub,
+        organization_id=user.org,
+        description=body.description,
+    )
     case = storage.create_case(case)
     logger.info("case_created", case_id=case.id, name=case.name)
     return _case_response(case)
 
 
 @casefile_router.get("", response_model=CaseListResponse)
-async def list_cases(status: str | None = None):
+async def list_cases(request: Request, status: str | None = None):
     """List all cases, optionally filtered by status."""
     from employee_help.storage.models import CaseStatus
 
+    user = _require_user(request)
     storage = _get_case_storage()
     filter_status = None
     if status:
@@ -162,7 +184,7 @@ async def list_cases(status: str | None = None):
             filter_status = CaseStatus(status)
         except ValueError:
             raise HTTPException(400, f"Invalid status: {status}")
-    cases = storage.list_cases(status=filter_status)
+    cases = storage.list_cases(user_id=user.sub, status=filter_status)
     results = []
     for c in cases:
         file_count = len(storage.list_case_files(c.id))
@@ -171,19 +193,21 @@ async def list_cases(status: str | None = None):
 
 
 @casefile_router.get("/{case_id}", response_model=CaseResponse)
-async def get_case(case_id: str):
+async def get_case(case_id: str, request: Request):
     """Get case details."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    case = _require_case(case_id)
+    case = _require_case(case_id, user_id=user.sub)
     file_count = len(storage.list_case_files(case_id))
     return _case_response(case, file_count=file_count)
 
 
 @casefile_router.patch("/{case_id}", response_model=CaseResponse)
-async def update_case(case_id: str, body: UpdateCaseRequest):
+async def update_case(case_id: str, body: UpdateCaseRequest, request: Request):
     """Update case name and/or description."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    _require_case(case_id)
+    _require_case(case_id, user_id=user.sub)
 
     kwargs: dict = {}
     if body.name is not None:
@@ -191,7 +215,7 @@ async def update_case(case_id: str, body: UpdateCaseRequest):
     if body.description is not None:
         kwargs["description"] = body.description
 
-    updated = storage.update_case(case_id, **kwargs)
+    updated = storage.update_case(case_id, user_id=user.sub, **kwargs)
     if updated is None:
         raise HTTPException(404, f"Case not found: {case_id}")
 
@@ -201,10 +225,12 @@ async def update_case(case_id: str, body: UpdateCaseRequest):
 
 
 @casefile_router.delete("/{case_id}", status_code=204)
-async def archive_case(case_id: str):
+async def archive_case(case_id: str, request: Request):
     """Archive a case (soft delete)."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    success = storage.archive_case(case_id)
+    _require_case(case_id, user_id=user.sub)
+    success = storage.archive_case(case_id, user_id=user.sub)
     if not success:
         raise HTTPException(404, f"Case not found: {case_id}")
     logger.info("case_archived", case_id=case_id)
@@ -216,10 +242,11 @@ async def archive_case(case_id: str):
 @casefile_router.post(
     "/{case_id}/files", response_model=FileUploadResponse, status_code=201
 )
-async def upload_files(case_id: str, files: list[UploadFile] = File(...)):
+async def upload_files(case_id: str, request: Request, files: list[UploadFile] = File(...)):
     """Upload one or more files to a case. Processing happens in the background."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    _require_case(case_id)
+    _require_case(case_id, user_id=user.sub)
 
     if not files:
         raise HTTPException(400, "No files provided")
@@ -278,8 +305,11 @@ async def upload_files(case_id: str, files: list[UploadFile] = File(...)):
         cf = storage.create_case_file(cf)
         results.append(_file_response(cf))
 
-        # Launch background processing
-        asyncio.create_task(process_file(storage, cf.id, case_id))
+        # Launch background processing (with embedding if available)
+        embedder, cvs = _get_embedding_deps()
+        asyncio.create_task(
+            process_file(storage, cf.id, case_id, embedder, cvs)
+        )
 
         logger.info(
             "file_uploaded",
@@ -293,10 +323,11 @@ async def upload_files(case_id: str, files: list[UploadFile] = File(...)):
 
 
 @casefile_router.get("/{case_id}/files", response_model=list[CaseFileResponse])
-async def list_files(case_id: str):
+async def list_files(case_id: str, request: Request):
     """List all files in a case."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    _require_case(case_id)
+    _require_case(case_id, user_id=user.sub)
     files = storage.list_case_files(case_id)
     return [_file_response(f) for f in files]
 
@@ -304,10 +335,11 @@ async def list_files(case_id: str):
 @casefile_router.get(
     "/{case_id}/files/{file_id}", response_model=CaseFileDetailResponse
 )
-async def get_file(case_id: str, file_id: str):
+async def get_file(case_id: str, file_id: str, request: Request):
     """Get file details including extracted/edited text."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    _require_case(case_id)
+    _require_case(case_id, user_id=user.sub)
     cf = storage.get_case_file(file_id)
     if cf is None or cf.case_id != case_id:
         raise HTTPException(404, f"File not found: {file_id}")
@@ -317,10 +349,11 @@ async def get_file(case_id: str, file_id: str):
 @casefile_router.patch(
     "/{case_id}/files/{file_id}", response_model=CaseFileDetailResponse
 )
-async def update_file_text(case_id: str, file_id: str, body: UpdateFileTextRequest):
+async def update_file_text(case_id: str, file_id: str, body: UpdateFileTextRequest, request: Request):
     """Update the edited text for a file."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    _require_case(case_id)
+    _require_case(case_id, user_id=user.sub)
 
     cf = storage.get_case_file(file_id)
     if cf is None or cf.case_id != case_id:
@@ -338,10 +371,11 @@ async def update_file_text(case_id: str, file_id: str, body: UpdateFileTextReque
 
 
 @casefile_router.delete("/{case_id}/files/{file_id}", status_code=204)
-async def delete_file(case_id: str, file_id: str):
+async def delete_file(case_id: str, file_id: str, request: Request):
     """Remove a file from a case."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    _require_case(case_id)
+    _require_case(case_id, user_id=user.sub)
 
     cf = storage.get_case_file(file_id)
     if cf is None or cf.case_id != case_id:
@@ -351,6 +385,11 @@ async def delete_file(case_id: str, file_id: str):
     storage_path = Path(cf.storage_path)
     if storage_path.exists():
         storage_path.unlink()
+
+    # Delete embeddings from LanceDB
+    _, cvs = _get_embedding_deps()
+    if cvs is not None:
+        cvs.delete_file_embeddings(file_id)
 
     # Delete chunks first, then file
     storage.delete_case_chunks_for_file(file_id)
@@ -362,10 +401,11 @@ async def delete_file(case_id: str, file_id: str):
     "/{case_id}/files/{file_id}/reprocess",
     response_model=CaseFileResponse,
 )
-async def reprocess_file(case_id: str, file_id: str):
+async def reprocess_file(case_id: str, file_id: str, request: Request):
     """Re-extract text from a file."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    _require_case(case_id)
+    _require_case(case_id, user_id=user.sub)
 
     cf = storage.get_case_file(file_id)
     if cf is None or cf.case_id != case_id:
@@ -374,8 +414,11 @@ async def reprocess_file(case_id: str, file_id: str):
     # Reset status to QUEUED
     storage.update_case_file_status(file_id, ProcessingStatus.QUEUED)
 
-    # Relaunch background processing
-    asyncio.create_task(process_file(storage, file_id, case_id))
+    # Relaunch background processing (with embedding if available)
+    embedder, cvs = _get_embedding_deps()
+    asyncio.create_task(
+        process_file(storage, file_id, case_id, embedder, cvs)
+    )
 
     # Refetch for response
     cf = storage.get_case_file(file_id)
@@ -384,10 +427,11 @@ async def reprocess_file(case_id: str, file_id: str):
 
 
 @casefile_router.get("/{case_id}/files/{file_id}/download")
-async def download_file(case_id: str, file_id: str):
+async def download_file(case_id: str, file_id: str, request: Request):
     """Download the original uploaded file."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    _require_case(case_id)
+    _require_case(case_id, user_id=user.sub)
 
     cf = storage.get_case_file(file_id)
     if cf is None or cf.case_id != case_id:
@@ -408,9 +452,10 @@ async def download_file(case_id: str, file_id: str):
 
 
 @casefile_router.get("/{case_id}/status-stream")
-async def status_stream(case_id: str):
+async def status_stream(case_id: str, request: Request):
     """SSE endpoint for real-time file processing status updates."""
-    _require_case(case_id)
+    user = _require_user(request)
+    _require_case(case_id, user_id=user.sub)
 
     queue = register_sse_client(case_id)
 
@@ -447,10 +492,11 @@ async def status_stream(case_id: str):
 @casefile_router.post(
     "/{case_id}/notes", response_model=NoteResponse, status_code=201
 )
-async def create_note(case_id: str, body: CreateNoteRequest):
+async def create_note(case_id: str, body: CreateNoteRequest, request: Request):
     """Create a note on a case (optionally linked to a file)."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    _require_case(case_id)
+    _require_case(case_id, user_id=user.sub)
 
     # Validate file_id if provided
     if body.file_id:
@@ -469,10 +515,11 @@ async def create_note(case_id: str, body: CreateNoteRequest):
 
 
 @casefile_router.get("/{case_id}/notes", response_model=NoteListResponse)
-async def list_notes(case_id: str, file_id: str | None = None):
+async def list_notes(case_id: str, request: Request, file_id: str | None = None):
     """List notes for a case, optionally filtered by file_id."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    _require_case(case_id)
+    _require_case(case_id, user_id=user.sub)
     notes = storage.list_notes(case_id, file_id=file_id)
     return NoteListResponse(notes=[_note_response(n) for n in notes])
 
@@ -480,10 +527,11 @@ async def list_notes(case_id: str, file_id: str | None = None):
 @casefile_router.patch(
     "/{case_id}/notes/{note_id}", response_model=NoteResponse
 )
-async def update_note(case_id: str, note_id: str, body: UpdateNoteRequest):
+async def update_note(case_id: str, note_id: str, body: UpdateNoteRequest, request: Request):
     """Update a note's content."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    _require_case(case_id)
+    _require_case(case_id, user_id=user.sub)
 
     note = storage.get_note(note_id)
     if note is None or note.case_id != case_id:
@@ -498,10 +546,11 @@ async def update_note(case_id: str, note_id: str, body: UpdateNoteRequest):
 
 
 @casefile_router.delete("/{case_id}/notes/{note_id}", status_code=204)
-async def delete_note(case_id: str, note_id: str):
+async def delete_note(case_id: str, note_id: str, request: Request):
     """Delete a note."""
+    user = _require_user(request)
     storage = _get_case_storage()
-    _require_case(case_id)
+    _require_case(case_id, user_id=user.sub)
 
     note = storage.get_note(note_id)
     if note is None or note.case_id != case_id:

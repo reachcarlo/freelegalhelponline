@@ -1351,7 +1351,7 @@ With 100 files, total text could be 500K+ words (2M+ tokens). This doesn't fit i
 | Task | Description | Priority |
 |------|------------|----------|
 | L3.1 | CaseFileChunker: page-aware chunking for case files | P0 DONE |
-| L3.2 | Case file embedding: chunk, embed, store in `case_embeddings` | P0 |
+| L3.2 | Case file embedding: chunk, embed, store in `case_embeddings` | P0 DONE |
 | L3.3 | Re-embedding on text edit (debounced background task) | P0 |
 | L3.4 | CaseChatService: dual-context retrieval (case files + knowledge base) | P0 |
 | L3.5 | casefile_system.j2 prompt template | P0 |

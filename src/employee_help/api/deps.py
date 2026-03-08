@@ -18,6 +18,8 @@ _retrieval_service = None
 _answer_service = None
 _feedback_store = None
 _case_storage = None
+_embedding_service = None
+_case_vector_store = None
 _auth_storage = None
 _session_manager = None
 _google_provider = None
@@ -36,6 +38,7 @@ def _load_rag_config() -> dict:
 def init_services() -> None:
     """Initialize all services. Called once at FastAPI startup."""
     global _retrieval_service, _answer_service, _feedback_store, _case_storage
+    global _embedding_service, _case_vector_store
 
     from employee_help.generation.llm import LLMClient
     from employee_help.generation.prompts import PromptBuilder
@@ -54,6 +57,7 @@ def init_services() -> None:
         model_name=emb_cfg.get("model", "BAAI/bge-base-en-v1.5"),
         device=emb_cfg.get("device", "cpu"),
     )
+    _embedding_service = embedding_service
 
     vs_cfg = rag_config.get("vector_store", {})
     vector_store = VectorStore(
@@ -133,6 +137,13 @@ def init_services() -> None:
 
     _case_storage = CaseStorage(db_path="data/employee_help.db")
 
+    # Initialize case vector store (LITIGAGENT L3.2)
+    from employee_help.casefile.case_vector_store import CaseVectorStore
+
+    _case_vector_store = CaseVectorStore(
+        db_path=vs_cfg.get("path", "data/lancedb"),
+    )
+
     # Initialize auth services
     _init_auth_services()
 
@@ -144,7 +155,13 @@ def init_services() -> None:
 
 
 def _init_auth_services() -> None:
-    """Initialize auth-related services (providers, storage, session manager)."""
+    """Initialize auth-related services (providers, storage, session manager).
+
+    Raises:
+        RuntimeError: If AUTH_JWT_SECRET is not set. This is a required
+            environment variable — the application cannot serve authenticated
+            requests without it.
+    """
     global _auth_storage, _session_manager, _google_provider, _microsoft_provider
 
     import os
@@ -157,15 +174,19 @@ def _init_auth_services() -> None:
 
     jwt_secret = os.environ.get("AUTH_JWT_SECRET")
     if not jwt_secret:
-        logger.warning(
-            "auth_jwt_secret_missing",
-            msg="AUTH_JWT_SECRET not set — auth endpoints will not work",
+        raise RuntimeError(
+            "AUTH_JWT_SECRET is required but not set. "
+            'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
         )
-        return
+
+    access_ttl = int(os.environ.get("AUTH_ACCESS_TOKEN_TTL", "900"))
+    refresh_ttl = int(os.environ.get("AUTH_REFRESH_TOKEN_TTL", "604800"))
 
     _session_manager = SessionManager(
         auth_storage=_auth_storage,
         jwt_secret=jwt_secret,
+        access_token_ttl=access_ttl,
+        refresh_token_ttl=refresh_ttl,
     )
 
     # Google OAuth (optional — only if credentials configured)
@@ -190,12 +211,17 @@ def _init_auth_services() -> None:
     else:
         logger.info("microsoft_oauth_not_configured")
 
-    logger.info("auth_services_initialized")
+    logger.info(
+        "auth_services_initialized",
+        access_token_ttl=access_ttl,
+        refresh_token_ttl=refresh_ttl,
+    )
 
 
 def shutdown_services() -> None:
     """Clean up services. Called at FastAPI shutdown."""
     global _retrieval_service, _answer_service, _feedback_store, _case_storage
+    global _embedding_service, _case_vector_store
     global _auth_storage, _session_manager, _google_provider, _microsoft_provider
     if _feedback_store is not None:
         _feedback_store.close()
@@ -207,6 +233,8 @@ def shutdown_services() -> None:
     _answer_service = None
     _feedback_store = None
     _case_storage = None
+    _embedding_service = None
+    _case_vector_store = None
     _auth_storage = None
     _session_manager = None
     _google_provider = None
@@ -238,6 +266,16 @@ def get_case_storage():
     if _case_storage is None:
         raise RuntimeError("Case storage not initialized. Is the server starting up?")
     return _case_storage
+
+
+def get_embedding_service():
+    """Return the EmbeddingService singleton (may be None)."""
+    return _embedding_service
+
+
+def get_case_vector_store():
+    """Return the CaseVectorStore singleton (may be None)."""
+    return _case_vector_store
 
 
 def get_conversation_config() -> dict:
