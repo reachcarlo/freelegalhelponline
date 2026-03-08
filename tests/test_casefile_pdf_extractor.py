@@ -100,13 +100,13 @@ class TestPDFTextExtraction:
         assert result.warnings == []
 
     @patch("employee_help.casefile.extractors.pdf.pdfplumber")
-    def test_pages_joined_with_double_newline(self, mock_pdfplumber):
+    def test_pages_joined_with_form_feed(self, mock_pdfplumber):
         pdf_ctx = _make_pdf_context([_make_page("A" * 60), _make_page("B" * 60)])
         mock_pdfplumber.open.return_value = pdf_ctx
 
         result = PDFExtractor().extract(b"fake", "joined.pdf")
 
-        parts = result.text.split("\n\n")
+        parts = result.text.split("\f")
         assert len(parts) == 2
 
     @patch("employee_help.casefile.extractors.pdf.pdfplumber")

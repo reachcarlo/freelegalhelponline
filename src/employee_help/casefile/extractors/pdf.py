@@ -82,7 +82,7 @@ class PDFExtractor(FileExtractor):
                             f"Page {i}: no text extracted (scanned page? enable OCR)"
                         )
 
-        full_text = "\n\n".join(pages_text)
+        full_text = "\f".join(pages_text)
         avg_confidence = (
             sum(ocr_confidences) / len(ocr_confidences) if ocr_confidences else None
         )
