@@ -1,3 +1,29 @@
+# =============================================================================
+# Deployment Architecture
+# =============================================================================
+#
+# Deploy flow:
+#   PR created -> CI runs (backend-tests + frontend-checks) + Vercel preview
+#   -> Code review + approve -> Merge to master
+#   -> Railway auto-deploys backend, Vercel auto-deploys frontend
+#   -> verify-deployment job checks health endpoints
+#
+# Rollback - Backend (Railway):
+#   Option A: Railway dashboard > Deployments > "Rollback" on previous deploy
+#   Option B: git revert <commit> && git push (triggers new auto-deploy)
+#
+# Rollback - Frontend (Vercel):
+#   Option A: Vercel dashboard > Deployments > "..." > "Promote to Production"
+#   Option B: git revert <commit> && git push (triggers new auto-deploy)
+#
+# Emergency: Both Railway and Vercel support instant rollback via dashboards
+# without waiting for CI.
+#
+# Required repo variables (Settings > Variables > Repository variables):
+#   BACKEND_URL  - Production backend URL (e.g. https://api.example.com)
+#   FRONTEND_URL - Production frontend URL (e.g. https://example.com)
+# =============================================================================
+
 name: CI
 
 on:
@@ -26,13 +52,20 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync --group dev --extra rag --extra web
+        run: uv sync --group dev --extra rag --extra web --extra casefile
 
       - name: Run tests
-        run: uv run pytest --tb=short -q
+        run: uv run pytest --tb=short -q --cov --cov-report=term-missing --cov-report=xml
 
-  frontend-build:
-    name: Frontend Build
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  frontend-checks:
+    name: Frontend Checks
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -50,41 +83,104 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Type-check
+        run: npx tsc --noEmit
+
       - name: Lint
         run: npm run lint
 
       - name: Build
         run: npm run build
 
-  deploy-staging:
-    name: Deploy to Staging
-    needs: [backend-tests, frontend-build]
+  verify-deployment:
+    name: Verify Deployment
+    needs: [backend-tests, frontend-checks]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    environment: staging
+    steps:
+      - name: Wait for deploy propagation
+        run: sleep 60
+
+      - name: Check backend health
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ vars.BACKEND_URL }}/api/health" || echo "000")
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::Backend health check returned $STATUS"
+          fi
+
+      - name: Check frontend
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ vars.FRONTEND_URL }}" || echo "000")
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::Frontend health check returned $STATUS"
+          fi
+
+  e2e-tests:
+    name: E2E Tests
+    needs: [backend-tests, frontend-checks]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to staging
-        run: echo "Staging deployment placeholder — configure with your hosting provider"
-        # TODO: Replace with actual deployment steps (e.g., fly deploy, vercel, railway)
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
 
-  deploy-production:
-    name: Deploy to Production
-    needs: [deploy-staging]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    environment:
-      name: production
-      # Manual approval gate — configure required reviewers in GitHub repo settings:
-      # Settings > Environments > production > Required reviewers
-    steps:
-      - uses: actions/checkout@v4
+      - name: Set up Python
+        run: uv python install 3.12
 
-      - name: Deploy to production
-        run: echo "Production deployment placeholder — configure with your hosting provider"
-        # TODO: Replace with actual deployment steps
+      - name: Install backend deps
+        run: uv sync --group dev --extra rag --extra web --extra casefile
 
-      - name: Verify deployment
-        run: echo "Health check placeholder"
-        # TODO: curl health endpoint after deploy
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install chromium --with-deps
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start backend
+        run: uv run uvicorn employee_help.api.main:app --port 8000 &
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Start frontend
+        working-directory: frontend
+        run: npm run start &
+        env:
+          BACKEND_URL: http://127.0.0.1:8000
+
+      - name: Wait for services
+        run: |
+          timeout 30 bash -c 'until curl -s http://127.0.0.1:3000 > /dev/null; do sleep 1; done'
+          timeout 30 bash -c 'until curl -s http://127.0.0.1:8000/api/health > /dev/null; do sleep 1; done'
+
+      - name: Run Playwright tests
+        working-directory: frontend
+        run: npx playwright test
+        env:
+          BASE_URL: http://127.0.0.1:3000
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          if-no-files-found: ignore
