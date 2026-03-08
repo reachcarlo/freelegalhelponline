@@ -1329,19 +1329,19 @@ With 100 files, total text could be 500K+ words (2M+ tokens). This doesn't fit i
 
 | Task | Description | Priority |
 |------|------------|----------|
-| L2.1 | Frontend: editable text panel (Panel 2) with debounced save | P0 | **DONE** |
-| L2.2 | API: PATCH file edited_text endpoint | P0 |
-| L2.3 | Frontend: notes panel (Panel 3) with case notes + file-specific notes | P0 |
-| L2.4 | API: notes CRUD endpoints | P0 |
-| L2.5 | Frontend: click-to-navigate (Panel 1 → Panel 2) with smooth scroll | P0 |
+| L2.1 | Frontend: editable text panel (Panel 2) with debounced save | P0 DONE |
+| L2.2 | API: PATCH file edited_text endpoint | P0 DONE (L1.8) |
+| L2.3 | Frontend: notes panel (Panel 3) with case notes + file-specific notes | P0 DONE (L1.9) |
+| L2.4 | API: notes CRUD endpoints | P0 DONE (L1.8) |
+| L2.5 | Frontend: click-to-navigate (Panel 1 → Panel 2) with smooth scroll | P0 DONE (L1.11) |
 | L2.6 | ExcelExtractor (XLSX/CSV as markdown tables) | P1 |
 | L2.7 | ImageExtractor (OCR with confidence reporting) | P1 |
 | L2.8 | OCR confidence indicators in Panel 2 | P1 |
 | L2.9 | Frontend: file search and filter in Panel 1 | P1 |
 | L2.10 | Frontend: Panel 2 text search (Ctrl+F) | P1 |
-| L2.11 | Background processing with asyncio.create_task | P0 |
-| L2.12 | SSE status stream for real-time processing updates | P0 |
-| L2.13 | Tests: editing, notes, search, background processing | P0 |
+| L2.11 | Background processing with asyncio.create_task | P0 DONE (L1.8) |
+| L2.12 | SSE status stream for real-time processing updates | P0 DONE (L1.8) |
+| L2.13 | Tests: editing, notes, search, background processing | P0 DONE (L2.1) |
 
 **Gate L2:** Full three-panel UX working. Upload 50 files, edit text, add notes, navigate, search. All 7 file types extracting correctly.
 
