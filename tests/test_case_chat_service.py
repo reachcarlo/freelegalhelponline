@@ -1,10 +1,11 @@
-"""Tests for CaseChatService (L3.4): dual-context retrieval.
+"""Tests for CaseChatService (L3.4/L3.5): dual-context retrieval + template.
 
 Tests cover:
 - Dual retrieval (case files + KB)
 - Case notes fetching with filename resolution
 - Document block building for Citations API
 - System prompt generation (fallback + template)
+- casefile_system.j2 template rendering (integration)
 - Streaming generation (single-turn + multi-turn)
 - Short follow-up query expansion
 - Empty results handling
@@ -823,3 +824,115 @@ class TestGenerateStreamMultiturn:
         assert meta[0]["input_tokens"] == 200
         assert meta[0]["output_tokens"] == 100
         assert meta[0]["model"] == "claude-sonnet-4-6"
+
+
+# ── TestCasefileSystemTemplate ──────────────────────────────────
+
+
+class TestCasefileSystemTemplate:
+    """Integration tests: render the real casefile_system.j2 template."""
+
+    @pytest.fixture()
+    def prompt_builder(self):
+        from employee_help.generation.prompts import PromptBuilder
+
+        return PromptBuilder(prompts_dir="config/prompts")
+
+    def test_template_loads(self, prompt_builder):
+        text = prompt_builder._load_template("casefile_system.j2")
+        assert "LITIGAGENT" in text
+
+    def test_render_without_notes(self, prompt_builder):
+        text = prompt_builder._load_template("casefile_system.j2")
+        rendered = prompt_builder._render_template(text, case_notes=[])
+
+        assert "LITIGAGENT" in rendered
+        assert "Case Files" in rendered
+        assert "Legal Research" in rendered
+        assert "does not constitute legal advice" in rendered
+        # No notes section when empty
+        assert "Attorney Notes" not in rendered
+
+    def test_render_with_general_note(self, prompt_builder):
+        text = prompt_builder._load_template("casefile_system.j2")
+        notes = [{"content": "Key witness is John Smith", "filename": None, "file_id": None}]
+        rendered = prompt_builder._render_template(text, case_notes=notes)
+
+        assert "Attorney Notes" in rendered
+        assert "[General Case Note]" in rendered
+        assert "Key witness is John Smith" in rendered
+
+    def test_render_with_file_note(self, prompt_builder):
+        text = prompt_builder._load_template("casefile_system.j2")
+        notes = [{"content": "OCR quality is poor", "filename": "scan.pdf", "file_id": "f1"}]
+        rendered = prompt_builder._render_template(text, case_notes=notes)
+
+        assert "[Note for: scan.pdf]" in rendered
+        assert "OCR quality is poor" in rendered
+
+    def test_render_with_multiple_notes(self, prompt_builder):
+        text = prompt_builder._load_template("casefile_system.j2")
+        notes = [
+            {"content": "Plaintiff was terminated", "filename": None, "file_id": None},
+            {"content": "See page 3", "filename": "complaint.pdf", "file_id": "f1"},
+            {"content": "Contract is ambiguous", "filename": "contract.docx", "file_id": "f2"},
+        ]
+        rendered = prompt_builder._render_template(text, case_notes=notes)
+
+        assert "[General Case Note]" in rendered
+        assert "Plaintiff was terminated" in rendered
+        assert "[Note for: complaint.pdf]" in rendered
+        assert "[Note for: contract.docx]" in rendered
+
+    def test_template_contains_citation_guidance(self, prompt_builder):
+        text = prompt_builder._load_template("casefile_system.j2")
+        rendered = prompt_builder._render_template(text, case_notes=[])
+
+        assert "Citation Format" in rendered
+        assert "Cal. Lab. Code" in rendered
+        assert "Only cite" in rendered
+
+    def test_template_contains_analysis_framework(self, prompt_builder):
+        text = prompt_builder._load_template("casefile_system.j2")
+        rendered = prompt_builder._render_template(text, case_notes=[])
+
+        assert "Analysis Framework" in rendered
+        assert "facts" in rendered.lower()
+        assert "legal analysis" in rendered.lower()
+
+    def test_template_contains_work_product_section(self, prompt_builder):
+        text = prompt_builder._load_template("casefile_system.j2")
+        rendered = prompt_builder._render_template(text, case_notes=[])
+
+        assert "Work Product" in rendered
+        assert "factual foundation" in rendered
+
+    def test_attorney_notes_conditional_instruction(self, prompt_builder):
+        """When notes are present, the analysis framework should mention them."""
+        text = prompt_builder._load_template("casefile_system.j2")
+
+        # Without notes: no mention of attorney's notes in analysis
+        rendered_no_notes = prompt_builder._render_template(text, case_notes=[])
+        assert "professional judgment" not in rendered_no_notes
+
+        # With notes: mentions attorney's professional judgment
+        rendered_with_notes = prompt_builder._render_template(
+            text,
+            case_notes=[{"content": "Note", "filename": None, "file_id": None}],
+        )
+        assert "professional judgment" in rendered_with_notes
+
+    def test_end_to_end_with_case_chat_service(self, prompt_builder):
+        """CaseChatService.build_case_system_prompt uses the real template."""
+        svc = _make_case_chat_service()
+        svc.prompt_builder = prompt_builder
+
+        notes = [
+            {"content": "Key evidence on page 5", "filename": "exhibit_a.pdf", "file_id": "f1"},
+        ]
+        prompt = svc.build_case_system_prompt(notes)
+
+        assert "LITIGAGENT" in prompt
+        assert "[Note for: exhibit_a.pdf]" in prompt
+        assert "Key evidence on page 5" in prompt
+        assert "does not constitute legal advice" in prompt
