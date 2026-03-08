@@ -1,8 +1,9 @@
-"""Tests for CaseVectorStore and case file embedding pipeline (L3.2)."""
+"""Tests for CaseVectorStore, embedding pipeline (L3.2), and re-embedding (L3.3)."""
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -670,3 +671,326 @@ class TestProcessFileEmbedding:
         assert "chunk_count" in ready_events[0]
         assert ready_events[0]["chunk_count"] >= 1
         cs.close()
+
+
+# --- L3.3: Debounced re-embedding on text edit ---
+
+
+class TestScheduleReembed:
+    """Tests for schedule_reembed debounced re-embedding (L3.3)."""
+
+    @pytest.mark.asyncio
+    async def test_reembed_fires_after_debounce(self, case_storage, tmp_path):
+        """Re-embed task runs after debounce delay."""
+        from employee_help.casefile.processing import (
+            REEMBED_DEBOUNCE_SECONDS,
+            _reembed_tasks,
+            schedule_reembed,
+        )
+        from employee_help.retrieval.embedder import EmbeddingResult
+
+        case = case_storage.create_case(
+            Case(name="Test", user_id="u1", organization_id="o1")
+        )
+        cf = case_storage.create_case_file(CaseFile(
+            case_id=case.id,
+            original_filename="doc.txt",
+            file_type=FileType.TXT,
+            mime_type="text/plain",
+            file_size_bytes=100,
+            storage_path="/tmp/doc.txt",
+            upload_order=0,
+        ))
+        # Simulate text already extracted and edited
+        case_storage.update_case_file_text(
+            cf.id,
+            extracted_text="Original text content here.",
+            edited_text="Edited text content that is different.",
+            content_hash="h1",
+        )
+
+        mock_embedder = MagicMock()
+        mock_embedder.embed_batch.return_value = [
+            EmbeddingResult(dense_vector=[0.1] * 768),
+        ]
+        cvs = CaseVectorStore(db_path=str(tmp_path / "lance"))
+
+        # Patch debounce to 0.1s for test speed
+        with patch(
+            "employee_help.casefile.processing.REEMBED_DEBOUNCE_SECONDS", 0.1
+        ):
+            schedule_reembed(cf.id, case.id, case_storage, mock_embedder, cvs)
+
+            # Task should be pending
+            assert cf.id in _reembed_tasks
+
+            # Wait for debounce + execution
+            await asyncio.sleep(0.5)
+
+        # Embeddings should have been created
+        mock_embedder.embed_batch.assert_called_once()
+        assert case_storage.get_case_chunk_count(case.id) >= 1
+
+    @pytest.mark.asyncio
+    async def test_reembed_debounce_cancels_previous(self, case_storage, tmp_path):
+        """Rapid calls cancel previous pending task — only last one runs."""
+        from employee_help.casefile.processing import (
+            _reembed_tasks,
+            schedule_reembed,
+        )
+        from employee_help.retrieval.embedder import EmbeddingResult
+
+        case = case_storage.create_case(
+            Case(name="Test", user_id="u1", organization_id="o1")
+        )
+        cf = case_storage.create_case_file(CaseFile(
+            case_id=case.id,
+            original_filename="doc.txt",
+            file_type=FileType.TXT,
+            mime_type="text/plain",
+            file_size_bytes=100,
+            storage_path="/tmp/doc.txt",
+            upload_order=0,
+        ))
+
+        mock_embedder = MagicMock()
+        mock_embedder.embed_batch.return_value = [
+            EmbeddingResult(dense_vector=[0.1] * 768),
+        ]
+        cvs = CaseVectorStore(db_path=str(tmp_path / "lance"))
+
+        with patch(
+            "employee_help.casefile.processing.REEMBED_DEBOUNCE_SECONDS", 0.3
+        ):
+            # First edit
+            case_storage.update_case_file_text(
+                cf.id, edited_text="First edit.", content_hash="h1"
+            )
+            schedule_reembed(cf.id, case.id, case_storage, mock_embedder, cvs)
+            first_task = _reembed_tasks.get(cf.id)
+
+            # Second edit before debounce expires
+            await asyncio.sleep(0.1)
+            case_storage.update_case_file_text(
+                cf.id, edited_text="Second edit replaces first.", content_hash="h2"
+            )
+            schedule_reembed(cf.id, case.id, case_storage, mock_embedder, cvs)
+
+            # Give cancelled task a tick to finish, then wait for second task
+            await asyncio.sleep(0.8)
+
+        # First task was replaced — it finished without embedding
+        assert first_task.done()
+
+        # Only one embed call (from the second schedule)
+        assert mock_embedder.embed_batch.call_count == 1
+
+        # Verify it embedded the second version
+        chunks = case_storage.get_case_chunks(file_id=cf.id)
+        assert len(chunks) >= 1
+        assert "Second edit" in chunks[0].content
+
+    @pytest.mark.asyncio
+    async def test_reembed_empty_text_clears_embeddings(self, case_storage, tmp_path):
+        """Re-embed with empty text clears old embeddings."""
+        from employee_help.casefile.processing import schedule_reembed
+        from employee_help.retrieval.embedder import EmbeddingResult
+
+        case = case_storage.create_case(
+            Case(name="Test", user_id="u1", organization_id="o1")
+        )
+        cf = case_storage.create_case_file(CaseFile(
+            case_id=case.id,
+            original_filename="doc.txt",
+            file_type=FileType.TXT,
+            mime_type="text/plain",
+            file_size_bytes=100,
+            storage_path="/tmp/doc.txt",
+            upload_order=0,
+        ))
+
+        mock_embedder = MagicMock()
+        mock_embedder.embed_batch.return_value = [
+            EmbeddingResult(dense_vector=[0.1] * 768),
+        ]
+        cvs = CaseVectorStore(db_path=str(tmp_path / "lance"))
+
+        # First, embed some text
+        case_storage.update_case_file_text(
+            cf.id, extracted_text="Some text.", edited_text="Some text.", content_hash="h1"
+        )
+        with patch(
+            "employee_help.casefile.processing.REEMBED_DEBOUNCE_SECONDS", 0.1
+        ):
+            schedule_reembed(cf.id, case.id, case_storage, mock_embedder, cvs)
+            await asyncio.sleep(0.5)
+
+        assert case_storage.get_case_chunk_count(case.id) >= 1
+
+        # Now clear text
+        case_storage.update_case_file_text(
+            cf.id, edited_text="", content_hash=None
+        )
+        with patch(
+            "employee_help.casefile.processing.REEMBED_DEBOUNCE_SECONDS", 0.1
+        ):
+            schedule_reembed(cf.id, case.id, case_storage, mock_embedder, cvs)
+            await asyncio.sleep(0.5)
+
+        # Chunks should be cleared
+        assert case_storage.get_case_chunk_count(case.id) == 0
+
+    @pytest.mark.asyncio
+    async def test_reembed_broadcasts_status(self, case_storage, tmp_path):
+        """Re-embed broadcasts SSE 'reembedded' event."""
+        from employee_help.casefile.processing import (
+            register_sse_client,
+            schedule_reembed,
+            unregister_sse_client,
+        )
+        from employee_help.retrieval.embedder import EmbeddingResult
+
+        case = case_storage.create_case(
+            Case(name="Test", user_id="u1", organization_id="o1")
+        )
+        cf = case_storage.create_case_file(CaseFile(
+            case_id=case.id,
+            original_filename="doc.txt",
+            file_type=FileType.TXT,
+            mime_type="text/plain",
+            file_size_bytes=100,
+            storage_path="/tmp/doc.txt",
+            upload_order=0,
+        ))
+        case_storage.update_case_file_text(
+            cf.id, extracted_text="Original.", edited_text="Edited version.", content_hash="h1"
+        )
+
+        mock_embedder = MagicMock()
+        mock_embedder.embed_batch.return_value = [
+            EmbeddingResult(dense_vector=[0.1] * 768),
+        ]
+        cvs = CaseVectorStore(db_path=str(tmp_path / "lance"))
+
+        q = register_sse_client(case.id)
+
+        with patch(
+            "employee_help.casefile.processing.REEMBED_DEBOUNCE_SECONDS", 0.1
+        ):
+            schedule_reembed(cf.id, case.id, case_storage, mock_embedder, cvs)
+            await asyncio.sleep(0.5)
+
+        events = []
+        while not q.empty():
+            events.append(q.get_nowait())
+        unregister_sse_client(case.id, q)
+
+        reembed_events = [e for e in events if e.get("status") == "reembedded"]
+        assert len(reembed_events) == 1
+        assert reembed_events[0]["file_id"] == cf.id
+        assert "chunk_count" in reembed_events[0]
+
+    @pytest.mark.asyncio
+    async def test_reembed_file_not_found(self, case_storage, tmp_path):
+        """Re-embed for deleted file exits gracefully."""
+        from employee_help.casefile.processing import schedule_reembed
+
+        mock_embedder = MagicMock()
+        cvs = CaseVectorStore(db_path=str(tmp_path / "lance"))
+
+        with patch(
+            "employee_help.casefile.processing.REEMBED_DEBOUNCE_SECONDS", 0.1
+        ):
+            # Schedule for non-existent file
+            schedule_reembed("nonexistent", "case1", case_storage, mock_embedder, cvs)
+            await asyncio.sleep(0.5)
+
+        # Should not crash, embedder should not be called
+        mock_embedder.embed_batch.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_reembed_error_broadcasts_error_status(self, case_storage, tmp_path):
+        """Re-embed failure broadcasts 'reembed_error' event."""
+        from employee_help.casefile.processing import (
+            register_sse_client,
+            schedule_reembed,
+            unregister_sse_client,
+        )
+
+        case = case_storage.create_case(
+            Case(name="Test", user_id="u1", organization_id="o1")
+        )
+        cf = case_storage.create_case_file(CaseFile(
+            case_id=case.id,
+            original_filename="doc.txt",
+            file_type=FileType.TXT,
+            mime_type="text/plain",
+            file_size_bytes=100,
+            storage_path="/tmp/doc.txt",
+            upload_order=0,
+        ))
+        case_storage.update_case_file_text(
+            cf.id, extracted_text="Original.", edited_text="Edited.", content_hash="h1"
+        )
+
+        mock_embedder = MagicMock()
+        mock_embedder.embed_batch.side_effect = RuntimeError("GPU OOM")
+        cvs = CaseVectorStore(db_path=str(tmp_path / "lance"))
+
+        q = register_sse_client(case.id)
+
+        with patch(
+            "employee_help.casefile.processing.REEMBED_DEBOUNCE_SECONDS", 0.1
+        ):
+            schedule_reembed(cf.id, case.id, case_storage, mock_embedder, cvs)
+            await asyncio.sleep(0.5)
+
+        events = []
+        while not q.empty():
+            events.append(q.get_nowait())
+        unregister_sse_client(case.id, q)
+
+        error_events = [e for e in events if e.get("status") == "reembed_error"]
+        assert len(error_events) == 1
+        assert "GPU OOM" in error_events[0]["message"]
+
+    @pytest.mark.asyncio
+    async def test_reembed_task_cleanup(self, case_storage, tmp_path):
+        """Completed task is removed from _reembed_tasks dict."""
+        from employee_help.casefile.processing import (
+            _reembed_tasks,
+            schedule_reembed,
+        )
+        from employee_help.retrieval.embedder import EmbeddingResult
+
+        case = case_storage.create_case(
+            Case(name="Test", user_id="u1", organization_id="o1")
+        )
+        cf = case_storage.create_case_file(CaseFile(
+            case_id=case.id,
+            original_filename="doc.txt",
+            file_type=FileType.TXT,
+            mime_type="text/plain",
+            file_size_bytes=100,
+            storage_path="/tmp/doc.txt",
+            upload_order=0,
+        ))
+        case_storage.update_case_file_text(
+            cf.id, extracted_text="Orig.", edited_text="Edit.", content_hash="h1"
+        )
+
+        mock_embedder = MagicMock()
+        mock_embedder.embed_batch.return_value = [
+            EmbeddingResult(dense_vector=[0.1] * 768),
+        ]
+        cvs = CaseVectorStore(db_path=str(tmp_path / "lance"))
+
+        with patch(
+            "employee_help.casefile.processing.REEMBED_DEBOUNCE_SECONDS", 0.1
+        ):
+            schedule_reembed(cf.id, case.id, case_storage, mock_embedder, cvs)
+            assert cf.id in _reembed_tasks
+            await asyncio.sleep(0.5)
+
+        # After completion, entry should be cleaned up
+        assert cf.id not in _reembed_tasks

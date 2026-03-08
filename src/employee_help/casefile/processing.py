@@ -62,6 +62,12 @@ _status_queues: dict[str, list[asyncio.Queue]] = defaultdict(list)
 # Singleton registry
 _registry: ExtractorRegistry | None = None
 
+# Debounced re-embed tasks: file_id → asyncio.Task
+_reembed_tasks: dict[str, asyncio.Task] = {}
+
+# Re-embed debounce delay (seconds)
+REEMBED_DEBOUNCE_SECONDS = 5
+
 
 def get_file_type(extension: str) -> FileType | None:
     """Map a file extension to a FileType enum value."""
@@ -127,6 +133,101 @@ def unregister_sse_client(case_id: str, q: asyncio.Queue) -> None:
         clients.remove(q)
     if not clients:
         _status_queues.pop(case_id, None)
+
+
+# ── Debounced re-embedding on text edit ──────────────────────────
+
+
+def schedule_reembed(
+    file_id: str,
+    case_id: str,
+    case_storage: CaseStorage,
+    embedder: EmbeddingService,
+    case_vector_store: CaseVectorStore,
+) -> None:
+    """Schedule a debounced re-embed for a file after text editing.
+
+    Cancels any pending re-embed for the same file_id, then schedules
+    a new one after REEMBED_DEBOUNCE_SECONDS. This coalesces rapid edits
+    into a single re-embedding operation.
+    """
+    # Cancel existing pending task for this file
+    existing = _reembed_tasks.pop(file_id, None)
+    if existing is not None and not existing.done():
+        existing.cancel()
+
+    task = asyncio.create_task(
+        _reembed_file(
+            file_id, case_id, case_storage, embedder, case_vector_store
+        )
+    )
+    _reembed_tasks[file_id] = task
+
+    # Clean up dict entry when task completes
+    task.add_done_callback(lambda _t: _reembed_tasks.pop(file_id, None))
+
+
+async def _reembed_file(
+    file_id: str,
+    case_id: str,
+    case_storage: CaseStorage,
+    embedder: EmbeddingService,
+    case_vector_store: CaseVectorStore,
+) -> None:
+    """Wait for debounce period, then re-chunk and re-embed edited text."""
+    log = logger.bind(file_id=file_id, case_id=case_id)
+
+    try:
+        await asyncio.sleep(REEMBED_DEBOUNCE_SECONDS)
+    except asyncio.CancelledError:
+        log.debug("reembed_cancelled")
+        return
+
+    try:
+        # Reload file to get latest edited_text
+        cf = case_storage.get_case_file(file_id)
+        if cf is None:
+            log.warning("reembed_file_not_found")
+            return
+
+        text = (cf.edited_text or "").strip()
+        if not text:
+            # No text to embed — clear old embeddings
+            case_vector_store.delete_file_embeddings(file_id)
+            case_storage.delete_case_chunks_for_file(file_id)
+            log.info("reembed_cleared_empty_text")
+            await broadcast_status(case_id, {
+                "file_id": file_id,
+                "status": "reembedded",
+                "chunk_count": 0,
+            })
+            return
+
+        chunk_count = await _chunk_and_embed(
+            text,
+            cf.original_filename,
+            cf.file_type,
+            file_id,
+            case_id,
+            case_storage,
+            embedder,
+            case_vector_store,
+        )
+
+        log.info("reembed_complete", chunk_count=chunk_count)
+        await broadcast_status(case_id, {
+            "file_id": file_id,
+            "status": "reembedded",
+            "chunk_count": chunk_count,
+        })
+
+    except Exception as exc:
+        log.error("reembed_failed", error=str(exc), exc_info=True)
+        await broadcast_status(case_id, {
+            "file_id": file_id,
+            "status": "reembed_error",
+            "message": str(exc),
+        })
 
 
 async def _chunk_and_embed(

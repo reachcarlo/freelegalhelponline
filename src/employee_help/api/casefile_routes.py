@@ -35,6 +35,7 @@ from employee_help.casefile.processing import (
     process_file,
     register_sse_client,
     save_upload,
+    schedule_reembed,
     unregister_sse_client,
 )
 from employee_help.storage.models import (
@@ -365,6 +366,11 @@ async def update_file_text(case_id: str, file_id: str, body: UpdateFileTextReque
     )
     if updated is None:
         raise HTTPException(404, f"File not found: {file_id}")
+
+    # Schedule debounced re-embedding if text changed (L3.3)
+    embedder, cvs = _get_embedding_deps()
+    if updated.text_dirty and embedder is not None and cvs is not None:
+        schedule_reembed(file_id, case_id, storage, embedder, cvs)
 
     logger.info("file_text_updated", case_id=case_id, file_id=file_id)
     return _file_detail_response(updated)

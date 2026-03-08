@@ -56,6 +56,7 @@ CORS_ORIGINS = os.environ.get(
     "http://localhost:3000,http://127.0.0.1:3000",
 ).split(",")
 
+# Anonymous (IP-based) rate limits
 RATE_LIMIT_MAX = int(os.environ.get("RATE_LIMIT_MAX", "5"))
 RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))
 FEEDBACK_RATE_LIMIT_MAX = int(os.environ.get("FEEDBACK_RATE_LIMIT_MAX", "10"))
@@ -71,6 +72,15 @@ OBJECTION_GENERATE_RATE_LIMIT_MAX = int(os.environ.get("OBJECTION_GENERATE_RATE_
 CASEFILE_UPLOAD_RATE_LIMIT_MAX = int(os.environ.get("CASEFILE_UPLOAD_RATE_LIMIT_MAX", "20"))
 DAILY_QUERY_BUDGET = int(os.environ.get("DAILY_QUERY_BUDGET", "500"))
 
+# Authenticated (user-based) rate limits — higher tiers
+AUTH_RATE_LIMIT_MAX = int(os.environ.get("AUTH_RATE_LIMIT_MAX", "20"))
+AUTH_INTAKE_SUMMARY_RATE_LIMIT_MAX = int(os.environ.get("AUTH_INTAKE_SUMMARY_RATE_LIMIT_MAX", "15"))
+AUTH_OBJECTION_GENERATE_RATE_LIMIT_MAX = int(os.environ.get("AUTH_OBJECTION_GENERATE_RATE_LIMIT_MAX", "15"))
+AUTH_OBJECTION_PARSE_RATE_LIMIT_MAX = int(os.environ.get("AUTH_OBJECTION_PARSE_RATE_LIMIT_MAX", "30"))
+AUTH_DISCOVERY_RATE_LIMIT_MAX = int(os.environ.get("AUTH_DISCOVERY_RATE_LIMIT_MAX", "50"))
+AUTH_CASEFILE_UPLOAD_RATE_LIMIT_MAX = int(os.environ.get("AUTH_CASEFILE_UPLOAD_RATE_LIMIT_MAX", "50"))
+AUTH_DAILY_QUERY_BUDGET = int(os.environ.get("AUTH_DAILY_QUERY_BUDGET", "2000"))
+
 # --- In-memory rate limit state ---
 
 _rate_limit_store: dict[str, list[float]] = defaultdict(list)
@@ -85,7 +95,9 @@ _discovery_rate_store: dict[str, list[float]] = defaultdict(list)
 _objection_parse_rate_store: dict[str, list[float]] = defaultdict(list)
 _objection_generate_rate_store: dict[str, list[float]] = defaultdict(list)
 _casefile_upload_rate_store: dict[str, list[float]] = defaultdict(list)
-_daily_budget: dict[str, int] = {"date": "", "count": 0}  # type: ignore[dict-item]
+_daily_budget_store: dict[str, dict] = defaultdict(
+    lambda: {"date": "", "count": 0}
+)
 
 
 def _get_client_ip(request: Request) -> str:
@@ -105,19 +117,47 @@ def _prune_stale_entries(store: dict[str, list[float]], window: int) -> None:
         del store[key]
 
 
-def _check_daily_budget() -> tuple[bool, int]:
+def _check_daily_budget(budget_key: str, limit: int) -> tuple[bool, int]:
     """Check if daily query budget is exceeded. Returns (allowed, remaining)."""
     today = datetime.now(UTC).strftime("%Y-%m-%d")
-    if _daily_budget["date"] != today:
-        _daily_budget["date"] = today
-        _daily_budget["count"] = 0
-    remaining = DAILY_QUERY_BUDGET - int(_daily_budget["count"])
+    bucket = _daily_budget_store[budget_key]
+    if bucket["date"] != today:
+        bucket["date"] = today
+        bucket["count"] = 0
+    remaining = limit - int(bucket["count"])
     return remaining > 0, max(remaining, 0)
 
 
-def _increment_daily_budget() -> None:
-    """Increment today's query count."""
-    _daily_budget["count"] = int(_daily_budget["count"]) + 1
+def _increment_daily_budget(budget_key: str) -> None:
+    """Increment today's query count for the given budget key."""
+    _daily_budget_store[budget_key]["count"] = (
+        int(_daily_budget_store[budget_key]["count"]) + 1
+    )
+
+
+def _check_rate_limit(
+    store: dict[str, list[float]],
+    key: str,
+    limit: int,
+    window: int,
+    now: float,
+) -> tuple[bool, int, float]:
+    """Check and record a rate limit hit.
+
+    Returns (allowed, remaining, reset_at).
+    """
+    store[key] = [t for t in store[key] if now - t < window]
+    count = len(store[key])
+    reset_at = now + window
+
+    if count >= limit:
+        return False, 0, store[key][0] + window
+
+    store[key].append(now)
+    if len(store) > 100:
+        _prune_stale_entries(store, window)
+
+    return True, limit - count - 1, reset_at
 
 
 def _rate_limit_headers(
@@ -129,6 +169,26 @@ def _rate_limit_headers(
         "X-RateLimit-Remaining": str(max(remaining, 0)),
         "X-RateLimit-Reset": str(int(reset_at)),
     }
+
+
+def _rate_limit_response(message: str, limit: int, reset_at: float) -> Response:
+    """Build a 429 rate limit response."""
+    return Response(
+        content=f'{{"detail":"Rate limit exceeded. {message}"}}',
+        status_code=429,
+        media_type="application/json",
+        headers=_rate_limit_headers(limit, 0, reset_at),
+    )
+
+
+def _budget_exceeded_response() -> Response:
+    """Build a 429 daily budget exceeded response."""
+    return Response(
+        content='{"detail":"Daily query budget exceeded. Please try again tomorrow."}',
+        status_code=429,
+        media_type="application/json",
+        headers={"Retry-After": "3600"},
+    )
 
 
 # ── Auth middleware configuration ─────────────────────────────
@@ -152,6 +212,11 @@ def _get_rate_limit_key(request: Request) -> str:
     if user is not None:
         return f"user:{user.sub}"
     return _get_client_ip(request)
+
+
+def _is_authenticated(request: Request) -> bool:
+    """Check if the request has a valid authenticated user."""
+    return getattr(request.state, "user", None) is not None
 
 
 @asynccontextmanager
@@ -184,280 +249,164 @@ app.add_middleware(
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    """Rate limiting for /api/ask and /api/feedback."""
+    """Dual-mode rate limiting: authenticated users get higher limits."""
     now = time.time()
-    client_ip = _get_rate_limit_key(request)
+    key = _get_rate_limit_key(request)
+    is_auth = _is_authenticated(request)
 
-    # --- /api/ask rate limiting ---
+    # --- /api/ask rate limiting (LLM endpoint) ---
     if request.url.path == "/api/ask" and request.method == "POST":
-        # Check daily budget first
-        budget_ok, budget_remaining = _check_daily_budget()
+        budget_key = key if is_auth else "global"
+        daily_limit = AUTH_DAILY_QUERY_BUDGET if is_auth else DAILY_QUERY_BUDGET
+        budget_ok, _ = _check_daily_budget(budget_key, daily_limit)
         if not budget_ok:
-            return Response(
-                content='{"detail":"Daily query budget exceeded. Please try again tomorrow."}',
-                status_code=429,
-                media_type="application/json",
-                headers={"Retry-After": "3600"},
+            return _budget_exceeded_response()
+
+        limit = AUTH_RATE_LIMIT_MAX if is_auth else RATE_LIMIT_MAX
+        allowed, remaining, reset_at = _check_rate_limit(
+            _rate_limit_store, key, limit, RATE_LIMIT_WINDOW, now
+        )
+        if not allowed:
+            return _rate_limit_response(
+                "Please wait before asking another question.", limit, reset_at
             )
 
-        # Per-IP rate limiting
-        _rate_limit_store[client_ip] = [
-            t for t in _rate_limit_store[client_ip] if now - t < RATE_LIMIT_WINDOW
-        ]
-        count = len(_rate_limit_store[client_ip])
-        remaining = RATE_LIMIT_MAX - count
-        reset_at = now + RATE_LIMIT_WINDOW
-
-        if count >= RATE_LIMIT_MAX:
-            oldest = _rate_limit_store[client_ip][0]
-            reset_at = oldest + RATE_LIMIT_WINDOW
-            return Response(
-                content='{"detail":"Rate limit exceeded. Please wait before asking another question."}',
-                status_code=429,
-                media_type="application/json",
-                headers=_rate_limit_headers(RATE_LIMIT_MAX, 0, reset_at),
-            )
-
-        _rate_limit_store[client_ip].append(now)
-        _increment_daily_budget()
-        remaining -= 1
-
-        # Periodically prune stale entries
-        if len(_rate_limit_store) > 100:
-            _prune_stale_entries(_rate_limit_store, RATE_LIMIT_WINDOW)
+        _increment_daily_budget(budget_key)
 
         response = await call_next(request)
-        for k, v in _rate_limit_headers(RATE_LIMIT_MAX, remaining, reset_at).items():
+        for k, v in _rate_limit_headers(limit, remaining, reset_at).items():
             response.headers[k] = v
         return response
 
-    # --- /api/deadlines rate limiting ---
+    # --- /api/deadlines rate limiting (public calculator) ---
     if request.url.path == "/api/deadlines" and request.method == "POST":
-        _deadline_rate_store[client_ip] = [
-            t for t in _deadline_rate_store[client_ip] if now - t < 60
-        ]
-        count = len(_deadline_rate_store[client_ip])
-
-        if count >= DEADLINE_RATE_LIMIT_MAX:
-            oldest = _deadline_rate_store[client_ip][0]
-            return Response(
-                content='{"detail":"Rate limit exceeded. Please wait before making another calculation."}',
-                status_code=429,
-                media_type="application/json",
-                headers=_rate_limit_headers(DEADLINE_RATE_LIMIT_MAX, 0, oldest + 60),
+        allowed, _, reset_at = _check_rate_limit(
+            _deadline_rate_store, key, DEADLINE_RATE_LIMIT_MAX, 60, now
+        )
+        if not allowed:
+            return _rate_limit_response(
+                "Please wait before making another calculation.",
+                DEADLINE_RATE_LIMIT_MAX,
+                reset_at,
             )
 
-        _deadline_rate_store[client_ip].append(now)
-
-        if len(_deadline_rate_store) > 100:
-            _prune_stale_entries(_deadline_rate_store, 60)
-
-    # --- /api/agency-routing rate limiting ---
+    # --- /api/agency-routing rate limiting (public calculator) ---
     if request.url.path == "/api/agency-routing" and request.method == "POST":
-        _routing_rate_store[client_ip] = [
-            t for t in _routing_rate_store[client_ip] if now - t < 60
-        ]
-        count = len(_routing_rate_store[client_ip])
-
-        if count >= ROUTING_RATE_LIMIT_MAX:
-            oldest = _routing_rate_store[client_ip][0]
-            return Response(
-                content='{"detail":"Rate limit exceeded. Please wait before making another request."}',
-                status_code=429,
-                media_type="application/json",
-                headers=_rate_limit_headers(ROUTING_RATE_LIMIT_MAX, 0, oldest + 60),
+        allowed, _, reset_at = _check_rate_limit(
+            _routing_rate_store, key, ROUTING_RATE_LIMIT_MAX, 60, now
+        )
+        if not allowed:
+            return _rate_limit_response(
+                "Please wait before making another request.",
+                ROUTING_RATE_LIMIT_MAX,
+                reset_at,
             )
 
-        _routing_rate_store[client_ip].append(now)
-
-        if len(_routing_rate_store) > 100:
-            _prune_stale_entries(_routing_rate_store, 60)
-
-    # --- /api/unpaid-wages rate limiting ---
+    # --- /api/unpaid-wages rate limiting (public calculator) ---
     if request.url.path == "/api/unpaid-wages" and request.method == "POST":
-        _wages_rate_store[client_ip] = [
-            t for t in _wages_rate_store[client_ip] if now - t < 60
-        ]
-        count = len(_wages_rate_store[client_ip])
-
-        if count >= WAGES_RATE_LIMIT_MAX:
-            oldest = _wages_rate_store[client_ip][0]
-            return Response(
-                content='{"detail":"Rate limit exceeded. Please wait before making another calculation."}',
-                status_code=429,
-                media_type="application/json",
-                headers=_rate_limit_headers(WAGES_RATE_LIMIT_MAX, 0, oldest + 60),
+        allowed, _, reset_at = _check_rate_limit(
+            _wages_rate_store, key, WAGES_RATE_LIMIT_MAX, 60, now
+        )
+        if not allowed:
+            return _rate_limit_response(
+                "Please wait before making another calculation.",
+                WAGES_RATE_LIMIT_MAX,
+                reset_at,
             )
 
-        _wages_rate_store[client_ip].append(now)
-
-        if len(_wages_rate_store) > 100:
-            _prune_stale_entries(_wages_rate_store, 60)
-
-    # --- /api/incident-guide rate limiting ---
+    # --- /api/incident-guide rate limiting (public calculator) ---
     if request.url.path == "/api/incident-guide" and request.method == "POST":
-        _incident_guide_rate_store[client_ip] = [
-            t for t in _incident_guide_rate_store[client_ip] if now - t < 60
-        ]
-        count = len(_incident_guide_rate_store[client_ip])
-
-        if count >= INCIDENT_GUIDE_RATE_LIMIT_MAX:
-            oldest = _incident_guide_rate_store[client_ip][0]
-            return Response(
-                content='{"detail":"Rate limit exceeded. Please wait before making another request."}',
-                status_code=429,
-                media_type="application/json",
-                headers=_rate_limit_headers(INCIDENT_GUIDE_RATE_LIMIT_MAX, 0, oldest + 60),
+        allowed, _, reset_at = _check_rate_limit(
+            _incident_guide_rate_store, key, INCIDENT_GUIDE_RATE_LIMIT_MAX, 60, now
+        )
+        if not allowed:
+            return _rate_limit_response(
+                "Please wait before making another request.",
+                INCIDENT_GUIDE_RATE_LIMIT_MAX,
+                reset_at,
             )
 
-        _incident_guide_rate_store[client_ip].append(now)
-
-        if len(_incident_guide_rate_store) > 100:
-            _prune_stale_entries(_incident_guide_rate_store, 60)
-
-    # --- /api/intake rate limiting ---
+    # --- /api/intake rate limiting (public) ---
     if request.url.path == "/api/intake" and request.method == "POST":
-        _intake_rate_store[client_ip] = [
-            t for t in _intake_rate_store[client_ip] if now - t < 60
-        ]
-        count = len(_intake_rate_store[client_ip])
-
-        if count >= INTAKE_RATE_LIMIT_MAX:
-            oldest = _intake_rate_store[client_ip][0]
-            return Response(
-                content='{"detail":"Rate limit exceeded. Please wait before submitting another questionnaire."}',
-                status_code=429,
-                media_type="application/json",
-                headers=_rate_limit_headers(INTAKE_RATE_LIMIT_MAX, 0, oldest + 60),
+        allowed, _, reset_at = _check_rate_limit(
+            _intake_rate_store, key, INTAKE_RATE_LIMIT_MAX, 60, now
+        )
+        if not allowed:
+            return _rate_limit_response(
+                "Please wait before submitting another questionnaire.",
+                INTAKE_RATE_LIMIT_MAX,
+                reset_at,
             )
-
-        _intake_rate_store[client_ip].append(now)
-
-        if len(_intake_rate_store) > 100:
-            _prune_stale_entries(_intake_rate_store, 60)
 
     # --- /api/intake-summary rate limiting (LLM endpoint) ---
     if request.url.path == "/api/intake-summary" and request.method == "POST":
-        # Check daily budget first
-        budget_ok, budget_remaining = _check_daily_budget()
+        budget_key = key if is_auth else "global"
+        daily_limit = AUTH_DAILY_QUERY_BUDGET if is_auth else DAILY_QUERY_BUDGET
+        budget_ok, _ = _check_daily_budget(budget_key, daily_limit)
         if not budget_ok:
-            return Response(
-                content='{"detail":"Daily query budget exceeded. Please try again tomorrow."}',
-                status_code=429,
-                media_type="application/json",
-                headers={"Retry-After": "3600"},
+            return _budget_exceeded_response()
+
+        limit = AUTH_INTAKE_SUMMARY_RATE_LIMIT_MAX if is_auth else INTAKE_SUMMARY_RATE_LIMIT_MAX
+        allowed, remaining, reset_at = _check_rate_limit(
+            _intake_summary_rate_store, key, limit, RATE_LIMIT_WINDOW, now
+        )
+        if not allowed:
+            return _rate_limit_response(
+                "Please wait before requesting another summary.", limit, reset_at
             )
 
-        _intake_summary_rate_store[client_ip] = [
-            t for t in _intake_summary_rate_store[client_ip] if now - t < RATE_LIMIT_WINDOW
-        ]
-        count = len(_intake_summary_rate_store[client_ip])
-        remaining = INTAKE_SUMMARY_RATE_LIMIT_MAX - count
-        reset_at = now + RATE_LIMIT_WINDOW
-
-        if count >= INTAKE_SUMMARY_RATE_LIMIT_MAX:
-            oldest = _intake_summary_rate_store[client_ip][0]
-            reset_at = oldest + RATE_LIMIT_WINDOW
-            return Response(
-                content='{"detail":"Rate limit exceeded. Please wait before requesting another summary."}',
-                status_code=429,
-                media_type="application/json",
-                headers=_rate_limit_headers(INTAKE_SUMMARY_RATE_LIMIT_MAX, 0, reset_at),
-            )
-
-        _intake_summary_rate_store[client_ip].append(now)
-        _increment_daily_budget()
-        remaining -= 1
-
-        if len(_intake_summary_rate_store) > 100:
-            _prune_stale_entries(_intake_summary_rate_store, RATE_LIMIT_WINDOW)
+        _increment_daily_budget(budget_key)
 
         response = await call_next(request)
-        for k, v in _rate_limit_headers(INTAKE_SUMMARY_RATE_LIMIT_MAX, remaining, reset_at).items():
+        for k, v in _rate_limit_headers(limit, remaining, reset_at).items():
             response.headers[k] = v
         return response
 
     # --- /api/objections/generate rate limiting (LLM endpoint) ---
     if request.url.path == "/api/objections/generate" and request.method == "POST":
-        budget_ok, budget_remaining = _check_daily_budget()
+        budget_key = key if is_auth else "global"
+        daily_limit = AUTH_DAILY_QUERY_BUDGET if is_auth else DAILY_QUERY_BUDGET
+        budget_ok, _ = _check_daily_budget(budget_key, daily_limit)
         if not budget_ok:
-            return Response(
-                content='{"detail":"Daily query budget exceeded. Please try again tomorrow."}',
-                status_code=429,
-                media_type="application/json",
-                headers={"Retry-After": "3600"},
+            return _budget_exceeded_response()
+
+        limit = AUTH_OBJECTION_GENERATE_RATE_LIMIT_MAX if is_auth else OBJECTION_GENERATE_RATE_LIMIT_MAX
+        allowed, remaining, reset_at = _check_rate_limit(
+            _objection_generate_rate_store, key, limit, RATE_LIMIT_WINDOW, now
+        )
+        if not allowed:
+            return _rate_limit_response(
+                "Please wait before generating more objections.", limit, reset_at
             )
 
-        _objection_generate_rate_store[client_ip] = [
-            t for t in _objection_generate_rate_store[client_ip] if now - t < RATE_LIMIT_WINDOW
-        ]
-        count = len(_objection_generate_rate_store[client_ip])
-        remaining = OBJECTION_GENERATE_RATE_LIMIT_MAX - count
-        reset_at = now + RATE_LIMIT_WINDOW
-
-        if count >= OBJECTION_GENERATE_RATE_LIMIT_MAX:
-            oldest = _objection_generate_rate_store[client_ip][0]
-            reset_at = oldest + RATE_LIMIT_WINDOW
-            return Response(
-                content='{"detail":"Rate limit exceeded. Please wait before generating more objections."}',
-                status_code=429,
-                media_type="application/json",
-                headers=_rate_limit_headers(OBJECTION_GENERATE_RATE_LIMIT_MAX, 0, reset_at),
-            )
-
-        _objection_generate_rate_store[client_ip].append(now)
-        _increment_daily_budget()
-        remaining -= 1
-
-        if len(_objection_generate_rate_store) > 100:
-            _prune_stale_entries(_objection_generate_rate_store, RATE_LIMIT_WINDOW)
+        _increment_daily_budget(budget_key)
 
         response = await call_next(request)
-        for k, v in _rate_limit_headers(OBJECTION_GENERATE_RATE_LIMIT_MAX, remaining, reset_at).items():
+        for k, v in _rate_limit_headers(limit, remaining, reset_at).items():
             response.headers[k] = v
         return response
 
     # --- /api/objections/parse rate limiting ---
     if request.url.path == "/api/objections/parse" and request.method == "POST":
-        _objection_parse_rate_store[client_ip] = [
-            t for t in _objection_parse_rate_store[client_ip] if now - t < 60
-        ]
-        count = len(_objection_parse_rate_store[client_ip])
-
-        if count >= OBJECTION_PARSE_RATE_LIMIT_MAX:
-            oldest = _objection_parse_rate_store[client_ip][0]
-            return Response(
-                content='{"detail":"Rate limit exceeded. Please wait before parsing again."}',
-                status_code=429,
-                media_type="application/json",
-                headers=_rate_limit_headers(OBJECTION_PARSE_RATE_LIMIT_MAX, 0, oldest + 60),
+        limit = AUTH_OBJECTION_PARSE_RATE_LIMIT_MAX if is_auth else OBJECTION_PARSE_RATE_LIMIT_MAX
+        allowed, _, reset_at = _check_rate_limit(
+            _objection_parse_rate_store, key, limit, 60, now
+        )
+        if not allowed:
+            return _rate_limit_response(
+                "Please wait before parsing again.", limit, reset_at
             )
-
-        _objection_parse_rate_store[client_ip].append(now)
-
-        if len(_objection_parse_rate_store) > 100:
-            _prune_stale_entries(_objection_parse_rate_store, 60)
 
     # --- /api/discovery/* rate limiting ---
     if request.url.path.startswith("/api/discovery/") and request.method == "POST":
-        _discovery_rate_store[client_ip] = [
-            t for t in _discovery_rate_store[client_ip] if now - t < 60
-        ]
-        count = len(_discovery_rate_store[client_ip])
-
-        if count >= DISCOVERY_RATE_LIMIT_MAX:
-            oldest = _discovery_rate_store[client_ip][0]
-            return Response(
-                content='{"detail":"Rate limit exceeded. Please wait before generating another document."}',
-                status_code=429,
-                media_type="application/json",
-                headers=_rate_limit_headers(DISCOVERY_RATE_LIMIT_MAX, 0, oldest + 60),
+        limit = AUTH_DISCOVERY_RATE_LIMIT_MAX if is_auth else DISCOVERY_RATE_LIMIT_MAX
+        allowed, _, reset_at = _check_rate_limit(
+            _discovery_rate_store, key, limit, 60, now
+        )
+        if not allowed:
+            return _rate_limit_response(
+                "Please wait before generating another document.", limit, reset_at
             )
-
-        _discovery_rate_store[client_ip].append(now)
-
-        if len(_discovery_rate_store) > 100:
-            _prune_stale_entries(_discovery_rate_store, 60)
 
     # --- /api/cases/*/files upload rate limiting ---
     if (
@@ -465,45 +414,24 @@ async def rate_limit_middleware(request: Request, call_next):
         and request.url.path.startswith("/api/cases/")
         and request.url.path.endswith("/files")
     ):
-        _casefile_upload_rate_store[client_ip] = [
-            t for t in _casefile_upload_rate_store[client_ip] if now - t < 60
-        ]
-        count = len(_casefile_upload_rate_store[client_ip])
-
-        if count >= CASEFILE_UPLOAD_RATE_LIMIT_MAX:
-            oldest = _casefile_upload_rate_store[client_ip][0]
-            return Response(
-                content='{"detail":"Upload rate limit exceeded. Please wait before uploading more files."}',
-                status_code=429,
-                media_type="application/json",
-                headers=_rate_limit_headers(CASEFILE_UPLOAD_RATE_LIMIT_MAX, 0, oldest + 60),
+        limit = AUTH_CASEFILE_UPLOAD_RATE_LIMIT_MAX if is_auth else CASEFILE_UPLOAD_RATE_LIMIT_MAX
+        allowed, _, reset_at = _check_rate_limit(
+            _casefile_upload_rate_store, key, limit, 60, now
+        )
+        if not allowed:
+            return _rate_limit_response(
+                "Please wait before uploading more files.", limit, reset_at
             )
 
-        _casefile_upload_rate_store[client_ip].append(now)
-
-        if len(_casefile_upload_rate_store) > 100:
-            _prune_stale_entries(_casefile_upload_rate_store, 60)
-
-    # --- /api/feedback rate limiting ---
+    # --- /api/feedback rate limiting (public) ---
     if request.url.path == "/api/feedback" and request.method == "POST":
-        _feedback_rate_store[client_ip] = [
-            t for t in _feedback_rate_store[client_ip] if now - t < 60
-        ]
-        count = len(_feedback_rate_store[client_ip])
-
-        if count >= FEEDBACK_RATE_LIMIT_MAX:
-            oldest = _feedback_rate_store[client_ip][0]
-            return Response(
-                content='{"detail":"Feedback rate limit exceeded. Please wait a moment."}',
-                status_code=429,
-                media_type="application/json",
-                headers=_rate_limit_headers(FEEDBACK_RATE_LIMIT_MAX, 0, oldest + 60),
+        allowed, _, reset_at = _check_rate_limit(
+            _feedback_rate_store, key, FEEDBACK_RATE_LIMIT_MAX, 60, now
+        )
+        if not allowed:
+            return _rate_limit_response(
+                "Please wait a moment.", FEEDBACK_RATE_LIMIT_MAX, reset_at
             )
-
-        _feedback_rate_store[client_ip].append(now)
-
-        if len(_feedback_rate_store) > 100:
-            _prune_stale_entries(_feedback_rate_store, 60)
 
     return await call_next(request)
 

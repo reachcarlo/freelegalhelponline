@@ -1,6 +1,6 @@
 # Authentication & User Accounts: Implementation Plan
 
-> **Status**: In Progress (A1.1–A1.6, A2.1–A2.3 complete)
+> **Status**: In Progress (A1.1–A1.6, A2.1–A2.4 complete)
 > **Created**: 2026-03-07
 > **GTM Strategy**: Bottom-up PLG (individual attorneys) → enterprise upsell (their firms)
 > **Auth Providers**: Google OIDC + Microsoft OIDC (no email/password, no local credentials)
@@ -711,40 +711,31 @@ MICROSOFT_REDIRECT_URI=http://localhost:3000/api/auth/microsoft/callback
 
 **Gate**: ✅ Unauthenticated download returns 401. Cross-user download returns 404.
 
-### A2.4 — Rate Limiting Upgrade
+### A2.4 — Rate Limiting Upgrade ✅ COMPLETE (2026-03-08)
 
-**Files to modify:**
-- `src/employee_help/api/main.py` — Dual-mode rate limiting
+**Files modified:**
+- `src/employee_help/api/main.py` — Dual-mode rate limiting with `_check_rate_limit()` helper, per-key daily budgets
+- `tests/test_auth_middleware.py` — 31 new tests (unit + integration + gate)
 
-**Current state**: All rate limiting is IP-based. This is problematic because:
-- Multiple users behind a corporate NAT share an IP (unfair throttling)
-- A single user can evade limits by changing IP
+**Implementation:**
+- Extracted `_check_rate_limit()` helper to eliminate duplicated rate limit logic across 12 endpoint blocks
+- Added `_is_authenticated()`, `_rate_limit_response()`, `_budget_exceeded_response()` helpers
+- Authenticated tier constants: `AUTH_RATE_LIMIT_MAX=20`, `AUTH_LLM_RATE_LIMIT_MAX=15`, `AUTH_DISCOVERY_RATE_LIMIT_MAX=50`, `AUTH_CASEFILE_UPLOAD_RATE_LIMIT_MAX=50`, `AUTH_DAILY_QUERY_BUDGET=2000`
+- Daily budget changed from single global counter to per-key `_daily_budget_store`: authenticated users get per-user budget, anonymous shares global budget
+- All 12 endpoint rate limit blocks use tier-based limits: `limit = AUTH_X if is_auth else X`
 
-**New approach**: Hybrid rate limiting.
-- **Authenticated requests**: Rate limit by `user_id` (from JWT). Higher limits.
-- **Unauthenticated requests**: Rate limit by `client_ip` (current behavior). Lower limits.
+**Rate limit tiers:**
+| Endpoint | Anonymous | Authenticated |
+|----------|-----------|---------------|
+| `/api/ask` | 5/min | 20/min |
+| `/api/intake-summary` | 5/min | 15/min |
+| `/api/objections/generate` | 5/min | 15/min |
+| `/api/objections/parse` | 10/min | 30/min |
+| `/api/discovery/*` | 20/min | 50/min |
+| `/api/cases/*/files` | 20/min | 50/min |
+| Daily budget | 500 (global) | 2000 (per-user) |
 
-```python
-def _get_rate_limit_key(request: Request) -> str:
-    """User ID for authenticated requests, IP for anonymous."""
-    user = getattr(request.state, 'user', None)
-    if user:
-        return f"user:{user.id}"
-    return f"ip:{_get_client_ip(request)}"
-```
-
-**Authenticated user limits** (higher — they're paying customers):
-- `/api/ask`: 20/min (up from 5)
-- LLM endpoints: 15/min (up from 5)
-- Discovery/upload: 50/min (up from 20)
-
-**Tasks:**
-1. Refactor rate limiting to use `_get_rate_limit_key()`
-2. Define authenticated vs. unauthenticated limit tiers
-3. Update daily budget to be per-user for authenticated users (no shared global budget)
-4. Write tests for dual-mode rate limiting
-
-**Gate**: Authenticated user gets higher limits. Two authenticated users behind same IP have independent limits.
+**Gate**: ✅ Authenticated user gets higher limits. Two authenticated users behind same IP have independent limits.
 
 ---
 
