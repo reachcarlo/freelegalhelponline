@@ -115,6 +115,12 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
     setSelectedFileId(fileId);
   }, []);
 
+  // Navigate to a file from the chat drawer (close chat + select file)
+  const handleNavigateToFile = useCallback((fileId: string) => {
+    setSelectedFileId(fileId);
+    setChatOpen(false);
+  }, []);
+
   // Add newly uploaded files to the list
   const handleFilesAdded = useCallback((newFiles: CaseFileInfo[]) => {
     setFiles((prev) => [...prev, ...newFiles]);
@@ -255,6 +261,7 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
         open={chatOpen}
         onClose={() => setChatOpen(false)}
         caseId={caseId}
+        onNavigateToFile={handleNavigateToFile}
       />
     </div>
   );

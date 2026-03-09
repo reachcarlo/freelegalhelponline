@@ -2,10 +2,11 @@ import { test, expect, Page, Route } from "@playwright/test";
 import { setupAuth } from "./helpers/wizard-helpers";
 
 /**
- * LITIGAGENT Chat Drawer E2E Tests (Phase L3.7)
+ * LITIGAGENT Chat Drawer E2E Tests (Phase L3.7 + L3.8)
  *
  * Tests the chat drawer UI: open/close, send messages, SSE streaming,
  * source display, multi-turn conversation, error handling.
+ * L3.8: Clickable file citations navigate to Panel 2.
  *
  * All chat API calls are mocked via route interception since the backend
  * requires a real LLM service.
@@ -506,6 +507,138 @@ test.describe("LITIGAGENT Chat Drawer", () => {
 
     // Suggestions should NOT show (has messages)
     await expect(page.getByText("Suggested questions")).not.toBeVisible();
+  });
+
+  test("clicking a case file citation closes chat and navigates to file in Panel 2", async ({
+    page,
+  }) => {
+    const sessionId = "sess-citation";
+
+    // Mock file detail endpoints so text panel can load content
+    await page.route(`**/api/cases/chat-test-case-id/files/file-1`, (route) => {
+      if (route.request().method() === "GET") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ...MOCK_FILES[0],
+            extracted_text: "This is the complaint text content.",
+            edited_text: null,
+          }),
+        });
+      }
+      return route.continue();
+    });
+
+    await page.route(`**/api/cases/chat-test-case-id/files/file-2`, (route) => {
+      if (route.request().method() === "GET") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ...MOCK_FILES[1],
+            extracted_text: "This is the evidence document content.",
+            edited_text: null,
+          }),
+        });
+      }
+      return route.continue();
+    });
+
+    // Mock the chat endpoint with case file sources
+    await page.route(`**/api/cases/chat-test-case-id/chat`, (route) => {
+      if (route.request().method() === "POST") {
+        return route.fulfill({
+          status: 200,
+          contentType: "text/event-stream",
+          body: makeChatSSE(
+            "The complaint alleges wrongful termination.",
+            sessionId,
+            1,
+            {
+              caseSources: [
+                { title: "complaint.pdf", file_id: "file-1" },
+                { title: "evidence.docx", file_id: "file-2" },
+              ],
+            }
+          ),
+        });
+      }
+      return route.continue();
+    });
+
+    await page.goto("/tools/litigagent/chat-test-case-id");
+    await expect(page.getByText("Chat Test Case")).toBeVisible();
+
+    // Wait for file text to load in Panel 2
+    await expect(
+      page.getByText("This is the complaint text content.")
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Open chat and send a message
+    await page.getByRole("button", { name: /chat/i }).first().click();
+    const chatHeading = page.getByRole("heading", { name: "Chat with Case" });
+    await expect(chatHeading).toBeVisible();
+
+    const input = page.getByPlaceholder("Ask about this case...");
+    await input.fill("Tell me about the complaint");
+    await page.getByTitle("Send message").click();
+
+    // Wait for response to finish streaming
+    await expect(
+      page.getByText(/wrongful termination/)
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Case file source badges should be clickable buttons
+    const citationButton = page.getByTestId("citation-link-file-1");
+    await expect(citationButton).toBeVisible();
+    await expect(citationButton).toHaveText(/complaint\.pdf/);
+
+    // Click the citation — should close chat and navigate to file
+    await citationButton.click();
+
+    // Chat drawer should transition to closed state
+    const drawer = page.getByTestId("chat-drawer");
+    await expect(drawer).toHaveAttribute("data-state", "closed");
+
+    // The file section in Panel 2 should be visible (scrolled into view)
+    const fileSection = page.locator("#file-file-1");
+    await expect(fileSection).toBeVisible();
+  });
+
+  test("citation badge has correct hover title", async ({ page }) => {
+    await page.route(`**/api/cases/chat-test-case-id/chat`, (route) => {
+      if (route.request().method() === "POST") {
+        return route.fulfill({
+          status: 200,
+          contentType: "text/event-stream",
+          body: makeChatSSE(
+            "Response with sources.",
+            "sess-hover",
+            1,
+            {
+              caseSources: [
+                { title: "complaint.pdf", file_id: "file-1" },
+              ],
+            }
+          ),
+        });
+      }
+      return route.continue();
+    });
+
+    await page.goto("/tools/litigagent/chat-test-case-id");
+    await page.getByRole("button", { name: /chat/i }).first().click();
+
+    const input = page.getByPlaceholder("Ask about this case...");
+    await input.fill("question");
+    await page.getByTitle("Send message").click();
+
+    await expect(page.getByText("Response with sources.")).toBeVisible({ timeout: 10_000 });
+
+    // Citation should have a "Go to" title
+    const citation = page.getByTestId("citation-link-file-1");
+    await expect(citation).toHaveAttribute("title", "Go to complaint.pdf");
   });
 
   test("enter key sends message, shift+enter adds newline", async ({

@@ -14,6 +14,7 @@ interface ChatDrawerProps {
   open: boolean;
   onClose: () => void;
   caseId: string;
+  onNavigateToFile?: (fileId: string) => void;
 }
 
 interface ChatMessage {
@@ -29,7 +30,7 @@ const SUGGESTIONS = [
   "What witnesses are identified?",
 ];
 
-export default function ChatDrawer({ open, onClose, caseId }: ChatDrawerProps) {
+export default function ChatDrawer({ open, onClose, caseId, onNavigateToFile }: ChatDrawerProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -222,6 +223,8 @@ export default function ChatDrawer({ open, onClose, caseId }: ChatDrawerProps) {
         open ? "translate-x-0" : "translate-x-full"
       }`}
       style={{ width: "min(450px, 100vw)" }}
+      data-testid="chat-drawer"
+      data-state={open ? "open" : "closed"}
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -352,10 +355,16 @@ export default function ChatDrawer({ open, onClose, caseId }: ChatDrawerProps) {
                     {(msg.caseSources?.length || msg.kbSources?.length) && (
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {msg.caseSources?.map((s, j) => (
-                          <span
+                          <button
                             key={`cs-${j}`}
-                            className="inline-flex items-center gap-1 rounded-full bg-accent/8 px-2 py-0.5 text-[11px] text-accent"
-                            title={s.heading_path || s.title}
+                            className="inline-flex items-center gap-1 rounded-full bg-accent/8 px-2 py-0.5 text-[11px] text-accent transition-colors hover:bg-accent/20 cursor-pointer"
+                            title={`Go to ${s.title}`}
+                            data-testid={`citation-link-${s.file_id || j}`}
+                            onClick={() => {
+                              if (s.file_id && onNavigateToFile) {
+                                onNavigateToFile(s.file_id);
+                              }
+                            }}
                           >
                             <svg
                               className="h-3 w-3"
@@ -371,7 +380,7 @@ export default function ChatDrawer({ open, onClose, caseId }: ChatDrawerProps) {
                               />
                             </svg>
                             {s.title}
-                          </span>
+                          </button>
                         ))}
                         {msg.kbSources?.map((s, j) => (
                           <span
