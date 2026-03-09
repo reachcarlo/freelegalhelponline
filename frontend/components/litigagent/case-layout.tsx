@@ -10,6 +10,7 @@ import {
   getCase,
   listFiles,
 } from "@/lib/litigagent-api";
+import ChatDrawer from "./chat-drawer";
 import FilePanel from "./file-panel";
 import NotesPanel from "./notes-panel";
 import TextPanel from "./text-panel";
@@ -24,6 +25,7 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
   const [files, setFiles] = useState<CaseFileInfo[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [notesCollapsed, setNotesCollapsed] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -191,11 +193,15 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Chat button — placeholder for future phases */}
+          {/* Chat button */}
           <button
-            className="flex min-h-[36px] items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-accent-surface hover:text-accent"
-            title="Chat with case (coming soon)"
-            disabled
+            className={`flex min-h-[36px] items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+              chatOpen
+                ? "border-accent bg-accent/10 text-accent"
+                : "border-border text-text-secondary hover:bg-accent-surface hover:text-accent"
+            }`}
+            title="Chat with case"
+            onClick={() => setChatOpen((v) => !v)}
           >
             <svg
               className="h-4 w-4"
@@ -243,6 +249,13 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
           onToggle={() => setNotesCollapsed((v) => !v)}
         />
       </div>
+
+      {/* Chat drawer overlay */}
+      <ChatDrawer
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        caseId={caseId}
+      />
     </div>
   );
 }

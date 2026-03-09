@@ -266,3 +266,183 @@ export async function deleteNote(
   });
   if (!res.ok) throw new Error(`Failed to delete note (${res.status})`);
 }
+
+// ── Chat Types ────────────────────────────────────────────────
+
+export interface ChatSourceInfo {
+  source_type: "case_file" | "knowledge_base";
+  title: string;
+  relevance_score: number;
+  file_id?: string;
+  chunk_id?: string;
+  content_category?: string;
+  heading_path?: string;
+}
+
+export interface ChatDoneMetadata {
+  query_id: string;
+  session_id: string;
+  turn_number: number;
+  max_turns: number;
+  is_final_turn: boolean;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost_estimate: number;
+  duration_ms: number;
+}
+
+export interface ChatCallbacks {
+  onSources: (caseSources: ChatSourceInfo[], kbSources: ChatSourceInfo[]) => void;
+  onToken: (text: string) => void;
+  onDone: (metadata: ChatDoneMetadata) => void;
+  onError: (message: string) => void;
+}
+
+export interface ChatTurnItem {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatSessionInfo {
+  id: string;
+  case_id: string;
+  created_at: string;
+  updated_at: string;
+  turn_count: number;
+}
+
+export interface ChatTurnInfo {
+  id: string;
+  session_id: string;
+  turn_number: number;
+  role: string;
+  content: string;
+  sources?: Record<string, unknown> | unknown[] | null;
+  created_at: string;
+}
+
+// ── Chat API ──────────────────────────────────────────────────
+
+/**
+ * Send a chat message and stream the response via SSE.
+ * Returns an AbortController so the caller can cancel.
+ */
+export function chatWithCase(
+  caseId: string,
+  query: string,
+  callbacks: ChatCallbacks,
+  options?: {
+    session_id?: string;
+    conversation_history?: ChatTurnItem[];
+  }
+): AbortController {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const body: Record<string, unknown> = { query };
+      if (options?.session_id) body.session_id = options.session_id;
+      if (options?.conversation_history) {
+        body.conversation_history = options.conversation_history;
+      }
+
+      const response = await fetch(`/api/cases/${caseId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        const message =
+          errorBody?.detail || `Request failed with status ${response.status}`;
+        callbacks.onError(message);
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        callbacks.onError("No response body");
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let eventType = "";
+        let dataLines: string[] = [];
+
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith("data: ")) {
+            dataLines.push(line.slice(6));
+          } else if (line === "" && eventType && dataLines.length > 0) {
+            const dataStr = dataLines.join("\n");
+            try {
+              const data = JSON.parse(dataStr);
+              switch (eventType) {
+                case "sources":
+                  callbacks.onSources(
+                    data.case_sources || [],
+                    data.kb_sources || []
+                  );
+                  break;
+                case "token":
+                  callbacks.onToken(data.text || "");
+                  break;
+                case "done":
+                  callbacks.onDone(data as ChatDoneMetadata);
+                  break;
+                case "error":
+                  callbacks.onError(data.message || "Unknown error");
+                  break;
+              }
+            } catch {
+              // Skip malformed JSON
+            }
+            eventType = "";
+            dataLines = [];
+          }
+        }
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      callbacks.onError(
+        err instanceof Error ? err.message : "Connection failed"
+      );
+    }
+  })();
+
+  return controller;
+}
+
+export async function listChatSessions(
+  caseId: string
+): Promise<ChatSessionInfo[]> {
+  const res = await fetch(`/api/cases/${caseId}/chat/sessions`);
+  if (!res.ok) throw new Error(`Failed to list chat sessions (${res.status})`);
+  const data = await res.json();
+  return data.sessions;
+}
+
+export async function getChatHistory(
+  caseId: string,
+  sessionId: string
+): Promise<ChatTurnInfo[]> {
+  const res = await fetch(`/api/cases/${caseId}/chat/${sessionId}`);
+  if (!res.ok) throw new Error(`Failed to get chat history (${res.status})`);
+  const data = await res.json();
+  return data.turns;
+}
