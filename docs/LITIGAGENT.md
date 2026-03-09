@@ -1358,7 +1358,7 @@ With 100 files, total text could be 500K+ words (2M+ tokens). This doesn't fit i
 | L3.6 | API: case chat endpoints (SSE streaming) | P0 DONE |
 | L3.7 | Frontend: chat drawer with streaming responses | P0 DONE |
 | L3.8 | Clickable file citations in chat responses → Panel 2 navigation | P1 DONE |
-| L3.9 | Suggested questions (contextual) | P1 |
+| L3.9 | Suggested questions (contextual) | P1 DONE |
 | L3.10 | Chat session persistence | P1 |
 | L3.11 | Tests: retrieval, chat, citation linking, prompt construction | P0 |
 

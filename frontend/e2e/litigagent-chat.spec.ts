@@ -2,11 +2,12 @@ import { test, expect, Page, Route } from "@playwright/test";
 import { setupAuth } from "./helpers/wizard-helpers";
 
 /**
- * LITIGAGENT Chat Drawer E2E Tests (Phase L3.7 + L3.8)
+ * LITIGAGENT Chat Drawer E2E Tests (Phase L3.7 + L3.8 + L3.9)
  *
  * Tests the chat drawer UI: open/close, send messages, SSE streaming,
  * source display, multi-turn conversation, error handling.
  * L3.8: Clickable file citations navigate to Panel 2.
+ * L3.9: Contextual suggested questions based on case files.
  *
  * All chat API calls are mocked via route interception since the backend
  * requires a real LLM service.
@@ -187,19 +188,21 @@ test.describe("LITIGAGENT Chat Drawer", () => {
     await expect(drawer).not.toBeVisible();
   });
 
-  test("shows suggestion buttons when empty", async ({ page }) => {
+  test("shows contextual suggestion buttons based on case files", async ({ page }) => {
     await page.goto("/tools/litigagent/chat-test-case-id");
     await page.getByRole("button", { name: /chat/i }).first().click();
 
     await expect(page.getByText("Suggested questions")).toBeVisible();
+    // complaint.pdf triggers complaint-specific suggestion
     await expect(
-      page.getByText("Summarize all damages evidence")
+      page.getByText("Analyze the complaint and identify all causes of action")
+    ).toBeVisible();
+    // General questions fill remaining slots
+    await expect(
+      page.getByText("Create a timeline of key events from these documents")
     ).toBeVisible();
     await expect(
-      page.getByText("Create a timeline of key events")
-    ).toBeVisible();
-    await expect(
-      page.getByText("What witnesses are identified?")
+      page.getByText("What potential employment law claims")
     ).toBeVisible();
   });
 
@@ -263,7 +266,7 @@ test.describe("LITIGAGENT Chat Drawer", () => {
           status: 200,
           contentType: "text/event-stream",
           body: makeChatSSE(
-            "Here is a summary of the damages evidence found in your case files.",
+            "The complaint alleges three causes of action.",
             "sess-suggest",
             1
           ),
@@ -275,17 +278,17 @@ test.describe("LITIGAGENT Chat Drawer", () => {
     await page.goto("/tools/litigagent/chat-test-case-id");
     await page.getByRole("button", { name: /chat/i }).first().click();
 
-    // Click a suggestion
-    await page.getByText("Summarize all damages evidence").click();
+    // Click the complaint-specific suggestion
+    await page.getByText("Analyze the complaint and identify all causes of action").click();
 
     // User message from suggestion should appear
     await expect(
-      page.getByText("Summarize all damages evidence")
+      page.getByText("Analyze the complaint and identify all causes of action")
     ).toBeVisible();
 
     // Response should stream
     await expect(
-      page.getByText(/summary of the damages evidence/)
+      page.getByText(/three causes of action/)
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -639,6 +642,140 @@ test.describe("LITIGAGENT Chat Drawer", () => {
     // Citation should have a "Go to" title
     const citation = page.getByTestId("citation-link-file-1");
     await expect(citation).toHaveAttribute("title", "Go to complaint.pdf");
+  });
+
+  test("shows upload suggestions when no files exist", async ({ page }) => {
+    // Override files mock to return empty list
+    await page.route(`**/api/cases/chat-test-case-id/files`, (route) => {
+      if (route.request().method() === "GET") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify([]),
+        });
+      }
+      return route.continue();
+    });
+
+    await page.goto("/tools/litigagent/chat-test-case-id");
+    await page.getByRole("button", { name: /chat/i }).first().click();
+
+    await expect(page.getByText("Suggested questions")).toBeVisible();
+    await expect(
+      page.getByText("What types of documents should I upload for my case?")
+    ).toBeVisible();
+    await expect(
+      page.getByText("What employment claims might apply to my situation?")
+    ).toBeVisible();
+  });
+
+  test("shows email-specific suggestions for email files", async ({ page }) => {
+    // Override files mock with email files
+    await page.route(`**/api/cases/chat-test-case-id/files`, (route) => {
+      if (route.request().method() === "GET") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify([
+            {
+              id: "file-email",
+              case_id: "chat-test-case-id",
+              original_filename: "hr-correspondence.eml",
+              file_type: "eml",
+              mime_type: "message/rfc822",
+              file_size_bytes: 15000,
+              upload_order: 1,
+              processing_status: "ready",
+              error_message: null,
+              ocr_confidence: null,
+              page_count: null,
+              metadata: null,
+              text_dirty: false,
+              created_at: "2026-03-07T00:00:00",
+              updated_at: "2026-03-07T00:00:00",
+            },
+            {
+              id: "file-pay",
+              case_id: "chat-test-case-id",
+              original_filename: "paystubs-2025.xlsx",
+              file_type: "xlsx",
+              mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              file_size_bytes: 80000,
+              upload_order: 2,
+              processing_status: "ready",
+              error_message: null,
+              ocr_confidence: null,
+              page_count: null,
+              metadata: null,
+              text_dirty: false,
+              created_at: "2026-03-07T00:00:00",
+              updated_at: "2026-03-07T00:00:00",
+            },
+          ]),
+        });
+      }
+      return route.continue();
+    });
+
+    await page.goto("/tools/litigagent/chat-test-case-id");
+    await page.getByRole("button", { name: /chat/i }).first().click();
+
+    await expect(page.getByText("Suggested questions")).toBeVisible();
+    // Pay record filename triggers pay-specific suggestion
+    await expect(
+      page.getByText("Analyze the pay records for wage and hour violations")
+    ).toBeVisible();
+    // Email file type triggers email-specific suggestion
+    await expect(
+      page.getByText("Summarize key email communications")
+    ).toBeVisible();
+  });
+
+  test("suggestions update when files change", async ({ page }) => {
+    // Start with empty files
+    let filesList: typeof MOCK_FILES = [];
+    await page.route(`**/api/cases/chat-test-case-id/files`, (route) => {
+      if (route.request().method() === "GET") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(filesList),
+        });
+      }
+      return route.continue();
+    });
+
+    await page.goto("/tools/litigagent/chat-test-case-id");
+    await page.getByRole("button", { name: /chat/i }).first().click();
+
+    // Should show upload suggestions initially
+    await expect(
+      page.getByText("What types of documents should I upload for my case?")
+    ).toBeVisible();
+
+    // Close chat, update files, re-open
+    await page.getByTitle("Close chat").click();
+
+    // Update the route to return files now
+    filesList = [...MOCK_FILES];
+    await page.route(`**/api/cases/chat-test-case-id/files`, (route) => {
+      if (route.request().method() === "GET") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(filesList),
+        });
+      }
+      return route.continue();
+    });
+    // Trigger reload by navigating
+    await page.goto("/tools/litigagent/chat-test-case-id");
+    await page.getByRole("button", { name: /chat/i }).first().click();
+
+    // Should now show contextual suggestions for complaint.pdf
+    await expect(
+      page.getByText("Analyze the complaint and identify all causes of action")
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test("enter key sends message, shift+enter adds newline", async ({

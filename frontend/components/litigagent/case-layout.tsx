@@ -261,6 +261,7 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
         open={chatOpen}
         onClose={() => setChatOpen(false)}
         caseId={caseId}
+        files={files}
         onNavigateToFile={handleNavigateToFile}
       />
     </div>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  CaseFileInfo,
   ChatDoneMetadata,
   ChatSourceInfo,
   ChatTurnItem,
@@ -14,6 +15,7 @@ interface ChatDrawerProps {
   open: boolean;
   onClose: () => void;
   caseId: string;
+  files?: CaseFileInfo[];
   onNavigateToFile?: (fileId: string) => void;
 }
 
@@ -24,19 +26,72 @@ interface ChatMessage {
   kbSources?: ChatSourceInfo[];
 }
 
-const SUGGESTIONS = [
-  "Summarize all damages evidence",
-  "Create a timeline of key events",
-  "What witnesses are identified?",
+// Suggestions shown when no files are uploaded yet
+const EMPTY_SUGGESTIONS = [
+  "What types of documents should I upload for my case?",
+  "What employment claims might apply to my situation?",
+  "How does the case analysis process work?",
 ];
 
-export default function ChatDrawer({ open, onClose, caseId, onNavigateToFile }: ChatDrawerProps) {
+/**
+ * Generate contextual suggested questions based on case file metadata.
+ * Analyzes filenames and file types to propose relevant analysis questions.
+ */
+function computeSuggestions(files: CaseFileInfo[]): string[] {
+  if (files.length === 0) return EMPTY_SUGGESTIONS;
+
+  const suggestions: string[] = [];
+  const lowerNames = files.map((f) => f.original_filename.toLowerCase());
+  const types = new Set(files.map((f) => f.file_type));
+
+  // Detect document categories from filenames
+  if (lowerNames.some((n) => n.includes("complaint")))
+    suggestions.push("Analyze the complaint and identify all causes of action");
+  if (lowerNames.some((n) => n.includes("answer") && !n.includes("unanswered")))
+    suggestions.push("What affirmative defenses are raised in the answer?");
+  if (lowerNames.some((n) => n.includes("contract") || n.includes("agreement") || n.includes("offer letter")))
+    suggestions.push("What key terms and restrictions are in the employment agreement?");
+  if (lowerNames.some((n) => n.includes("pay") || n.includes("stub") || n.includes("wage") || n.includes("w-2") || n.includes("w2")))
+    suggestions.push("Analyze the pay records for wage and hour violations");
+  if (lowerNames.some((n) => n.includes("terminat") || n.includes("separation") || n.includes("discharge")))
+    suggestions.push("What grounds are stated for the termination and do they hold up legally?");
+  if (lowerNames.some((n) => n.includes("policy") || n.includes("handbook") || n.includes("manual")))
+    suggestions.push("Do any company policies conflict with California employment law?");
+  if (lowerNames.some((n) => n.includes("performance") || n.includes("evaluation") || n.includes("write-up") || n.includes("writeup")))
+    suggestions.push("Summarize the performance evaluations and identify any pretextual patterns");
+  if (lowerNames.some((n) => n.includes("interrogator") || n.includes("request for") || n.includes("deposition") || n.includes("discovery")))
+    suggestions.push("Review the discovery documents and identify key admissions");
+
+  // Add file-type-based suggestions
+  if ((types.has("eml") || types.has("msg") || types.has("mbox")) && suggestions.length < 4)
+    suggestions.push("Summarize key email communications and identify important admissions");
+  if ((types.has("xlsx") || types.has("xls") || types.has("csv")) && suggestions.length < 4)
+    suggestions.push("Analyze the spreadsheet data for patterns or discrepancies");
+
+  // Fill remaining slots with general case analysis questions
+  const general = [
+    "Create a timeline of key events from these documents",
+    "What potential employment law claims do these documents support?",
+    "Summarize all damages evidence across the case files",
+    "What witnesses are identified in these documents?",
+  ];
+  for (const q of general) {
+    if (suggestions.length >= 4) break;
+    suggestions.push(q);
+  }
+
+  return suggestions.slice(0, 4);
+}
+
+export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToFile }: ChatDrawerProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [turnLimitReached, setTurnLimitReached] = useState(false);
+
+  const suggestions = useMemo(() => computeSuggestions(files || []), [files]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -303,7 +358,7 @@ export default function ChatDrawer({ open, onClose, caseId, onNavigateToFile }: 
               <p className="text-xs font-medium text-text-tertiary">
                 Suggested questions
               </p>
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s}
                   onClick={() => handleSend(s)}
