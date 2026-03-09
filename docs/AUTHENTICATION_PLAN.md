@@ -1,6 +1,6 @@
 # Authentication & User Accounts: Implementation Plan
 
-> **Status**: In Progress (A1.1–A1.6, A2.1–A2.4, A3.1–A3.3 complete)
+> **Status**: In Progress (A1.1–A1.6, A2.1–A2.4, A3.1–A3.4 complete)
 > **Created**: 2026-03-07
 > **GTM Strategy**: Bottom-up PLG (individual attorneys) → enterprise upsell (their firms)
 > **Auth Providers**: Google OIDC + Microsoft OIDC (no email/password, no local credentials)
@@ -860,23 +860,22 @@ async def security_headers(request: Request, call_next):
 - HSTS: deferred to reverse proxy (nginx/Caddy) per plan
 - 8 backend tests (`test_security_headers.py`)
 
-### A3.4 — PII Handling in Logs
+### A3.4 — PII Handling in Logs ✅ COMPLETE (2026-03-08)
 
-**Files to modify:**
-- Logging configuration throughout the application
+**Implementation:**
+- Created `src/employee_help/logging.py` — structlog processor (`redact_pii`) that automatically strips PII from all log output
+- Configured structlog processor chain in `main.py` with PII redaction before console rendering
+- **Redacted keys**: `email`, `filename`, `file_name`, `display_name`, `name`, `ip_address`, `ip`, `client_ip`, `remote_addr`, `user_agent`
+- **Safe keys**: `provider_name`, `source_name`, `model_name`, `table_name` (not personal data)
+- **Embedded email scrubbing**: Regex scanner catches email addresses embedded in any string value
+- **Call-site fixes** (defense in depth — removed PII at source, not just at processor):
+  - `auth_routes.py`: removed `email=` from `user_logged_in` log
+  - `casefile_routes.py`: removed `filename=` from `file_uploaded` log
+  - `casefile_routes.py`: removed `name=` from `case_created` log
+- **Audit log unchanged**: IP addresses and user agents remain in audit_log DB table (security requirement) — only redacted from application log output
+- 35 tests in `tests/test_pii_redaction.py`
 
-**Rules:**
-- Never log email addresses, display names, or file names in application logs (structlog output)
-- Log `user_id` (UUID) — it's not PII, it's an opaque identifier
-- The audit log (database) stores user_id + action — the user's profile info is joined at query time, never duplicated into logs
-- Redact IP addresses in application logs (keep in audit log for security, but not in general logs)
-
-**Tasks:**
-1. Review all `logger.info()` / `logger.warning()` / `logger.error()` calls for PII
-2. Add structlog processor to redact known PII patterns (emails)
-3. Document PII handling policy
-
-**Gate**: Grep through application logs — no emails, no names, no file names present.
+**Gate**: ✅ All PII keys redacted, embedded emails scrubbed, source calls cleaned, 3,262 tests pass.
 
 ---
 

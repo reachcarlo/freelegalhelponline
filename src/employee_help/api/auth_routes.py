@@ -273,7 +273,6 @@ async def _handle_oauth_callback(
         "user_logged_in",
         user_id=user.id,
         provider=provider_name,
-        email=auth_result.email,
     )
     _audit(
         "auth.login", request,

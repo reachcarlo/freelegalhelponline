@@ -689,7 +689,7 @@ Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML
 
 ### What It Does
 
-Google and Microsoft OAuth authentication with JWT session management, security headers, audit logging, and session management UI. Protects attorney-only tools (LITIGAGENT, Discovery, Objection Drafter) behind authentication while keeping consumer tools (chat, calculators, intake) public.
+Google and Microsoft OAuth authentication with JWT session management, security headers, PII-safe logging, audit logging, and session management UI. Protects attorney-only tools (LITIGAGENT, Discovery, Objection Drafter) behind authentication while keeping consumer tools (chat, calculators, intake) public.
 
 ### User
 
@@ -738,6 +738,15 @@ All users (authentication required for attorney tools).
 - Frontend CSP via Next.js `headers()`: default-src self, script-src restricted (self + plausible.io), connect-src (self + plausible.io + sentry ingest), frame-ancestors none, base-uri self, form-action self
 - HSTS: deferred to reverse proxy (nginx/Caddy)
 
+#### PII Handling in Logs
+
+- Structlog processor (`redact_pii`) automatically strips PII from all application log output
+- Redacted keys: `email`, `filename`, `display_name`, `name`, `ip_address`, `user_agent` → `[REDACTED]`
+- Embedded email addresses in any string value scrubbed via regex
+- Safe keys preserved: `provider_name`, `source_name`, `model_name`, `table_name`
+- Defense in depth: PII removed at call site AND by processor
+- Audit log DB retains IP/user-agent for security investigations (not redacted there)
+
 ### Key Files
 
 - Auth providers: `src/employee_help/auth/providers.py`
@@ -747,7 +756,8 @@ All users (authentication required for attorney tools).
 - Session manager: `src/employee_help/auth/session.py`
 - Audit logger: `src/employee_help/auth/audit.py`
 - Auth routes: `src/employee_help/api/auth_routes.py`
-- Auth middleware: `src/employee_help/api/main.py` (auth_middleware, security_headers)
+- PII redaction: `src/employee_help/logging.py`
+- Auth middleware: `src/employee_help/api/main.py` (auth_middleware, security_headers, structlog config)
 - Frontend auth: `frontend/lib/auth-context.tsx`
 - Login page: `frontend/app/login/page.tsx`
 - Account page: `frontend/app/account/`
@@ -770,6 +780,7 @@ All users (authentication required for attorney tools).
 | `test_session_management.py` | 29 | Session list/revoke endpoints, sid claim, UA parsing |
 | `test_audit_log.py` | 32 | Audit logger, events, pagination |
 | `test_security_headers.py` | 8 | Security headers on all responses |
+| `test_pii_redaction.py` | 35 | PII redaction processor, key scrubbing, email regex |
 | `test_dual_rate_limit.py` | 31 | Authenticated vs anonymous rate limits |
 | E2E: `session-management.spec.ts` | 11 | Account page, active sessions, revocation |
 
@@ -976,6 +987,7 @@ Developer/operator.
 | All LLM Endpoints | Rate Limiter | Anon: 5/min per IP + 500/day; Auth: 20/min per user + 2000/day |
 | Protected Tools | Auth Middleware | JWT access token validation, 401 on missing/expired |
 | Auth Events | Audit Logger | 17 event types logged to append-only audit_log table |
+| All Logs | PII Redaction | structlog processor strips emails, names, IPs, filenames |
 
 ---
 
@@ -983,9 +995,9 @@ Developer/operator.
 
 ### Overall Numbers
 
-- **Total passing tests**: ~3,188
+- **Total passing tests**: ~3,262
 - **Deselected (slow/live/llm/eval markers)**: ~95
-- **Total test files**: ~101 Python + 18 Playwright E2E specs
+- **Total test files**: ~102 Python + 18 Playwright E2E specs
 - **Evaluation datasets**: 8 YAML files
 
 ### Pytest Markers
@@ -1053,6 +1065,6 @@ uv run pytest -m ""
 | Request bank items | 177 role-aware (SROGs + RFPDs + RFAs) |
 | Topic pages (SSG) | 11 |
 | Employment claim types | 19 |
-| Test files | ~119 (101 Python + 18 E2E) |
-| Passing tests | ~3,188 |
+| Test files | ~120 (102 Python + 18 E2E) |
+| Passing tests | ~3,262 |
 | Evaluation questions | 60+ |

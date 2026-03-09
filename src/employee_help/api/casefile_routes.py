@@ -190,7 +190,7 @@ async def create_case(body: CreateCaseRequest, request: Request):
         description=body.description,
     )
     case = storage.create_case(case)
-    logger.info("case_created", case_id=case.id, name=case.name)
+    logger.info("case_created", case_id=case.id)
     _audit("case.create", request, resource_type="case", resource_id=case.id)
     return _case_response(case)
 
@@ -340,7 +340,6 @@ async def upload_files(case_id: str, request: Request, files: list[UploadFile] =
             "file_uploaded",
             case_id=case_id,
             file_id=cf.id,
-            filename=filename,
             size=len(file_bytes),
         )
         _audit(
