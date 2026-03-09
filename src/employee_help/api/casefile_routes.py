@@ -937,3 +937,17 @@ async def get_chat_history(case_id: str, session_id: str, request: Request):
         case_id=case_id,
         turns=turn_responses,
     )
+
+
+@casefile_router.delete("/{case_id}/chat/{session_id}", status_code=204)
+async def delete_chat_session(case_id: str, session_id: str, request: Request):
+    """Delete a chat session and its turns."""
+    user = _require_user(request)
+    storage = _get_case_storage()
+    _require_case(case_id, user_id=user.sub)
+
+    session = storage.get_chat_session(session_id)
+    if session is None or session.case_id != case_id:
+        raise HTTPException(404, f"Chat session not found: {session_id}")
+
+    storage.delete_chat_session(session_id)

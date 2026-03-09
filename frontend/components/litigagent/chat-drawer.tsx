@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CaseFileInfo,
   ChatDoneMetadata,
+  ChatSessionInfo,
   ChatSourceInfo,
   ChatTurnItem,
   chatWithCase,
+  deleteChatSession,
   getChatHistory,
   listChatSessions,
 } from "@/lib/litigagent-api";
@@ -83,6 +85,19 @@ function computeSuggestions(files: CaseFileInfo[]): string[] {
   return suggestions.slice(0, 4);
 }
 
+function formatSessionDate(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays === 0) {
+    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return d.toLocaleDateString([], { weekday: "short" });
+  return d.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
 export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToFile }: ChatDrawerProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -90,6 +105,10 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [turnLimitReached, setTurnLimitReached] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [sessions, setSessions] = useState<ChatSessionInfo[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionPreviews, setSessionPreviews] = useState<Record<string, string>>({});
 
   const suggestions = useMemo(() => computeSuggestions(files || []), [files]);
 
@@ -262,8 +281,94 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
     setError(null);
     setTurnLimitReached(false);
     setStreaming(false);
+    setShowHistory(false);
     abortRef.current = null;
   }, []);
+
+  // Load session list when history panel opens
+  const handleToggleHistory = useCallback(async () => {
+    const newShow = !showHistory;
+    setShowHistory(newShow);
+    if (!newShow) return;
+
+    setSessionsLoading(true);
+    try {
+      const fetched = await listChatSessions(caseId);
+      setSessions(fetched);
+
+      // Fetch first user message as preview for each session
+      const previews: Record<string, string> = { ...sessionPreviews };
+      const toFetch = fetched.filter(
+        (s) => s.turn_count > 0 && !previews[s.id]
+      );
+      await Promise.all(
+        toFetch.map(async (s) => {
+          try {
+            const turns = await getChatHistory(caseId, s.id);
+            const firstUser = turns.find((t) => t.role === "user");
+            if (firstUser) {
+              previews[s.id] = firstUser.content;
+            }
+          } catch {
+            // ignore individual preview failures
+          }
+        })
+      );
+      setSessionPreviews(previews);
+    } catch {
+      // silently fail
+    } finally {
+      setSessionsLoading(false);
+    }
+  }, [showHistory, caseId, sessionPreviews]);
+
+  // Switch to a different session
+  const handleSwitchSession = useCallback(
+    async (targetSessionId: string) => {
+      if (targetSessionId === sessionId) {
+        setShowHistory(false);
+        return;
+      }
+      try {
+        const turns = await getChatHistory(caseId, targetSessionId);
+        const restored: ChatMessage[] = turns.map((t) => ({
+          role: t.role as "user" | "assistant",
+          content: t.content,
+        }));
+        abortRef.current?.abort();
+        setMessages(restored);
+        setSessionId(targetSessionId);
+        setError(null);
+        setTurnLimitReached(false);
+        setStreaming(false);
+        setShowHistory(false);
+        abortRef.current = null;
+      } catch {
+        // silently fail
+      }
+    },
+    [caseId, sessionId]
+  );
+
+  // Delete a session
+  const handleDeleteSession = useCallback(
+    async (targetSessionId: string) => {
+      try {
+        await deleteChatSession(caseId, targetSessionId);
+        setSessions((prev) => prev.filter((s) => s.id !== targetSessionId));
+        // If we deleted the current session, reset to empty
+        if (targetSessionId === sessionId) {
+          setMessages([]);
+          setSessionId(null);
+          setError(null);
+          setTurnLimitReached(false);
+        }
+      } catch {
+        // silently fail
+      }
+    },
+    [caseId, sessionId]
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -302,6 +407,30 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
           </h2>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={handleToggleHistory}
+            className={`rounded p-1.5 transition-colors ${
+              showHistory
+                ? "bg-accent/10 text-accent"
+                : "text-text-tertiary hover:bg-accent-surface hover:text-accent"
+            }`}
+            title="Chat history"
+            data-testid="chat-history-toggle"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </button>
           <button
             onClick={handleNewSession}
             className="rounded p-1.5 text-text-tertiary transition-colors hover:bg-accent-surface hover:text-accent"
@@ -342,6 +471,86 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
           </button>
         </div>
       </div>
+
+      {/* Session history panel */}
+      {showHistory && (
+        <div
+          className="border-b border-border bg-background"
+          data-testid="session-history-panel"
+        >
+          <div className="px-4 py-2">
+            <p className="text-xs font-medium text-text-tertiary">
+              Previous conversations
+            </p>
+          </div>
+          <div className="max-h-[240px] overflow-y-auto">
+            {sessionsLoading ? (
+              <div className="px-4 py-3 text-center">
+                <p className="text-xs text-text-tertiary">Loading...</p>
+              </div>
+            ) : sessions.length === 0 ? (
+              <div className="px-4 py-3 text-center">
+                <p className="text-xs text-text-tertiary">
+                  No previous conversations
+                </p>
+              </div>
+            ) : (
+              sessions.map((s) => (
+                <div
+                  key={s.id}
+                  className={`group flex items-center gap-2 border-b border-border/50 px-4 py-2.5 last:border-b-0 ${
+                    s.id === sessionId
+                      ? "bg-accent/5"
+                      : "hover:bg-surface cursor-pointer"
+                  }`}
+                  data-testid={`session-item-${s.id}`}
+                >
+                  <button
+                    className="flex-1 text-left"
+                    onClick={() => handleSwitchSession(s.id)}
+                  >
+                    <p className="truncate text-sm text-text-primary">
+                      {sessionPreviews[s.id] ||
+                        `Conversation (${s.turn_count} ${s.turn_count === 1 ? "turn" : "turns"})`}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-text-tertiary">
+                      {formatSessionDate(s.updated_at)}
+                      {" \u00b7 "}
+                      {s.turn_count} {s.turn_count === 1 ? "turn" : "turns"}
+                      {s.id === sessionId && (
+                        <span className="ml-1 text-accent">(current)</span>
+                      )}
+                    </p>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteSession(s.id);
+                    }}
+                    className="rounded p-1 text-text-tertiary opacity-0 transition-opacity hover:bg-error-bg hover:text-error-text group-hover:opacity-100"
+                    title="Delete conversation"
+                    data-testid={`delete-session-${s.id}`}
+                  >
+                    <svg
+                      className="h-3.5 w-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">

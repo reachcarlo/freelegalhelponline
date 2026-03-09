@@ -446,3 +446,13 @@ export async function getChatHistory(
   const data = await res.json();
   return data.turns;
 }
+
+export async function deleteChatSession(
+  caseId: string,
+  sessionId: string
+): Promise<void> {
+  const res = await fetch(`/api/cases/${caseId}/chat/${sessionId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`Failed to delete chat session (${res.status})`);
+}

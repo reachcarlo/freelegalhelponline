@@ -1359,7 +1359,7 @@ With 100 files, total text could be 500K+ words (2M+ tokens). This doesn't fit i
 | L3.7 | Frontend: chat drawer with streaming responses | P0 DONE |
 | L3.8 | Clickable file citations in chat responses → Panel 2 navigation | P1 DONE |
 | L3.9 | Suggested questions (contextual) | P1 DONE |
-| L3.10 | Chat session persistence | P1 |
+| L3.10 | Chat session persistence | P1 DONE |
 | L3.11 | Tests: retrieval, chat, citation linking, prompt construction | P0 |
 
 **Gate L3:** Ask questions about case files and get accurate, cited answers. AI uses both case files and knowledge base. Notes included in context.

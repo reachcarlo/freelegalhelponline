@@ -841,6 +841,107 @@ class TestChatHistoryEndpoint:
         assert exc_info.value.status_code == 404
 
 
+class TestDeleteChatSessionEndpoint:
+    """Tests for DELETE /api/cases/{case_id}/chat/{session_id} (L3.10)."""
+
+    @pytest.fixture()
+    def db(self):
+        import sqlite3 as _sqlite3
+        from employee_help.storage.storage import _SCHEMA
+        conn = _sqlite3.connect(":memory:", check_same_thread=False)
+        conn.row_factory = _sqlite3.Row
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.executescript(_SCHEMA)
+        yield conn
+        conn.close()
+
+    @pytest.fixture()
+    def case_storage(self, db):
+        return CaseStorage(conn=db)
+
+    @pytest.fixture()
+    def sample_case(self, case_storage):
+        case = Case(
+            name="Test Case",
+            user_id="test-user",
+            organization_id="test-org",
+        )
+        return case_storage.create_case(case)
+
+    @pytest.mark.asyncio(loop_scope="function")
+    @patch("employee_help.api.casefile_routes._get_case_storage")
+    @patch("employee_help.api.casefile_routes._require_user")
+    async def test_delete_session(
+        self, mock_user, mock_storage_fn,
+        case_storage, sample_case,
+    ):
+        mock_user.return_value = FakeUser()
+        mock_storage_fn.return_value = case_storage
+
+        session = case_storage.create_chat_session(
+            CaseChatSession(case_id=sample_case.id)
+        )
+        case_storage.create_chat_turn(CaseChatTurn(
+            session_id=session.id,
+            turn_number=1,
+            role="user",
+            content="Hello",
+        ))
+
+        from employee_help.api.casefile_routes import delete_chat_session
+
+        request = MagicMock()
+        result = await delete_chat_session(sample_case.id, session.id, request)
+        assert result is None  # 204 returns None
+
+        # Session should be gone
+        assert case_storage.get_chat_session(session.id) is None
+
+    @pytest.mark.asyncio(loop_scope="function")
+    @patch("employee_help.api.casefile_routes._get_case_storage")
+    @patch("employee_help.api.casefile_routes._require_user")
+    async def test_delete_session_not_found(
+        self, mock_user, mock_storage_fn,
+        case_storage, sample_case,
+    ):
+        mock_user.return_value = FakeUser()
+        mock_storage_fn.return_value = case_storage
+
+        from employee_help.api.casefile_routes import delete_chat_session
+        from fastapi import HTTPException
+
+        request = MagicMock()
+        with pytest.raises(HTTPException) as exc_info:
+            await delete_chat_session(sample_case.id, "nonexistent", request)
+        assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio(loop_scope="function")
+    @patch("employee_help.api.casefile_routes._get_case_storage")
+    @patch("employee_help.api.casefile_routes._require_user")
+    async def test_delete_session_wrong_case(
+        self, mock_user, mock_storage_fn,
+        case_storage, sample_case,
+    ):
+        """Cannot delete a session belonging to a different case."""
+        mock_user.return_value = FakeUser()
+        mock_storage_fn.return_value = case_storage
+
+        other_case = case_storage.create_case(Case(
+            name="Other", user_id="test-user", organization_id="test-org",
+        ))
+        session = case_storage.create_chat_session(
+            CaseChatSession(case_id=other_case.id)
+        )
+
+        from employee_help.api.casefile_routes import delete_chat_session
+        from fastapi import HTTPException
+
+        request = MagicMock()
+        with pytest.raises(HTTPException) as exc_info:
+            await delete_chat_session(sample_case.id, session.id, request)
+        assert exc_info.value.status_code == 404
+
+
 class TestChatServiceUnavailable:
     """Tests for when CaseChatService is not available."""
 

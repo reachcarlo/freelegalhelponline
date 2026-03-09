@@ -2,12 +2,13 @@ import { test, expect, Page, Route } from "@playwright/test";
 import { setupAuth } from "./helpers/wizard-helpers";
 
 /**
- * LITIGAGENT Chat Drawer E2E Tests (Phase L3.7 + L3.8 + L3.9)
+ * LITIGAGENT Chat Drawer E2E Tests (Phase L3.7 + L3.8 + L3.9 + L3.10)
  *
  * Tests the chat drawer UI: open/close, send messages, SSE streaming,
  * source display, multi-turn conversation, error handling.
  * L3.8: Clickable file citations navigate to Panel 2.
  * L3.9: Contextual suggested questions based on case files.
+ * L3.10: Chat session persistence (history panel, switch, delete).
  *
  * All chat API calls are mocked via route interception since the backend
  * requires a real LLM service.
@@ -776,6 +777,274 @@ test.describe("LITIGAGENT Chat Drawer", () => {
     await expect(
       page.getByText("Analyze the complaint and identify all causes of action")
     ).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("history button toggles session list panel", async ({ page }) => {
+    // Mock sessions list with two sessions
+    await page.route(`**/api/cases/chat-test-case-id/chat/sessions`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          sessions: [
+            {
+              id: "sess-1",
+              case_id: "chat-test-case-id",
+              created_at: "2026-03-07T10:00:00",
+              updated_at: "2026-03-07T10:05:00",
+              turn_count: 4,
+            },
+            {
+              id: "sess-2",
+              case_id: "chat-test-case-id",
+              created_at: "2026-03-06T08:00:00",
+              updated_at: "2026-03-06T08:10:00",
+              turn_count: 2,
+            },
+          ],
+        }),
+      })
+    );
+
+    // Mock history for both sessions (for preview loading)
+    await page.route(
+      `**/api/cases/chat-test-case-id/chat/sess-1`,
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            session_id: "sess-1",
+            case_id: "chat-test-case-id",
+            turns: [
+              { id: "t1", session_id: "sess-1", turn_number: 1, role: "user", content: "What are the key claims?", sources: null, created_at: "2026-03-07T10:00:01" },
+              { id: "t2", session_id: "sess-1", turn_number: 1, role: "assistant", content: "The complaint alleges...", sources: null, created_at: "2026-03-07T10:00:10" },
+            ],
+          }),
+        })
+    );
+
+    await page.route(
+      `**/api/cases/chat-test-case-id/chat/sess-2`,
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            session_id: "sess-2",
+            case_id: "chat-test-case-id",
+            turns: [
+              { id: "t3", session_id: "sess-2", turn_number: 1, role: "user", content: "Summarize the evidence", sources: null, created_at: "2026-03-06T08:00:01" },
+              { id: "t4", session_id: "sess-2", turn_number: 1, role: "assistant", content: "The evidence shows...", sources: null, created_at: "2026-03-06T08:00:10" },
+            ],
+          }),
+        })
+    );
+
+    await page.goto("/tools/litigagent/chat-test-case-id");
+    await page.getByRole("button", { name: /chat/i }).first().click();
+
+    // History panel should not be visible initially
+    await expect(page.getByTestId("session-history-panel")).not.toBeVisible();
+
+    // Click history toggle
+    await page.getByTestId("chat-history-toggle").click();
+
+    // History panel should appear
+    await expect(page.getByTestId("session-history-panel")).toBeVisible();
+    await expect(page.getByText("Previous conversations")).toBeVisible();
+
+    // Session previews should load
+    await expect(page.getByText("What are the key claims?")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Summarize the evidence")).toBeVisible();
+
+    // Turn counts visible
+    await expect(page.getByText(/4 turns/)).toBeVisible();
+    await expect(page.getByText(/2 turns/)).toBeVisible();
+
+    // Click toggle again to close
+    await page.getByTestId("chat-history-toggle").click();
+    await expect(page.getByTestId("session-history-panel")).not.toBeVisible();
+  });
+
+  test("switching sessions loads conversation history", async ({ page }) => {
+    // Mock sessions
+    await page.route(`**/api/cases/chat-test-case-id/chat/sessions`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          sessions: [
+            {
+              id: "sess-a",
+              case_id: "chat-test-case-id",
+              created_at: "2026-03-07T10:00:00",
+              updated_at: "2026-03-07T10:05:00",
+              turn_count: 2,
+            },
+          ],
+        }),
+      })
+    );
+
+    // Mock session history
+    await page.route(
+      `**/api/cases/chat-test-case-id/chat/sess-a`,
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            session_id: "sess-a",
+            case_id: "chat-test-case-id",
+            turns: [
+              { id: "t1", session_id: "sess-a", turn_number: 1, role: "user", content: "Explain the timeline", sources: null, created_at: "2026-03-07T10:00:01" },
+              { id: "t2", session_id: "sess-a", turn_number: 1, role: "assistant", content: "The timeline shows three key events.", sources: null, created_at: "2026-03-07T10:00:10" },
+            ],
+          }),
+        })
+    );
+
+    await page.goto("/tools/litigagent/chat-test-case-id");
+    await page.getByRole("button", { name: /chat/i }).first().click();
+
+    // Should start with suggestions (no messages)
+    await expect(page.getByText("Suggested questions")).toBeVisible();
+
+    // Open history and click session
+    await page.getByTestId("chat-history-toggle").click();
+    await expect(page.getByText("Explain the timeline")).toBeVisible({ timeout: 10_000 });
+
+    // Click to switch to that session
+    await page.getByTestId("session-item-sess-a").locator("button").first().click();
+
+    // History panel should close, messages should be loaded
+    await expect(page.getByTestId("session-history-panel")).not.toBeVisible();
+    await expect(page.getByText("Explain the timeline")).toBeVisible();
+    await expect(page.getByText("The timeline shows three key events.")).toBeVisible();
+
+    // Suggestions should be gone
+    await expect(page.getByText("Suggested questions")).not.toBeVisible();
+  });
+
+  test("deleting a session removes it from the list", async ({ page }) => {
+    await page.route(`**/api/cases/chat-test-case-id/chat/sessions`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          sessions: [
+            {
+              id: "sess-del",
+              case_id: "chat-test-case-id",
+              created_at: "2026-03-07T10:00:00",
+              updated_at: "2026-03-07T10:05:00",
+              turn_count: 1,
+            },
+          ],
+        }),
+      })
+    );
+
+    await page.route(
+      `**/api/cases/chat-test-case-id/chat/sess-del`,
+      (route) => {
+        if (route.request().method() === "DELETE") {
+          return route.fulfill({ status: 204 });
+        }
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            session_id: "sess-del",
+            case_id: "chat-test-case-id",
+            turns: [
+              { id: "t1", session_id: "sess-del", turn_number: 1, role: "user", content: "Delete me", sources: null, created_at: "2026-03-07T10:00:01" },
+            ],
+          }),
+        });
+      }
+    );
+
+    await page.goto("/tools/litigagent/chat-test-case-id");
+    await page.getByRole("button", { name: /chat/i }).first().click();
+
+    // Open history
+    await page.getByTestId("chat-history-toggle").click();
+    await expect(page.getByText("Delete me")).toBeVisible({ timeout: 10_000 });
+
+    // Delete the session
+    await page.getByTestId("delete-session-sess-del").click({ force: true });
+
+    // Session should be removed, show empty state
+    await expect(page.getByText("No previous conversations")).toBeVisible();
+  });
+
+  test("deleting current session resets chat to empty state", async ({ page }) => {
+    // Start with a restored session
+    await page.route(`**/api/cases/chat-test-case-id/chat/sessions`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          sessions: [
+            {
+              id: "sess-current",
+              case_id: "chat-test-case-id",
+              created_at: "2026-03-07T12:00:00",
+              updated_at: "2026-03-07T12:05:00",
+              turn_count: 2,
+            },
+          ],
+        }),
+      })
+    );
+
+    await page.route(
+      `**/api/cases/chat-test-case-id/chat/sess-current`,
+      (route) => {
+        if (route.request().method() === "DELETE") {
+          return route.fulfill({ status: 204 });
+        }
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            session_id: "sess-current",
+            case_id: "chat-test-case-id",
+            turns: [
+              { id: "t1", session_id: "sess-current", turn_number: 1, role: "user", content: "Active question", sources: null, created_at: "2026-03-07T12:00:01" },
+              { id: "t2", session_id: "sess-current", turn_number: 1, role: "assistant", content: "Active answer", sources: null, created_at: "2026-03-07T12:00:10" },
+            ],
+          }),
+        });
+      }
+    );
+
+    await page.goto("/tools/litigagent/chat-test-case-id");
+    await page.getByRole("button", { name: /chat/i }).first().click();
+
+    // Session auto-restores
+    await expect(page.getByText("Active question")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Active answer")).toBeVisible();
+
+    // Open history and delete current session
+    await page.getByTestId("chat-history-toggle").click();
+    await expect(page.getByText("(current)")).toBeVisible();
+    await page.getByTestId("delete-session-sess-current").click({ force: true });
+
+    // Messages should be cleared, suggestions should reappear
+    await expect(page.getByText("Active question")).not.toBeVisible();
+    await expect(page.getByText("Suggested questions")).toBeVisible();
+  });
+
+  test("shows empty state when no previous sessions exist", async ({ page }) => {
+    await page.goto("/tools/litigagent/chat-test-case-id");
+    await page.getByRole("button", { name: /chat/i }).first().click();
+
+    // Open history — default mock returns empty sessions
+    await page.getByTestId("chat-history-toggle").click();
+    await expect(page.getByText("No previous conversations")).toBeVisible();
   });
 
   test("enter key sends message, shift+enter adds newline", async ({
