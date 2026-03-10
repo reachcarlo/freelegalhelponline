@@ -6,12 +6,19 @@ Start with:
 
 from __future__ import annotations
 
+# Load .env BEFORE any app imports so module-level os.environ reads pick up values.
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+_env_path = Path(__file__).resolve().parents[3] / ".env"
+load_dotenv(_env_path)
+
 import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from pathlib import Path
 
 import sentry_sdk
 import structlog
@@ -45,16 +52,6 @@ from employee_help.api.objection_routes import objection_router
 from employee_help.api.routes import router
 
 logger = structlog.get_logger(__name__)
-
-# Load .env file if present (for ANTHROPIC_API_KEY and other config)
-_env_path = Path(__file__).resolve().parents[3] / ".env"
-if _env_path.exists():
-    with open(_env_path) as _f:
-        for _line in _f:
-            _line = _line.strip()
-            if _line and not _line.startswith("#") and "=" in _line:
-                _key, _, _val = _line.partition("=")
-                os.environ.setdefault(_key.strip(), _val.strip())
 
 # --- Configuration from environment ---
 

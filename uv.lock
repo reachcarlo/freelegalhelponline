@@ -737,6 +737,7 @@ web = [
     { name = "pyjwt", extra = ["crypto"] },
     { name = "pypdf" },
     { name = "pypdfform" },
+    { name = "python-dotenv" },
     { name = "python-multipart" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -774,6 +775,7 @@ requires-dist = [
     { name = "pypdfform", marker = "extra == 'discovery'", specifier = ">=4.7,<5.0" },
     { name = "pypdfform", marker = "extra == 'web'", specifier = ">=4.7,<5.0" },
     { name = "pytesseract", marker = "extra == 'casefile'", specifier = ">=0.3" },
+    { name = "python-dotenv", marker = "extra == 'web'", specifier = ">=1.0" },
     { name = "python-multipart", marker = "extra == 'web'", specifier = ">=0.0.9" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "ragas", marker = "extra == 'eval'", specifier = ">=0.2" },
