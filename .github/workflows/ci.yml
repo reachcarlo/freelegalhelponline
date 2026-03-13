@@ -60,6 +60,9 @@ jobs:
 
       - name: Run tests
         run: uv run pytest --tb=short -q --cov --cov-report=term-missing --cov-report=xml
+        env:
+          ANTHROPIC_API_KEY: sk-ant-test-dummy-key-for-ci
+          AUTH_JWT_SECRET: test-jwt-secret-for-ci-only-0123456789
 
       - name: Upload coverage report
         if: always()

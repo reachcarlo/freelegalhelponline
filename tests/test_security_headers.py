@@ -96,21 +96,14 @@ class TestSecurityHeadersIntegration:
 
     def test_real_app_has_security_headers(self):
         """The real app should respond with security headers."""
-        from unittest.mock import patch
+        from employee_help.api.main import app as real_app
 
-        # Bypass full service initialization — we only need the middleware stack
-        with (
-            patch("employee_help.api.main.init_services"),
-            patch("employee_help.api.main.shutdown_services"),
-        ):
-            from employee_help.api.main import app as real_app
-
-            with TestClient(real_app) as c:
-                resp = c.get("/api/health")
-                assert resp.headers.get("X-Content-Type-Options") == "nosniff"
-                assert resp.headers.get("X-Frame-Options") == "DENY"
-                assert resp.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
-                assert (
-                    resp.headers.get("Permissions-Policy")
-                    == "camera=(), microphone=(), geolocation=()"
-                )
+        with TestClient(real_app) as c:
+            resp = c.get("/api/health")
+            assert resp.headers.get("X-Content-Type-Options") == "nosniff"
+            assert resp.headers.get("X-Frame-Options") == "DENY"
+            assert resp.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+            assert (
+                resp.headers.get("Permissions-Policy")
+                == "camera=(), microphone=(), geolocation=()"
+            )
