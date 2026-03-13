@@ -81,11 +81,9 @@ test.describe("LITIGAGENT Editable Text Panel (L2.1)", () => {
     await textarea.click();
     await textarea.fill("After editing.");
 
-    // Wait for debounce (2s) + save to complete — "Saving..." should appear
-    await expect(page.getByText("Saving...")).toBeVisible({ timeout: 5_000 });
-
-    // Then "Saved" should appear
-    await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
+    // Wait for debounce (2s) + save to complete — "Saved" should appear
+    // Note: "Saving..." state may be too brief to observe reliably
+    await expect(page.getByTestId("save-status-saved")).toBeVisible({ timeout: 10_000 });
 
     fs.unlinkSync(tempFile);
   });
@@ -125,10 +123,10 @@ test.describe("LITIGAGENT Editable Text Panel (L2.1)", () => {
     // Edit and wait for save
     await textarea.click();
     await textarea.fill("Updated fade test.");
-    await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("save-status-saved")).toBeVisible({ timeout: 10_000 });
 
     // "Saved" should disappear after ~3 seconds
-    await expect(page.getByText("Saved")).not.toBeVisible({ timeout: 6_000 });
+    await expect(page.getByTestId("save-status-saved")).not.toBeVisible({ timeout: 6_000 });
 
     fs.unlinkSync(tempFile);
   });

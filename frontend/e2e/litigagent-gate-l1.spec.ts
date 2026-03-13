@@ -116,7 +116,7 @@ test.describe("LITIGAGENT Gate L1", () => {
     await expectTextInPanel(page, "separation packages");
 
     // Verify file type badges in Panel 2
-    const txtBadges = page.locator('[role="region"] .rounded.bg-badge-bg:text-is("TXT")');
+    const txtBadges = page.locator('[role="region"] span.uppercase', { hasText: "txt" });
     await expect(async () => {
       expect(await txtBadges.count()).toBeGreaterThanOrEqual(4);
     }).toPass({ timeout: 5_000 });

@@ -31,6 +31,7 @@ class AuditLogger:
             self._conn.row_factory = sqlite3.Row
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA foreign_keys=ON")
+            self._conn.execute("PRAGMA busy_timeout=5000")
             self._owns_conn = True
         else:
             raise ValueError("Either conn or db_path must be provided")

@@ -92,11 +92,11 @@ test.describe("LITIGAGENT Text Panel (L1.11)", () => {
     const region = page.locator('[role="region"][aria-label="Content from header-check.txt"]');
     await expect(region).toBeVisible();
 
-    // Should show the file type badge
-    await expect(region.locator("text=TXT")).toBeVisible();
+    // Should show the file type badge (use exact match on the badge span)
+    await expect(region.locator("span.uppercase", { hasText: "txt" })).toBeVisible();
 
     // Should show the filename in the header
-    await expect(region.locator("text=header-check.txt")).toBeVisible();
+    await expect(region.getByText("header-check.txt", { exact: true })).toBeVisible();
 
     fs.unlinkSync(tempFile);
   });

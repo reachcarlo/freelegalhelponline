@@ -41,6 +41,15 @@ def _audit(action: str, request=None, **kwargs) -> None:
         else:
             audit.log(action, **kwargs)
     except Exception:
+        # Rollback any failed transaction to release the WAL write lock
+        try:
+            from employee_help.api.deps import get_audit_logger as _get_al
+
+            al = _get_al()
+            if al is not None:
+                al._conn.rollback()
+        except Exception:
+            pass
         logger.warning("audit_log_failed", action=action, exc_info=True)
 
 # Cookie settings — configurable via env vars
@@ -646,6 +655,68 @@ async def revoke_all_other_sessions(
     )
 
     return JSONResponse(content={"status": "ok", "revoked_count": revoked})
+
+
+@auth_router.post("/e2e-token")
+async def create_e2e_token(request: Request) -> JSONResponse:
+    """Create a signed access token for E2E tests.
+
+    Only available when ALLOW_E2E_AUTH=true is set (dev/test environments).
+    Returns a valid JWT cookie so E2E tests can access protected endpoints.
+    Also ensures the test user/org exist in the DB so audit log FKs succeed.
+    """
+    if os.environ.get("ALLOW_E2E_AUTH", "").lower() != "true":
+        raise HTTPException(status_code=404, detail="Not found")
+
+    from employee_help.api.deps import get_auth_storage, get_session_manager
+
+    session_manager = get_session_manager()
+    auth_storage = get_auth_storage()
+
+    # Ensure e2e test user and org exist (idempotent)
+    user_id = "e2e-test-user"
+    org_id = "e2e-test-org"
+    try:
+        if auth_storage.get_user(user_id) is None:
+            user = User(
+                id=user_id,
+                provider="e2e",
+                provider_user_id="e2e-test",
+                email="e2e@lawfirm.com",
+                display_name="E2E Attorney",
+            )
+            auth_storage.create_user(user)
+            org = Organization(id=org_id, name="E2E Test Org", slug="e2e-test-org")
+            auth_storage.create_organization(org)
+            auth_storage.create_membership(Membership(
+                id="e2e-test-membership",
+                user_id=user_id,
+                organization_id=org_id,
+                role="owner",
+            ))
+    except Exception:
+        pass  # Already exists
+
+    from employee_help.auth.tokens import create_access_token
+
+    token = create_access_token(
+        user_id=user_id,
+        org_id=org_id,
+        role="owner",
+        email="e2e@lawfirm.com",
+        secret=session_manager._secret,
+        ttl=3600,  # 1 hour
+    )
+
+    resp = JSONResponse(content={"status": "ok", "user_id": user_id})
+    resp.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        path="/",
+    )
+    return resp
 
 
 # ── Helpers ─────────────────────────────────────────────────────

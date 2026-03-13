@@ -76,6 +76,15 @@ def _audit(action: str, request, **kwargs) -> None:
         if audit is not None:
             audit.log_from_request(action, request, **kwargs)
     except Exception:
+        # Rollback any failed transaction to release the WAL write lock
+        try:
+            from employee_help.api.deps import get_audit_logger as _get_al
+
+            al = _get_al()
+            if al is not None:
+                al._conn.rollback()
+        except Exception:
+            pass
         logger.warning("audit_log_failed", action=action, exc_info=True)
 
 

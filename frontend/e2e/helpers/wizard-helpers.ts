@@ -22,9 +22,13 @@ const MOCK_AUTH_USER = {
 
 /**
  * Set up an authenticated session for E2E tests.
- * Mocks /api/auth/me and sets the access_token cookie so the proxy passes.
+ *
+ * Calls the backend's /api/auth/e2e-token endpoint (gated behind
+ * ALLOW_E2E_AUTH=true) to obtain a real signed JWT cookie.
+ * Also mocks /api/auth/me so the frontend renders the user profile.
  */
 export async function setupAuth(page: Page): Promise<void> {
+  // Mock the /api/auth/me endpoint for frontend rendering
   await page.route("**/api/auth/me", (route) =>
     route.fulfill({
       status: 200,
@@ -33,14 +37,29 @@ export async function setupAuth(page: Page): Promise<void> {
     })
   );
 
-  await page.context().addCookies([
-    {
-      name: "access_token",
-      value: "e2e-mock-token",
-      domain: "localhost",
-      path: "/",
-    },
-  ]);
+  // Get a real signed JWT from the backend
+  const resp = await page.request.post("http://localhost:8000/api/auth/e2e-token");
+  if (resp.status() !== 200) {
+    throw new Error(
+      `Failed to get E2E auth token (status ${resp.status()}). ` +
+      "Is ALLOW_E2E_AUTH=true set in .env?"
+    );
+  }
+
+  // Extract the token from Set-Cookie and add it to the browser context
+  // (page.request may not automatically share cookies with the browser)
+  const setCookie = resp.headers()["set-cookie"] ?? "";
+  const tokenMatch = setCookie.match(/access_token=([^;]+)/);
+  if (tokenMatch) {
+    await page.context().addCookies([
+      {
+        name: "access_token",
+        value: tokenMatch[1],
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
+  }
 }
 
 /** Standard case info for all wizard tests. */
