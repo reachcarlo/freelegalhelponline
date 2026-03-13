@@ -909,10 +909,15 @@ test.describe("LITIGAGENT Chat Drawer", () => {
     await page.goto("/tools/litigagent/chat-test-case-id");
     await page.getByRole("button", { name: /chat/i }).first().click();
 
-    // Should start with suggestions (no messages)
+    // Auto-restore loads the most recent session (sess-a has turn_count: 2)
+    await expect(page.getByText("Explain the timeline")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("The timeline shows three key events.")).toBeVisible();
+
+    // Start a new conversation to clear messages
+    await page.getByTitle("New conversation").click();
     await expect(page.getByText("Suggested questions")).toBeVisible();
 
-    // Open history and click session
+    // Open history and click session to switch back
     await page.getByTestId("chat-history-toggle").click();
     const historyPanel = page.getByTestId("session-history-panel");
     await expect(historyPanel.getByText("Explain the timeline")).toBeVisible({ timeout: 10_000 });
