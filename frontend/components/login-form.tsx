@@ -2,7 +2,9 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import AuthLoading from "@/components/auth-loading";
 
 const ERROR_MESSAGES: Record<string, string> = {
   oauth_denied: "Sign-in was cancelled. Please try again.",
@@ -33,11 +35,7 @@ export default function LoginForm() {
   }, [isLoading, user, router, redirect]);
 
   if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="text-text-tertiary">Loading...</div>
-      </div>
-    );
+    return <AuthLoading message="Loading..." />;
   }
 
   if (user) return null;
@@ -119,8 +117,18 @@ export default function LoginForm() {
           </a>
         </div>
 
+        {/* Escape hatch */}
+        <div className="mt-6 text-center">
+          <Link
+            href={redirect || "/"}
+            className="text-sm text-text-tertiary transition-colors hover:text-accent"
+          >
+            Continue without signing in
+          </Link>
+        </div>
+
         {/* Trust signals */}
-        <div className="mt-8 space-y-2 text-center text-xs text-text-tertiary">
+        <div className="mt-6 space-y-2 text-center text-xs text-text-tertiary">
           <p>
             By signing in, you agree to our{" "}
             <a href="/terms" className="underline hover:text-accent">

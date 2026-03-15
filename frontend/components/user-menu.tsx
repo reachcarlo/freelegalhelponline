@@ -11,13 +11,15 @@ function UserAvatar({
   user: Pick<AuthUser, "display_name" | "avatar_url" | "email">;
   size?: number;
 }) {
+  const [imgFailed, setImgFailed] = useState(false);
+
   const initials = (user.display_name || user.email)
     .split(/[\s@]/)
     .slice(0, 2)
     .map((s) => s[0]?.toUpperCase() || "")
     .join("");
 
-  if (user.avatar_url) {
+  if (user.avatar_url && !imgFailed) {
     return (
       <img
         src={user.avatar_url}
@@ -26,13 +28,14 @@ function UserAvatar({
         height={size}
         className="rounded-full"
         referrerPolicy="no-referrer"
+        onError={() => setImgFailed(true)}
       />
     );
   }
 
   return (
     <div
-      className="flex items-center justify-center rounded-full bg-accent text-white text-xs font-medium"
+      className="flex items-center justify-center rounded-full bg-accent text-white text-xs font-medium select-none"
       style={{ width: size, height: size }}
     >
       {initials}
@@ -69,7 +72,20 @@ export default function UserMenu() {
     return () => document.removeEventListener("keydown", handleKey);
   }, [open]);
 
-  if (isLoading || !user) return null;
+  if (isLoading) return null;
+
+  if (!user) {
+    return (
+      <div className="fixed top-3 right-3 z-50">
+        <Link
+          href="/login"
+          className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
+        >
+          Sign in
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div ref={menuRef} className="fixed top-3 right-3 z-50">

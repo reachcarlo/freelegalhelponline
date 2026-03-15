@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import AuthLoading from "@/components/auth-loading";
 
 /**
  * Client-side auth guard. Redirects to /login if user is not authenticated.
@@ -21,11 +22,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [isLoading, user, router, pathname]);
 
   if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="text-text-tertiary">Loading...</div>
-      </div>
-    );
+    return <AuthLoading />;
   }
 
   if (!user) return null;

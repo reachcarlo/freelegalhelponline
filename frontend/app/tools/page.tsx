@@ -43,18 +43,21 @@ const tools = [
     title: "Discovery Objection Drafter",
     description:
       "AI-powered objection drafter. Paste discovery requests, get formatted objections with strength ratings, statutory and case law citations. Supports interrogatories, RFPs, and RFAs.",
+    requiresAuth: true,
   },
   {
     href: "/tools/discovery",
     title: "Discovery Document Generator",
     description:
       "Generate employment law discovery documents — Form Interrogatories (DISC-001/002), Special Interrogatories, Requests for Production, and Requests for Admission.",
+    requiresAuth: true,
   },
   {
     href: "/tools/litigagent",
     title: "LITIGAGENT Case File Analyzer",
     description:
       "Upload case files (PDF, Word, email, text), extract text automatically, and organize with notes. Your AI associate that reads every document and remembers every detail.",
+    requiresAuth: true,
   },
 ];
 
@@ -95,7 +98,17 @@ export default function ToolsIndex() {
                   Recommended starting point
                 </p>
               )}
-              <h2 className="font-semibold text-text-primary">{tool.title}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-semibold text-text-primary">{tool.title}</h2>
+                {"requiresAuth" in tool && tool.requiresAuth && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-surface-raised px-2 py-0.5 text-xs text-text-tertiary">
+                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                    </svg>
+                    Sign in required
+                  </span>
+                )}
+              </div>
               <p className="mt-2 text-sm text-text-tertiary">
                 {tool.description}
               </p>

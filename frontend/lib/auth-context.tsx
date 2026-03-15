@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear local state regardless
     }
     setUser(null);
-    router.push("/");
+    router.push("/?signed_out=1");
   }, [router]);
 
   // Fetch user on mount + handle post-OAuth redirect

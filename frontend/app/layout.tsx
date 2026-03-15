@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ConsentProvider } from "@/lib/consent-context";
@@ -6,6 +7,7 @@ import { ModeProvider } from "@/lib/mode-context";
 import { AuthProvider } from "@/lib/auth-context";
 import Disclaimer from "@/components/disclaimer";
 import UserMenu from "@/components/user-menu";
+import SignedOutBanner from "@/components/signed-out-banner";
 import "./globals.css";
 
 const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
@@ -70,6 +72,9 @@ export default function RootLayout({
             <AuthProvider>
               <div className="flex h-dvh flex-col overflow-hidden">
                 <UserMenu />
+                <Suspense fallback={null}>
+                  <SignedOutBanner />
+                </Suspense>
                 <main className="flex-1 flex flex-col min-h-0">{children}</main>
                 <Disclaimer />
               </div>

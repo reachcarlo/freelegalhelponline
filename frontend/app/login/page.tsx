@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Metadata } from "next";
 import LoginForm from "@/components/login-form";
+import AuthLoading from "@/components/auth-loading";
 
 export const metadata: Metadata = {
   title: "Sign In — Employee Help",
@@ -10,13 +11,7 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex flex-1 items-center justify-center">
-          <div className="text-text-tertiary">Loading...</div>
-        </div>
-      }
-    >
+    <Suspense fallback={<AuthLoading message="Loading..." />}>
       <LoginForm />
     </Suspense>
   );
