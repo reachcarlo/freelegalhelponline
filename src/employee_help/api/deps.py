@@ -188,10 +188,15 @@ def _init_auth_services() -> None:
 
     jwt_secret = os.environ.get("AUTH_JWT_SECRET")
     if not jwt_secret:
+        # Log which OAuth vars ARE set so misconfiguration is diagnosable
+        has_google = bool(os.environ.get("GOOGLE_CLIENT_ID"))
+        has_microsoft = bool(os.environ.get("MICROSOFT_CLIENT_ID"))
         logger.warning(
             "auth_disabled",
             msg="AUTH_JWT_SECRET is not set — auth services disabled. "
             'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"',
+            google_client_id_set=has_google,
+            microsoft_client_id_set=has_microsoft,
         )
         return
 
@@ -216,7 +221,11 @@ def _init_auth_services() -> None:
         _google_provider = GoogleOIDCProvider(google_client_id, google_client_secret)
         logger.info("google_oauth_configured")
     else:
-        logger.info("google_oauth_not_configured")
+        logger.warning(
+            "google_oauth_not_configured",
+            client_id_set=bool(google_client_id),
+            client_secret_set=bool(google_client_secret),
+        )
 
     # Microsoft OAuth (optional — only if credentials configured)
     ms_client_id = os.environ.get("MICROSOFT_CLIENT_ID")
@@ -227,7 +236,11 @@ def _init_auth_services() -> None:
         _microsoft_provider = MicrosoftOIDCProvider(ms_client_id, ms_client_secret)
         logger.info("microsoft_oauth_configured")
     else:
-        logger.info("microsoft_oauth_not_configured")
+        logger.warning(
+            "microsoft_oauth_not_configured",
+            client_id_set=bool(ms_client_id),
+            client_secret_set=bool(ms_client_secret),
+        )
 
     logger.info(
         "auth_services_initialized",

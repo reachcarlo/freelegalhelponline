@@ -7,13 +7,32 @@ Start with:
 from __future__ import annotations
 
 # Load .env BEFORE any app imports so module-level os.environ reads pick up values.
+# In production (Docker/Railway), env vars come from the platform — .env loading is
+# a dev convenience only. We search upward from this file to find it, so the path
+# doesn't break when the package is installed into site-packages.
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-_env_path = Path(__file__).resolve().parents[3] / ".env"
-load_dotenv(_env_path)
+
+def _find_dotenv() -> Path | None:
+    """Walk up from this file to find a .env file, returning None if not found."""
+    current = Path(__file__).resolve().parent
+    for _ in range(8):  # cap traversal depth
+        candidate = current / ".env"
+        if candidate.is_file():
+            return candidate
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return None
+
+
+_env_path = _find_dotenv()
+if _env_path:
+    load_dotenv(_env_path)
 
 import time
 from collections import defaultdict
