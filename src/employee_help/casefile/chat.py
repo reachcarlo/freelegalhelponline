@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from employee_help.casefile.case_vector_store import CaseVectorStore
     from employee_help.generation.llm import LLMClient
     from employee_help.generation.prompts import PromptBuilder
+    from employee_help.privacy.engine import ObfuscationEngine
     from employee_help.retrieval.embedder import EmbeddingService
     from employee_help.retrieval.service import RetrievalResult, RetrievalService
     from employee_help.storage.case_storage import CaseStorage
@@ -61,6 +62,7 @@ class CaseChatService:
         *,
         case_top_k: int = CASE_TOP_K,
         kb_top_k: int = KB_TOP_K,
+        obfuscation_engine: ObfuscationEngine | None = None,
     ) -> None:
         self.case_vector_store = case_vector_store
         self.embedding_service = embedding_service
@@ -70,6 +72,7 @@ class CaseChatService:
         self.case_storage = case_storage
         self.case_top_k = case_top_k
         self.kb_top_k = kb_top_k
+        self._obfuscation_engine = obfuscation_engine
         self.logger = structlog.get_logger(__name__)
 
     # ── Retrieval ───────────────────────────────────────────────
@@ -272,7 +275,7 @@ class CaseChatService:
         """
         from employee_help.retrieval.service import RetrievalResult as RR
 
-        # 1. Retrieve from both sources
+        # 1. Retrieve from both sources (uses real data for search accuracy)
         case_results, kb_results = self.retrieve_for_case(query, case_id)
 
         if not case_results and not kb_results:
@@ -290,26 +293,46 @@ class CaseChatService:
         # 2. Get case notes
         case_notes = self.get_case_notes(case_id)
 
-        # 3. Build system prompt
-        system_prompt = self.build_case_system_prompt(case_notes)
+        # 3. Obfuscation (if engine available)
+        obf_ctx = None
+        if self._obfuscation_engine is not None:
+            obf_ctx = self._obfuscation_engine.create_context()
+            obf_query = self._obfuscation_engine.obfuscate(query, obf_ctx)
+            obf_case_results = self._obfuscate_case_results(
+                case_results, obf_ctx
+            )
+            obf_case_notes = self._obfuscate_notes(case_notes, obf_ctx)
+        else:
+            obf_query = query
+            obf_case_results = case_results
+            obf_case_notes = case_notes
 
-        # 4. Build document blocks
+        # 4. Build system prompt (with obfuscated notes)
+        system_prompt = self.build_case_system_prompt(obf_case_notes)
+
+        # 5. Build document blocks (KB blocks pass through unmodified)
         document_blocks, _context_order = self.build_case_document_blocks(
-            case_results, kb_results,
+            obf_case_results, kb_results,
         )
 
-        # 5. Stream from LLM (always attorney mode)
+        # 6. Stream from LLM (always attorney mode)
         stream_metadata: list[dict[str, Any]] = []
+        engine = self._obfuscation_engine
+        ctx_ref = obf_ctx
 
         def text_stream() -> Iterator[str]:
             for chunk in self.llm_client.generate_stream(
                 system_prompt=system_prompt,
-                user_message=query,
+                user_message=obf_query,
                 mode="attorney",
                 document_blocks=document_blocks,
             ):
                 if chunk.text:
-                    yield chunk.text
+                    # Deobfuscate each streamed token
+                    if engine is not None and ctx_ref is not None:
+                        yield engine.deobfuscate(chunk.text, ctx_ref)
+                    else:
+                        yield chunk.text
                 if chunk.is_final:
                     stream_metadata.append({
                         "citations": chunk.citations,
@@ -337,6 +360,11 @@ class CaseChatService:
 
         Supports conversation history with fresh retrieval on each turn.
         Short follow-up queries are expanded with the original question.
+
+        When obfuscation is enabled, the entity map is rebuilt each turn
+        by scanning in a deterministic order: (1) conversation history,
+        (2) current query + case data. This ensures the same entities
+        get the same placeholders across turns.
         """
         from employee_help.retrieval.service import RetrievalResult as RR
 
@@ -350,7 +378,7 @@ class CaseChatService:
                     retrieval_query = f"{turn['content']} {query}"
                     break
 
-        # 1. Retrieve
+        # 1. Retrieve (uses real data for search accuracy)
         case_results, kb_results = self.retrieve_for_case(
             retrieval_query, case_id
         )
@@ -365,26 +393,63 @@ class CaseChatService:
             empty_kb: list[RR] = []
             return empty_stream(), [], empty_kb, []
 
-        # 2. Build context
+        # 2. Get case notes
         case_notes = self.get_case_notes(case_id)
-        system_prompt = self.build_case_system_prompt(case_notes)
+
+        # 3. Obfuscation (if engine available)
+        obf_ctx = None
+        if self._obfuscation_engine is not None:
+            obf_ctx = self._obfuscation_engine.create_context()
+
+            # Scan history first to ensure deterministic placeholder
+            # assignment (same entities → same placeholders as prior turns)
+            for turn in history:
+                self._obfuscation_engine.obfuscate(turn["content"], obf_ctx)
+
+            # Now obfuscate current data
+            obf_query = self._obfuscation_engine.obfuscate(query, obf_ctx)
+            obf_history = [
+                {
+                    "role": t["role"],
+                    "content": self._obfuscation_engine.obfuscate(
+                        t["content"], obf_ctx
+                    ),
+                }
+                for t in history
+            ]
+            obf_case_results = self._obfuscate_case_results(
+                case_results, obf_ctx
+            )
+            obf_case_notes = self._obfuscate_notes(case_notes, obf_ctx)
+        else:
+            obf_query = query
+            obf_history = history
+            obf_case_results = case_results
+            obf_case_notes = case_notes
+
+        # 4. Build context
+        system_prompt = self.build_case_system_prompt(obf_case_notes)
         document_blocks, _context_order = self.build_case_document_blocks(
-            case_results, kb_results,
+            obf_case_results, kb_results,
         )
 
-        # 3. Build multi-turn messages
-        trimmed_history = self.prompt_builder._trim_history(history, 2000)
+        # 5. Build multi-turn messages
+        trimmed_history = self.prompt_builder._trim_history(
+            obf_history, 2000
+        )
         messages: list[dict[str, Any]] = []
         for turn in trimmed_history:
             messages.append({"role": turn["role"], "content": turn["content"]})
 
         # Current turn with document blocks
         current_content: list[dict[str, Any]] = list(document_blocks)
-        current_content.append({"type": "text", "text": query})
+        current_content.append({"type": "text", "text": obf_query})
         messages.append({"role": "user", "content": current_content})
 
-        # 4. Stream
+        # 6. Stream
         stream_metadata: list[dict[str, Any]] = []
+        engine = self._obfuscation_engine
+        ctx_ref = obf_ctx
 
         def text_stream() -> Iterator[str]:
             for chunk in self.llm_client.generate_stream_multiturn(
@@ -393,7 +458,11 @@ class CaseChatService:
                 mode="attorney",
             ):
                 if chunk.text:
-                    yield chunk.text
+                    # Deobfuscate each streamed token
+                    if engine is not None and ctx_ref is not None:
+                        yield engine.deobfuscate(chunk.text, ctx_ref)
+                    else:
+                        yield chunk.text
                 if chunk.is_final:
                     stream_metadata.append({
                         "citations": chunk.citations,
@@ -403,6 +472,65 @@ class CaseChatService:
                     })
 
         return text_stream(), case_results, kb_results, stream_metadata
+
+    # ── Obfuscation helpers ────────────────────────────────────
+
+    def _obfuscate_case_results(
+        self,
+        results: list[CaseRetrievalResult],
+        ctx: Any,
+    ) -> list[CaseRetrievalResult]:
+        """Obfuscate case result content and filenames.
+
+        Content and heading_path are scanned for entities and obfuscated.
+        Filenames are replaced with ``Document N``.  KB results (public
+        law) are never obfuscated.
+        """
+        assert self._obfuscation_engine is not None
+        obfuscated = []
+        for i, result in enumerate(results):
+            obfuscated.append(CaseRetrievalResult(
+                chunk_id=result.chunk_id,
+                file_id=result.file_id,
+                case_id=result.case_id,
+                content=self._obfuscation_engine.obfuscate(
+                    result.content, ctx
+                ),
+                heading_path=self._obfuscation_engine.obfuscate(
+                    result.heading_path, ctx
+                ),
+                file_type=result.file_type,
+                original_filename=self._obfuscation_engine.obfuscate_filename(
+                    result.original_filename, i + 1
+                ),
+                relevance_score=result.relevance_score,
+                content_hash=result.content_hash,
+            ))
+        return obfuscated
+
+    def _obfuscate_notes(
+        self,
+        notes: list[dict[str, Any]],
+        ctx: Any,
+    ) -> list[dict[str, Any]]:
+        """Obfuscate note content and filenames."""
+        assert self._obfuscation_engine is not None
+        return [
+            {
+                "content": self._obfuscation_engine.obfuscate(
+                    n["content"], ctx
+                ),
+                "file_id": n["file_id"],
+                "filename": (
+                    self._obfuscation_engine.obfuscate_filename(
+                        n["filename"], i + 1
+                    )
+                    if n.get("filename")
+                    else None
+                ),
+            }
+            for i, n in enumerate(notes)
+        ]
 
     # ── Internals ───────────────────────────────────────────────
 

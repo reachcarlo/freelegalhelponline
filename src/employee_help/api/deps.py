@@ -21,6 +21,7 @@ _case_storage = None
 _embedding_service = None
 _case_vector_store = None
 _case_chat_service = None
+_obfuscation_engine = None
 _auth_storage = None
 _session_manager = None
 _google_provider = None
@@ -146,6 +147,14 @@ def init_services() -> None:
         db_path=vs_cfg.get("path", "data/lancedb"),
     )
 
+    # Initialize obfuscation engine (Privacy P2.6)
+    global _obfuscation_engine
+    from employee_help.privacy.engine import ObfuscationEngine
+    from employee_help.privacy.recognizers import EntityRecognizer
+
+    recognizer = EntityRecognizer()
+    _obfuscation_engine = ObfuscationEngine(recognizer=recognizer)
+
     # Initialize case chat service (LITIGAGENT L3.4)
     from employee_help.casefile.chat import CaseChatService
 
@@ -156,6 +165,7 @@ def init_services() -> None:
         llm_client=llm_client,
         prompt_builder=prompt_builder,
         case_storage=_case_storage,
+        obfuscation_engine=_obfuscation_engine,
     )
 
     # Initialize auth services
@@ -253,6 +263,7 @@ def shutdown_services() -> None:
     """Clean up services. Called at FastAPI shutdown."""
     global _retrieval_service, _answer_service, _feedback_store, _case_storage
     global _embedding_service, _case_vector_store, _case_chat_service
+    global _obfuscation_engine
     global _auth_storage, _session_manager, _google_provider, _microsoft_provider
     global _audit_logger
     if _feedback_store is not None:
@@ -270,6 +281,7 @@ def shutdown_services() -> None:
     _embedding_service = None
     _case_vector_store = None
     _case_chat_service = None
+    _obfuscation_engine = None
     _auth_storage = None
     _session_manager = None
     _google_provider = None
@@ -317,6 +329,11 @@ def get_case_vector_store():
 def get_case_chat_service():
     """Return the CaseChatService singleton (may be None)."""
     return _case_chat_service
+
+
+def get_obfuscation_engine():
+    """Return the ObfuscationEngine singleton (may be None)."""
+    return _obfuscation_engine
 
 
 def get_conversation_config() -> dict:

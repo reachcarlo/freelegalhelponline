@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from jinja2 import Environment, FileSystemLoader
@@ -34,6 +34,9 @@ from employee_help.discovery.objections.validator import CitationValidator
 from employee_help.generation.llm import LLMClient
 from employee_help.generation.models import TokenUsage
 from employee_help.models.posture import LitigationPosture
+
+if TYPE_CHECKING:
+    from employee_help.privacy.engine import ObfuscationEngine
 
 logger = structlog.get_logger(__name__)
 
@@ -112,10 +115,13 @@ class ObjectionAnalyzer:
         llm_client: LLMClient,
         knowledge_base: ObjectionKnowledgeBase,
         validator: CitationValidator | None = None,
+        *,
+        obfuscation_engine: ObfuscationEngine | None = None,
     ) -> None:
         self._llm = llm_client
         self._kb = knowledge_base
         self._validator = validator
+        self._obfuscation_engine = obfuscation_engine
         self._jinja_env = Environment(
             loader=FileSystemLoader(str(PROMPTS_DIR)),
             autoescape=False,
@@ -262,7 +268,7 @@ class ObjectionAnalyzer:
         posture: LitigationPosture = LitigationPosture.AGGRESSIVE,
     ) -> tuple[list[AnalysisResult], TokenUsage]:
         """Analyze a single chunk of requests via one LLM call."""
-        # Build system prompt
+        # Build system prompt (objection grounds are non-sensitive legal templates)
         template = self._jinja_env.get_template("objection_system.j2")
         system_prompt = template.render(
             party_role=party_role.value,
@@ -274,12 +280,20 @@ class ObjectionAnalyzer:
             grounds=grounds,
         )
 
+        # Obfuscation context (if engine available)
+        obf_ctx = None
+        if self._obfuscation_engine is not None:
+            obf_ctx = self._obfuscation_engine.create_context()
+
         # Build user message with request texts
         user_parts = ["Analyze the following discovery requests:\n"]
         for req in requests:
+            text = req.request_text
+            if obf_ctx is not None:
+                text = self._obfuscation_engine.obfuscate(text, obf_ctx)
             user_parts.append(
                 f"--- Request No. {req.request_number} ---\n"
-                f"{req.request_text}\n"
+                f"{text}\n"
             )
         user_message = "\n".join(user_parts)
 
@@ -307,6 +321,20 @@ class ObjectionAnalyzer:
         # Parse tool output
         tool_input = result["tool_input"]
         analyses = tool_input.get("request_analyses", [])
+
+        # Deobfuscate explanation text in tool output
+        if obf_ctx is not None:
+            for analysis in analyses:
+                for obj in analysis.get("applicable_objections", []):
+                    if "explanation" in obj:
+                        obj["explanation"] = self._obfuscation_engine.deobfuscate(
+                            obj["explanation"], obf_ctx
+                        )
+                rationale = analysis.get("no_objections_rationale")
+                if rationale:
+                    analysis["no_objections_rationale"] = (
+                        self._obfuscation_engine.deobfuscate(rationale, obf_ctx)
+                    )
 
         # Build ground lookup
         ground_map = {g.ground_id: g for g in grounds}

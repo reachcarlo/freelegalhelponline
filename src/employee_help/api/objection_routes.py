@@ -558,7 +558,13 @@ def _get_analyzer():
         kb = _get_knowledge_base()
         llm_client = LLMClient(timeout=120.0)
         validator = CitationValidator(kb.get_reporter_keys())
-        _analyzer = ObjectionAnalyzer(llm_client, kb, validator)
+
+        from employee_help.api.deps import get_obfuscation_engine
+
+        _analyzer = ObjectionAnalyzer(
+            llm_client, kb, validator,
+            obfuscation_engine=get_obfuscation_engine(),
+        )
     return _analyzer
 
 
