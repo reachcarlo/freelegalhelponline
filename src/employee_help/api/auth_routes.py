@@ -109,6 +109,31 @@ def _get_redirect_uri(request: Request, provider: str) -> str:
     return f"{scheme}://{host}/api/auth/{provider}/callback"
 
 
+# ── Diagnostic (temporary — remove after confirming production config) ────
+
+
+@auth_router.get("/debug/config")
+async def auth_debug_config() -> dict:
+    """Return which auth services are configured (no secrets exposed)."""
+    import os
+
+    from employee_help.api.deps import (
+        get_google_provider,
+        get_microsoft_provider,
+        get_session_manager,
+    )
+
+    return {
+        "auth_jwt_secret_set": bool(os.environ.get("AUTH_JWT_SECRET")),
+        "google_client_id_set": bool(os.environ.get("GOOGLE_CLIENT_ID")),
+        "google_client_secret_set": bool(os.environ.get("GOOGLE_CLIENT_SECRET")),
+        "google_provider_initialized": get_google_provider() is not None,
+        "microsoft_provider_initialized": get_microsoft_provider() is not None,
+        "session_manager_initialized": get_session_manager() is not None,
+        "frontend_url": os.environ.get("FRONTEND_URL", "(not set)"),
+    }
+
+
 # ── OAuth Login Initiation ─────────────────────────────────────
 
 
