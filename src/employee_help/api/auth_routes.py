@@ -103,7 +103,16 @@ def _clear_auth_cookies(response: Response) -> None:
 
 
 def _get_redirect_uri(request: Request, provider: str) -> str:
-    """Build the OAuth callback redirect URI from the current request."""
+    """Build the OAuth callback redirect URI.
+
+    In production the frontend (Vercel) proxies /api/* to the backend (Railway).
+    The callback must go through the same proxy so the oauth_state cookie (set on
+    the frontend's domain) is present when Google/Microsoft redirects back.
+    FRONTEND_URL gives us the public-facing origin for this purpose.
+    """
+    if _FRONTEND_URL and not _FRONTEND_URL.startswith("http://localhost"):
+        return f"{_FRONTEND_URL}/api/auth/{provider}/callback"
+    # Local dev: derive from request headers
     scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
     host = request.headers.get("x-forwarded-host", request.headers.get("host", "localhost:8000"))
     return f"{scheme}://{host}/api/auth/{provider}/callback"
