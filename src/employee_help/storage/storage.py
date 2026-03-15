@@ -249,6 +249,41 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
+
+-- LITIGAGENTv2 Fact Store (Phase V2.1a)
+CREATE TABLE IF NOT EXISTS case_facts (
+    id TEXT PRIMARY KEY,
+    case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    category TEXT NOT NULL,
+    fact_type TEXT NOT NULL,
+    value TEXT NOT NULL,
+    source_file_id TEXT REFERENCES case_files(id) ON DELETE SET NULL,
+    extraction_method TEXT NOT NULL,
+    confidence REAL NOT NULL DEFAULT 0.5,
+    confirmed INTEGER NOT NULL DEFAULT 0,
+    superseded_by TEXT REFERENCES case_facts(id) ON DELETE SET NULL,
+    effective_date TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_case_facts_current ON case_facts(case_id, category)
+    WHERE superseded_by IS NULL;
+CREATE INDEX IF NOT EXISTS idx_case_facts_source ON case_facts(source_file_id)
+    WHERE source_file_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_case_facts_type ON case_facts(case_id, fact_type);
+
+CREATE TABLE IF NOT EXISTS case_artifacts (
+    id TEXT PRIMARY KEY,
+    case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    artifact_type TEXT NOT NULL,
+    tool_source TEXT NOT NULL,
+    summary TEXT,
+    file_path TEXT,
+    metadata TEXT,
+    created_at TEXT NOT NULL,
+    created_by TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_case_artifacts_case ON case_artifacts(case_id);
+CREATE INDEX IF NOT EXISTS idx_case_artifacts_type ON case_artifacts(case_id, artifact_type);
 """
 
 # Migrations for upgrading from Phase 1 schema to Phase 1.5 schema.
@@ -287,6 +322,41 @@ _MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS idx_cases_org_id ON cases(organization_id);",
     # A2.1: Clean up any anonymous cases from before auth
     "DELETE FROM cases WHERE user_id = '';",
+    # V2.1a.2: Fact store and artifact tables
+    """
+    CREATE TABLE IF NOT EXISTS case_facts (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+        category TEXT NOT NULL,
+        fact_type TEXT NOT NULL,
+        value TEXT NOT NULL,
+        source_file_id TEXT REFERENCES case_files(id) ON DELETE SET NULL,
+        extraction_method TEXT NOT NULL,
+        confidence REAL NOT NULL DEFAULT 0.5,
+        confirmed INTEGER NOT NULL DEFAULT 0,
+        superseded_by TEXT REFERENCES case_facts(id) ON DELETE SET NULL,
+        effective_date TEXT,
+        created_at TEXT NOT NULL
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS case_artifacts (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+        artifact_type TEXT NOT NULL,
+        tool_source TEXT NOT NULL,
+        summary TEXT,
+        file_path TEXT,
+        metadata TEXT,
+        created_at TEXT NOT NULL,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL
+    );
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_case_facts_current ON case_facts(case_id, category) WHERE superseded_by IS NULL;",
+    "CREATE INDEX IF NOT EXISTS idx_case_facts_source ON case_facts(source_file_id) WHERE source_file_id IS NOT NULL;",
+    "CREATE INDEX IF NOT EXISTS idx_case_facts_type ON case_facts(case_id, fact_type);",
+    "CREATE INDEX IF NOT EXISTS idx_case_artifacts_case ON case_artifacts(case_id);",
+    "CREATE INDEX IF NOT EXISTS idx_case_artifacts_type ON case_artifacts(case_id, artifact_type);",
 ]
 
 

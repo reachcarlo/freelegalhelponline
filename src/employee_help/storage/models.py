@@ -12,6 +12,12 @@ def _utcnow() -> datetime:
     return datetime.now(tz=UTC)
 
 
+def _new_uuid() -> str:
+    from uuid import uuid4
+
+    return str(uuid4())
+
+
 class ContentType(str, Enum):
     HTML = "html"
     PDF = "pdf"
@@ -266,3 +272,50 @@ class CaseChunk:
             import uuid
 
             self.id = str(uuid.uuid4())
+
+
+# --- LITIGAGENTv2 Fact Store Models ---
+
+
+class FactCategory(str, Enum):
+    """Category of a case fact, used to group and query facts."""
+
+    PARTY = "party"
+    EMPLOYMENT = "employment"
+    CLAIM = "claim"
+    DATE = "date"
+    FINANCIAL = "financial"
+    COURT = "court"
+    ATTORNEY = "attorney"
+
+
+class ExtractionMethod(str, Enum):
+    """How a fact was extracted or entered."""
+
+    REGEX = "regex"  # Tier 1 deterministic extraction
+    LLM = "llm"  # Tier 2 LLM-assisted extraction
+    MANUAL = "manual"  # Attorney entered or corrected
+
+
+@dataclass(frozen=True)
+class CaseFact:
+    """One piece of knowledge about a case.
+
+    Facts are append-only. They are never mutated. When information changes
+    (e.g., a demand amount is revised), a new fact is created and the old
+    fact's superseded_by field is set. This preserves the full history of
+    what we knew and when.
+    """
+
+    case_id: str
+    category: FactCategory
+    fact_type: str
+    value: dict[str, Any]
+    extraction_method: ExtractionMethod
+    confidence: float
+    id: str = field(default_factory=_new_uuid)
+    source_file_id: str | None = None
+    confirmed: bool = False
+    superseded_by: str | None = None
+    effective_date: str | None = None  # ISO date string (when this became true)
+    created_at: datetime = field(default_factory=_utcnow)
