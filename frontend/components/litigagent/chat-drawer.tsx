@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   CaseFileInfo,
   ChatDoneMetadata,
@@ -787,6 +788,12 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
             </button>
           )}
         </div>
+        <p className="mt-1.5 text-[11px] text-text-tertiary">
+          Identifying information is obfuscated before AI processing.{" "}
+          <Link href="/privacy#case-file-data" className="text-accent hover:text-accent-hover">
+            Details &rarr;
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -11,13 +11,19 @@ interface ConsentContextValue {
 
 const STORAGE_KEY_PREFIX = "eh-consent-";
 
+/** Bump when consent text changes materially to re-trigger the modal. */
+const CONSENT_VERSION: Record<Mode, number> = {
+  consumer: 1,
+  attorney: 2, // Bumped for AI data processing disclosure (P1.3)
+};
+
 const ConsentContext = createContext<ConsentContextValue | null>(null);
 
 function readStoredConsent(): Record<Mode, boolean> {
   if (typeof window === "undefined") return { consumer: false, attorney: false };
   return {
-    consumer: localStorage.getItem(`${STORAGE_KEY_PREFIX}consumer`) === "true",
-    attorney: localStorage.getItem(`${STORAGE_KEY_PREFIX}attorney`) === "true",
+    consumer: localStorage.getItem(`${STORAGE_KEY_PREFIX}consumer`) === String(CONSENT_VERSION.consumer),
+    attorney: localStorage.getItem(`${STORAGE_KEY_PREFIX}attorney`) === String(CONSENT_VERSION.attorney),
   };
 }
 
@@ -31,7 +37,7 @@ export function ConsentProvider({ children }: { children: React.ReactNode }) {
 
   const grantConsentForMode = useCallback((mode: Mode) => {
     setConsented((prev) => ({ ...prev, [mode]: true }));
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}${mode}`, "true");
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}${mode}`, String(CONSENT_VERSION[mode]));
   }, []);
 
   return (

@@ -6,6 +6,7 @@ import json
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from employee_help.storage.models import (
     Case,
@@ -19,19 +20,28 @@ from employee_help.storage.models import (
     ProcessingStatus,
 )
 
+if TYPE_CHECKING:
+    from employee_help.privacy.encryption import FieldEncryptor
+
 
 class CaseStorage:
     """CRUD operations for cases, case files, notes, and chunks.
 
     Operates on the same SQLite database as the knowledge-base Storage class.
     Accepts either a raw sqlite3.Connection or a db_path.
+
+    When an *encryptor* is provided, sensitive text columns
+    (``extracted_text``, ``edited_text``, ``content`` on notes and chat turns)
+    are transparently encrypted on write and decrypted on read.
     """
 
     def __init__(
         self,
         conn: sqlite3.Connection | None = None,
         db_path: str | Path | None = None,
+        encryptor: FieldEncryptor | None = None,
     ) -> None:
+        self._enc = encryptor
         if conn is not None:
             self._conn = conn
             self._owns_conn = False
@@ -57,6 +67,16 @@ class CaseStorage:
 
     def __exit__(self, *exc: object) -> None:
         self.close()
+
+    # ── Encryption helpers ─────────────────────────────────────
+
+    def _encrypt(self, text: str | None) -> str | None:
+        """Encrypt a value if an encryptor is configured, otherwise pass through."""
+        return self._enc.encrypt(text) if self._enc else text
+
+    def _decrypt(self, text: str | None) -> str | None:
+        """Decrypt a value if an encryptor is configured, otherwise pass through."""
+        return self._enc.decrypt(text) if self._enc else text
 
     # ── Cases ──────────────────────────────────────────────────
 
@@ -196,8 +216,8 @@ class CaseStorage:
                 case_file.upload_order,
                 case_file.processing_status.value,
                 case_file.error_message,
-                case_file.extracted_text,
-                case_file.edited_text,
+                self._encrypt(case_file.extracted_text),
+                self._encrypt(case_file.edited_text),
                 1 if case_file.text_dirty else 0,
                 case_file.ocr_confidence,
                 case_file.page_count,
@@ -280,8 +300,8 @@ class CaseStorage:
                    metadata = ?, updated_at = ?
                WHERE id = ?""",
             (
-                cf.extracted_text,
-                cf.edited_text,
+                self._encrypt(cf.extracted_text),
+                self._encrypt(cf.edited_text),
                 1 if cf.text_dirty else 0,
                 cf.ocr_confidence,
                 cf.page_count,
@@ -314,7 +334,7 @@ class CaseStorage:
         self._conn.execute(
             """INSERT INTO case_notes (id, case_id, file_id, content, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?)""",
-            (note.id, note.case_id, note.file_id, note.content, now, now),
+            (note.id, note.case_id, note.file_id, self._encrypt(note.content), now, now),
         )
         self._conn.commit()
         note.created_at = datetime.fromisoformat(now)
@@ -351,7 +371,7 @@ class CaseStorage:
         now = datetime.now(tz=UTC).isoformat()
         self._conn.execute(
             "UPDATE case_notes SET content = ?, updated_at = ? WHERE id = ?",
-            (content, now, note_id),
+            (self._encrypt(content), now, note_id),
         )
         self._conn.commit()
         note.content = content
@@ -479,7 +499,7 @@ class CaseStorage:
                 turn.session_id,
                 turn.turn_number,
                 turn.role,
-                turn.content,
+                self._encrypt(turn.content),
                 turn.sources,
                 now,
             ),
@@ -517,8 +537,7 @@ class CaseStorage:
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
 
-    @staticmethod
-    def _row_to_case_file(row: sqlite3.Row) -> CaseFile:
+    def _row_to_case_file(self, row: sqlite3.Row) -> CaseFile:
         meta = row["metadata"]
         return CaseFile(
             id=row["id"],
@@ -531,8 +550,8 @@ class CaseStorage:
             upload_order=row["upload_order"],
             processing_status=ProcessingStatus(row["processing_status"]),
             error_message=row["error_message"],
-            extracted_text=row["extracted_text"],
-            edited_text=row["edited_text"],
+            extracted_text=self._decrypt(row["extracted_text"]),
+            edited_text=self._decrypt(row["edited_text"]),
             text_dirty=bool(row["text_dirty"]),
             ocr_confidence=row["ocr_confidence"],
             page_count=row["page_count"],
@@ -542,13 +561,12 @@ class CaseStorage:
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
 
-    @staticmethod
-    def _row_to_case_note(row: sqlite3.Row) -> CaseNote:
+    def _row_to_case_note(self, row: sqlite3.Row) -> CaseNote:
         return CaseNote(
             id=row["id"],
             case_id=row["case_id"],
             file_id=row["file_id"],
-            content=row["content"],
+            content=self._decrypt(row["content"]),
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
@@ -577,14 +595,13 @@ class CaseStorage:
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
 
-    @staticmethod
-    def _row_to_chat_turn(row: sqlite3.Row) -> CaseChatTurn:
+    def _row_to_chat_turn(self, row: sqlite3.Row) -> CaseChatTurn:
         return CaseChatTurn(
             id=row["id"],
             session_id=row["session_id"],
             turn_number=row["turn_number"],
             role=row["role"],
-            content=row["content"],
+            content=self._decrypt(row["content"]),
             sources=row["sources"],
             created_at=datetime.fromisoformat(row["created_at"]),
         )

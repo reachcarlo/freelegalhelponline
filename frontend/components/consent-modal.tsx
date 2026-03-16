@@ -20,18 +20,18 @@ const CONSUMER_BULLETS = [
 ];
 
 const ATTORNEY_BULLETS = [
-  <>All output is AI-generated and <strong className="text-text-primary">requires independent verification</strong> — citations, statutory references, and legal analysis may contain errors or hallucinations.</>,
-  <>This tool is not a substitute for professional legal research. Statutory text may be outdated or incompletely indexed.</>,
-  <>No attorney-client relationship is created. This service does not represent you or any client and nothing submitted is privileged.</>,
-  <>Responses have not been reviewed by any person or firm. Do not rely on this output as authority in legal proceedings without independent confirmation.</>,
-  <>Use of this tool does not satisfy any professional duty of competence or diligence under applicable rules of professional conduct.</>,
+  <>All output is AI-generated and <strong className="text-text-primary">requires independent verification</strong> — citations, statutory references, and legal analysis may contain errors.</>,
+  <>When you use case workspace tools, we <strong className="text-text-primary">obfuscate identifying information</strong> (names, emails, phone numbers, case numbers) before sending excerpts to our AI provider. No obfuscation system is perfect — some identifying information may not be caught.</>,
+  <>Your uploaded files are <strong className="text-text-primary">processed and stored locally</strong> on our servers. Only AI-generated analysis involves a third-party service (Anthropic), which does not train on API data and deletes it within 30 days.</>,
+  <>You are <strong className="text-text-primary">solely responsible</strong> for determining whether AI-assisted analysis is appropriate for your matter, including obtaining any required client consent under applicable rules of professional conduct.</>,
+  <>By continuing, you agree to the <Link href="/terms#section-11" className="text-accent underline hover:text-accent-hover">Terms of Use, including Section 11</Link> (AI Processing of Case Materials), and accept full responsibility for your use of these tools in connection with any client representation.</>,
 ];
 
 const CONSUMER_CHECKBOX =
   "I understand that this is general information, not legal advice, and that I should consult a licensed attorney about my specific situation.";
 
 const ATTORNEY_CHECKBOX =
-  "I understand that AI-generated legal analysis requires independent verification and is not a substitute for professional legal research.";
+  "I understand that AI-generated analysis requires verification, that entity obfuscation is not perfect, and that I am responsible for compliance with my professional obligations.";
 
 export default function ConsentModal({ mode, onConsent, onCancel }: ConsentModalProps) {
   const [checked, setChecked] = useState(false);
@@ -68,11 +68,27 @@ export default function ConsentModal({ mode, onConsent, onCancel }: ConsentModal
         </label>
 
         <p className="mt-3 text-xs text-text-tertiary">
-          By continuing you agree to our{" "}
-          <Link href="/terms" className="text-accent underline hover:text-accent-hover">
-            Terms of Use
-          </Link>
-          .
+          {mode === "attorney" ? (
+            <>
+              By continuing you agree to our{" "}
+              <Link href="/terms" className="text-accent underline hover:text-accent-hover">
+                Terms of Use
+              </Link>
+              {" "}including our{" "}
+              <Link href="/privacy#case-file-data" className="text-accent underline hover:text-accent-hover">
+                AI data processing practices
+              </Link>
+              .
+            </>
+          ) : (
+            <>
+              By continuing you agree to our{" "}
+              <Link href="/terms" className="text-accent underline hover:text-accent-hover">
+                Terms of Use
+              </Link>
+              .
+            </>
+          )}
         </p>
 
         <div className="mt-5 flex justify-end gap-3">

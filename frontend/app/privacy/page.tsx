@@ -23,7 +23,7 @@ export default function PrivacyPage() {
           Privacy Policy
         </h1>
         <p className="mt-2 text-sm text-text-tertiary">
-          Last updated: February 2026
+          Last updated: March 2026
         </p>
 
         <div className="mt-8 space-y-8 text-text-secondary leading-relaxed">
@@ -203,9 +203,90 @@ export default function PrivacyPage() {
             </ul>
           </section>
 
+          <section id="case-file-data">
+            <h2 className="text-xl font-semibold text-text-primary">
+              6. Case File Data Processing
+            </h2>
+            <p className="mt-3">
+              When you use our attorney case workspace tools (LITIGAGENT), we
+              process your data as follows:
+            </p>
+
+            <h3 className="mt-6 text-lg font-semibold text-text-primary">
+              Data we collect and store on our servers
+            </h3>
+            <ul className="mt-3 list-disc space-y-2 pl-6">
+              <li>Uploaded case files (PDF, Word, Excel, email, images, text)</li>
+              <li>Extracted text from those files</li>
+              <li>Your notes and annotations</li>
+              <li>Chat conversations about your case</li>
+              <li>
+                Case metadata (party names, case numbers, claims, dates)
+              </li>
+              <li>
+                Generated work product (discovery documents, objection drafts)
+              </li>
+            </ul>
+
+            <h3 className="mt-6 text-lg font-semibold text-text-primary">
+              Data we send to our AI provider (Anthropic)
+            </h3>
+            <ul className="mt-3 list-disc space-y-2 pl-6">
+              <li>
+                Relevant excerpts from your case files (selected by our search
+                system)
+              </li>
+              <li>Your chat questions</li>
+              <li>Conversation history within a session</li>
+              <li>Discovery request text (for objection analysis)</li>
+            </ul>
+            <p className="mt-3">
+              Before transmission, we apply entity obfuscation to replace
+              identifying information (names, emails, phone numbers, case
+              numbers) with generic placeholders. Our AI provider receives{" "}
+              <code className="rounded bg-bg-secondary px-1 py-0.5 text-sm">
+                PERSON_1 was employed by COMPANY_1
+              </code>{" "}
+              rather than actual names. For full details on how obfuscation
+              works and its limitations, see{" "}
+              <Link
+                href="/terms#section-11"
+                className="text-accent underline hover:text-accent-hover"
+              >
+                Section 11 of our Terms of Use
+              </Link>
+              .
+            </p>
+
+            <h3 className="mt-6 text-lg font-semibold text-text-primary">
+              Data we never send to third parties
+            </h3>
+            <ul className="mt-3 list-disc space-y-2 pl-6">
+              <li>Your original uploaded files</li>
+              <li>
+                Your complete case file text (only relevant excerpts selected by
+                search)
+              </li>
+              <li>Social Security numbers or tax identification numbers</li>
+              <li>Your account credentials or payment information</li>
+            </ul>
+
+            <h3 className="mt-6 text-lg font-semibold text-text-primary">
+              Anthropic&apos;s data handling
+            </h3>
+            <ul className="mt-3 list-disc space-y-2 pl-6">
+              <li>API data is not used for model training</li>
+              <li>
+                API data is retained for up to 30 days for safety monitoring
+              </li>
+              <li>After 30 days, all data is permanently deleted</li>
+              <li>Anthropic maintains SOC 2 Type II certification</li>
+            </ul>
+          </section>
+
           <section>
             <h2 className="text-xl font-semibold text-text-primary">
-              6. Your Rights Under CCPA/CPRA
+              7. Your Rights Under CCPA/CPRA
             </h2>
             <p className="mt-3">
               If you are a California resident, you have the following rights
@@ -249,7 +330,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-text-primary">
-              7. Exercising Your Rights
+              8. Exercising Your Rights
             </h2>
             <p className="mt-3">
               To exercise any of your rights described above, you may contact us
@@ -276,7 +357,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-text-primary">
-              8. Cookies and Tracking
+              9. Cookies and Tracking
             </h2>
             <p className="mt-3">
               The Service does not use cookies for tracking purposes. We use
@@ -292,7 +373,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-text-primary">
-              9. Data Security
+              10. Data Security
             </h2>
             <p className="mt-3">
               We implement reasonable security measures to protect your
@@ -304,7 +385,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-text-primary">
-              10. Children&apos;s Privacy
+              11. Children&apos;s Privacy
             </h2>
             <p className="mt-3">
               The Service is not directed at children under 13. We do not
@@ -316,7 +397,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-text-primary">
-              11. Changes to This Policy
+              12. Changes to This Policy
             </h2>
             <p className="mt-3">
               We may update this Privacy Policy from time to time. Changes will
@@ -328,7 +409,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-text-primary">
-              12. Contact Us
+              13. Contact Us
             </h2>
             <p className="mt-3">
               If you have questions about this Privacy Policy or our data

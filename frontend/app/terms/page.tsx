@@ -23,7 +23,7 @@ export default function TermsPage() {
         Terms of Use
       </h1>
       <p className="mt-2 text-sm text-text-tertiary">
-        Last updated: February 2026
+        Last updated: March 2026
       </p>
 
       <div className="mt-8 space-y-8 text-text-secondary leading-relaxed">
@@ -158,6 +158,245 @@ export default function TermsPage() {
             use of the Service after any modification constitutes acceptance of
             the updated Terms.
           </p>
+        </section>
+
+        <section id="section-11">
+          <h2 className="text-xl font-semibold text-text-primary">
+            11. AI Processing of Case Materials
+          </h2>
+
+          <section className="mt-6">
+            <h3 className="text-lg font-semibold text-text-primary">
+              11.1 Scope
+            </h3>
+            <p className="mt-3">
+              This section applies to the LITIGAGENT case workspace tools,
+              including case file upload and analysis, case chat, objection
+              drafting, and discovery tools used within the case workspace. It
+              supplements the general AI limitations described in Section 5
+              above, which continue to apply to all AI-generated output.
+            </p>
+          </section>
+
+          <section className="mt-6">
+            <h3 className="text-lg font-semibold text-text-primary">
+              11.2 How We Protect Your Data
+            </h3>
+            <p className="mt-3">
+              We take the following measures to protect case materials processed
+              through the Service:
+            </p>
+            <ul className="mt-3 list-disc space-y-3 pl-6">
+              <li>
+                <strong>Local-first architecture.</strong> When you upload case
+                files, we extract the text, run OCR on scanned documents, build
+                a searchable index, and store everything on our own servers.
+                None of these steps involve any third party. Your files never
+                leave our infrastructure.
+              </li>
+              <li>
+                <strong>Entity obfuscation at the AI boundary.</strong> Before
+                we send any text to our AI provider, we automatically scan it
+                for identifying information — party names, attorney names,
+                company names, email addresses, phone numbers, and case
+                numbers — and replace each one with a generic placeholder like{" "}
+                <code className="rounded bg-bg-secondary px-1 py-0.5 text-sm">
+                  PERSON_1
+                </code>{" "}
+                or{" "}
+                <code className="rounded bg-bg-secondary px-1 py-0.5 text-sm">
+                  COMPANY_1
+                </code>
+                . The AI sees &quot;PERSON_1 was employed by COMPANY_1&quot;
+                instead of real names. When the AI responds using those same
+                placeholders, we swap the real names back in before you see the
+                answer.
+              </li>
+              <li>
+                <strong>High-accuracy seeding from case metadata.</strong> When
+                you upload a complaint and we extract the party names, case
+                number, and attorney information, that information becomes a
+                seed list for obfuscation. Because we already know exactly who
+                the parties are, we can find and replace those names with
+                near-perfect accuracy.
+              </li>
+              <li>
+                <strong>Encryption at rest.</strong> Your case files, extracted
+                text, notes, and chat history are encrypted in our database.
+                Even if someone gained unauthorized access to the raw database
+                file, the content would be unreadable without the encryption
+                key.
+              </li>
+              <li>
+                <strong>No-training guarantee.</strong> Anthropic (our AI
+                provider) does not use any data sent through their API to train
+                their AI models. This is a contractual commitment documented in
+                their commercial API terms.
+              </li>
+              <li>
+                <strong>Time-limited retention by AI provider.</strong>{" "}
+                Anthropic retains API data for up to 30 days for trust and
+                safety monitoring, then permanently deletes it. During that
+                window, the data they hold is the obfuscated version —
+                placeholders, not real names.
+              </li>
+            </ul>
+          </section>
+
+          <section className="mt-6">
+            <h3 className="text-lg font-semibold text-text-primary">
+              11.3 Limitations
+            </h3>
+            <p className="mt-3">
+              No obfuscation system is perfect, and we do not claim otherwise.
+              You should understand these limitations before using the case
+              workspace tools:
+            </p>
+            <ol className="mt-3 list-decimal space-y-3 pl-6">
+              <li>
+                <strong>Entity detection is imperfect.</strong> Our natural
+                language processing may not catch every name, especially unusual
+                names, names that appear only in context (e.g., &quot;the VP of
+                Marketing&quot;), or names embedded in non-standard formatting.
+                Known parties from your case metadata are handled with high
+                accuracy, but other entities not detected by our pattern
+                matching or natural language processing will pass through to
+                the AI provider.
+              </li>
+              <li>
+                <strong>Contextual identification is possible.</strong> Even
+                with all names replaced, the factual pattern of a case may be
+                identifying. We do not attempt to obfuscate facts, dates,
+                locations, or circumstances — doing so would destroy the legal
+                analysis that makes the tool useful.
+              </li>
+              <li>
+                <strong>AI provider data retention.</strong> During the 30-day
+                retention window, Anthropic holds obfuscated text. While this
+                text contains placeholders rather than real names, it still
+                contains the factual substance of the case. We consider this
+                risk low (Anthropic is SOC 2 Type II certified), but it is not
+                zero.
+              </li>
+              <li>
+                <strong>Encryption protects at the storage level.</strong> Our
+                encryption at rest protects against database file theft, but
+                data is necessarily decrypted in application memory during
+                normal use. A compromise of the application server would expose
+                decrypted data.
+              </li>
+              <li>
+                <strong>
+                  This is a best-efforts system, not a privilege shield.
+                </strong>{" "}
+                We provide tools that help attorneys meet their duty of
+                reasonable care. We do not — and cannot — guarantee that use of
+                this system will prevent a finding of privilege waiver in any
+                particular proceeding. Courts evaluate privilege claims based on
+                the totality of circumstances, including the attorney&apos;s
+                independent judgment about what safeguards were appropriate for
+                the matter at hand.
+              </li>
+            </ol>
+          </section>
+
+          <section className="mt-6">
+            <h3 className="text-lg font-semibold text-text-primary">
+              11.4 Your Responsibilities
+            </h3>
+            <p className="mt-3">You acknowledge and agree that:</p>
+            <ol className="mt-3 list-[lower-alpha] space-y-3 pl-6">
+              <li>
+                <strong>Professional judgment.</strong> The decision to upload
+                client materials to this Service, and to use AI-assisted
+                analysis of those materials, is an exercise of your independent
+                professional judgment. You are solely responsible for
+                determining whether such use is appropriate given the nature and
+                sensitivity of the matter, the client&apos;s expectations,
+                applicable rules of professional conduct, and any court orders
+                or protective orders that may restrict the disclosure of case
+                materials.
+              </li>
+              <li>
+                <strong>Client consent.</strong> Where applicable rules of
+                professional conduct or ethics opinions require client consent
+                for the use of AI-assisted tools in connection with a
+                representation, you are solely responsible for obtaining such
+                consent before uploading client materials. We do not verify
+                whether you have obtained client consent.
+              </li>
+              <li>
+                <strong>Supervision of output.</strong> All AI-generated
+                analysis, objections, discovery requests, and other work product
+                require your independent review and professional judgment before
+                use. You are responsible for verifying the accuracy,
+                completeness, and appropriateness of all output.
+              </li>
+            </ol>
+          </section>
+
+          <section className="mt-6">
+            <h3 className="text-lg font-semibold text-text-primary">
+              11.5 Limitation of Liability
+            </h3>
+            <p className="mt-3">
+              To the fullest extent permitted by applicable law, the operators
+              of this Service shall not be liable for any claim, loss, damage,
+              disciplinary proceeding, malpractice action, bar complaint, or
+              other consequence arising from or relating to: (i) an alleged
+              breach of attorney-client privilege, work product protection, or
+              duty of confidentiality resulting from your use of the Service;
+              (ii) the failure of our entity obfuscation system to detect or
+              replace any particular item of identifying information; (iii) any
+              determination by a court, tribunal, or disciplinary body that your
+              use of AI-assisted tools was inconsistent with your professional
+              obligations; or (iv) the retention, processing, or potential
+              exposure of case data by our third-party AI provider during the
+              data retention period described in our{" "}
+              <Link
+                href="/privacy"
+                className="text-accent underline hover:text-accent-hover"
+              >
+                Privacy Policy
+              </Link>
+              .
+            </p>
+          </section>
+
+          <section className="mt-6">
+            <h3 className="text-lg font-semibold text-text-primary">
+              11.6 Indemnification
+            </h3>
+            <p className="mt-3">
+              You agree to indemnify, defend, and hold harmless the operators of
+              this Service from and against any claims, damages, losses, costs,
+              and expenses (including reasonable attorneys&apos; fees) arising
+              from or relating to your use of the Service in connection with a
+              client representation, including any claim that such use breached
+              a duty of confidentiality, privilege, or professional conduct.
+            </p>
+          </section>
+
+          <section className="mt-6">
+            <h3 className="text-lg font-semibold text-text-primary">
+              11.7 Acknowledgment
+            </h3>
+            <p className="mt-3">
+              By using the LITIGAGENT case workspace tools, you acknowledge that
+              you have read and understood our{" "}
+              <Link
+                href="/privacy"
+                className="text-accent underline hover:text-accent-hover"
+              >
+                Privacy Policy
+              </Link>{" "}
+              (including the description of entity obfuscation, data flows, and
+              third-party processing), that you understand the limitations of
+              automated obfuscation as described herein, and that you accept
+              full responsibility for determining whether the safeguards we
+              provide are sufficient for your particular use case.
+            </p>
+          </section>
         </section>
       </div>
 

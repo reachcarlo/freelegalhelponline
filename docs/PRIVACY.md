@@ -2,7 +2,7 @@
 
 **Date**: 2026-03-15
 **Scope**: LITIGAGENT case tools (case chat, objection drafter, discovery tools within the case workspace)
-**Status**: Phase P2 COMPLETE (2026-03-15) | Phases P1, P3 pending
+**Status**: All phases COMPLETE — P2 (2026-03-15), P1 (2026-03-15), P3 (2026-03-15)
 
 ---
 
@@ -894,27 +894,27 @@ LanceDB embeddings store the `content` field in plaintext (needed for BM25 FTS).
 3. Multi-turn consistency holds across 3+ turns (4-turn test) — PASS
 4. Legal citations in response are preserved correctly — PASS
 
-### Phase P1: Informed Consent & Terms (1.5-2 days)
+### Phase P1: Informed Consent & Terms — COMPLETE (2026-03-15)
 
-| Gate | Task | Files | Est. |
+| Gate | Task | Files | Status |
 |---|---|---|---|
-| P1.1 | Update Terms of Service page — add Section 11 (AI Processing) with safeguards, limitations, contractual terms from Appendix B | `frontend/app/terms/page.tsx` | 0.5d |
-| P1.2 | Update Privacy Policy page — add Case File Data Processing section | `frontend/app/privacy/page.tsx` | 0.5d |
-| P1.3 | Update ConsentModal attorney bullets + checkbox text (see Section 5.4) | `frontend/components/consent-modal.tsx` | 0.2d |
-| P1.4 | Add consent version check to re-trigger modal for existing users | `frontend/lib/consent-context.tsx` | 0.1d |
-| P1.5 | Add chat input hint line ("Identifying info is obfuscated...") | `frontend/components/litigagent/chat-drawer.tsx` | 0.1d |
-| P1.6 | Review pass — verify all links between surfaces (modal → Terms, footer → Privacy, hint → Terms) | Manual verification | 0.1d |
+| P1.1 | Update Terms of Service page — add Section 11 (AI Processing) with safeguards, limitations, contractual terms from Appendix B | `frontend/app/terms/page.tsx` | DONE |
+| P1.2 | Update Privacy Policy page — add Case File Data Processing section | `frontend/app/privacy/page.tsx` | DONE |
+| P1.3 | Update ConsentModal attorney bullets + checkbox text (see Section 5.4) | `frontend/components/consent-modal.tsx` | DONE |
+| P1.4 | Add consent version check to re-trigger modal for existing users | `frontend/lib/consent-context.tsx` | DONE |
+| P1.5 | Add chat input hint line ("Identifying info is obfuscated...") | `frontend/components/litigagent/chat-drawer.tsx` | DONE |
+| P1.6 | Review pass — verify all links between surfaces (modal → Terms, footer → Privacy, hint → Terms) | Manual verification | DONE |
 
-### Phase P3: Encryption at Rest (2-3 days)
+### Phase P3: Encryption at Rest — COMPLETE (2026-03-15)
 
-| Gate | Task | Files | Est. |
+| Gate | Task | Files | Status |
 |---|---|---|---|
-| P3.1 | `FieldEncryptor` class with Fernet | `privacy/encryption.py` | 0.3d |
-| P3.2 | Integrate into `CaseStorage` (encrypt on write, decrypt on read) | `storage/case_storage.py` | 0.5d |
-| P3.3 | Wire `FieldEncryptor` into `deps.py` | `api/deps.py` | 0.2d |
-| P3.4 | Migration CLI command `encrypt-case-data` | `cli.py` | 0.5d |
-| P3.5 | Unit + integration tests | `tests/` | 0.5d |
-| P3.6 | Verify LanceDB search still works (content not encrypted there) | Manual verification | 0.2d |
+| P3.1 | `FieldEncryptor` class with Fernet | `privacy/encryption.py` | DONE (18 tests) |
+| P3.2 | Integrate into `CaseStorage` (encrypt on write, decrypt on read) | `storage/case_storage.py` | DONE (20 tests) |
+| P3.3 | Wire `FieldEncryptor` into `deps.py` | `api/deps.py` | DONE |
+| P3.4 | Migration CLI command `encrypt-case-data` | `cli.py` | DONE |
+| P3.5 | Unit + integration tests | `tests/test_privacy/test_encrypt_migration.py` | DONE (15 tests) |
+| P3.6 | Verify LanceDB search still works (content not encrypted there) | `tests/test_privacy/test_lancedb_not_encrypted.py` | DONE (10 tests) |
 
 ### Deferred (Not Scheduled)
 

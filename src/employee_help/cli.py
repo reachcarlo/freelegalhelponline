@@ -511,6 +511,23 @@ def main() -> int:
         help="Output as JSON instead of table.",
     )
 
+    # Encrypt-case-data command (P3.4)
+    encrypt_parser = subparsers.add_parser(
+        "encrypt-case-data",
+        help="Encrypt existing plaintext case data (files, notes, chat turns). Requires AUTH_JWT_SECRET.",
+    )
+    encrypt_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report what would be encrypted without modifying data.",
+    )
+    encrypt_parser.add_argument(
+        "--db",
+        type=str,
+        default="data/employee_help.db",
+        help="Database path (default: data/employee_help.db).",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -554,6 +571,8 @@ def main() -> int:
             return _handle_spot_check_caselaw(args)
         elif args.command == "dashboard":
             return _handle_dashboard(args)
+        elif args.command == "encrypt-case-data":
+            return _handle_encrypt_case_data(args)
         else:
             parser.print_help()
             return 1
@@ -2439,6 +2458,115 @@ def _handle_validate(
         logger.error("validation_error", error=str(e))
         print(f"Error: {e}", file=sys.stderr)
         return 1
+
+
+def _handle_encrypt_case_data(args) -> int:
+    """Encrypt existing plaintext case data in-place (P3.4).
+
+    Reads all case_files, case_notes, and case_chat_turns.  Any plaintext
+    values in encrypted columns are encrypted and written back.  Already-
+    encrypted values are detected and skipped (idempotent).
+    """
+    import os
+
+    from employee_help.privacy.encryption import FieldEncryptor, derive_fernet_key
+    from employee_help.storage.storage import Storage
+
+    jwt_secret = os.environ.get("AUTH_JWT_SECRET")
+    if not jwt_secret:
+        print("Error: AUTH_JWT_SECRET environment variable is required.", file=sys.stderr)
+        return 1
+
+    dry_run: bool = args.dry_run
+    db_path: str = args.db
+
+    key = derive_fernet_key(jwt_secret)
+    enc = FieldEncryptor(key)
+
+    # Open via Storage to ensure schema exists, then use raw connection
+    storage = Storage(db_path=db_path)
+    conn = storage._conn
+
+    stats = {"case_files": 0, "case_notes": 0, "chat_turns": 0, "skipped": 0}
+
+    # ── Case files: extracted_text, edited_text ────────────────
+    rows = conn.execute(
+        "SELECT id, extracted_text, edited_text FROM case_files"
+    ).fetchall()
+    for row in rows:
+        updates: dict[str, str] = {}
+        for col in ("extracted_text", "edited_text"):
+            val = row[col]
+            if val is None:
+                continue
+            if enc.is_encrypted(val):
+                stats["skipped"] += 1
+                continue
+            updates[col] = enc.encrypt(val)
+        if updates:
+            set_clause = ", ".join(f"{c} = ?" for c in updates)
+            if not dry_run:
+                conn.execute(
+                    f"UPDATE case_files SET {set_clause} WHERE id = ?",  # noqa: S608
+                    (*updates.values(), row["id"]),
+                )
+            stats["case_files"] += 1
+
+    # ── Case notes: content ────────────────────────────────────
+    rows = conn.execute(
+        "SELECT id, content FROM case_notes"
+    ).fetchall()
+    for row in rows:
+        val = row["content"]
+        if val is None:
+            continue
+        if enc.is_encrypted(val):
+            stats["skipped"] += 1
+            continue
+        if not dry_run:
+            conn.execute(
+                "UPDATE case_notes SET content = ? WHERE id = ?",
+                (enc.encrypt(val), row["id"]),
+            )
+        stats["case_notes"] += 1
+
+    # ── Chat turns: content ────────────────────────────────────
+    rows = conn.execute(
+        "SELECT id, content FROM case_chat_turns"
+    ).fetchall()
+    for row in rows:
+        val = row["content"]
+        if val is None:
+            continue
+        if enc.is_encrypted(val):
+            stats["skipped"] += 1
+            continue
+        if not dry_run:
+            conn.execute(
+                "UPDATE case_chat_turns SET content = ? WHERE id = ?",
+                (enc.encrypt(val), row["id"]),
+            )
+        stats["chat_turns"] += 1
+
+    if not dry_run:
+        conn.commit()
+
+    storage.close()
+
+    # Report
+    total = stats["case_files"] + stats["case_notes"] + stats["chat_turns"]
+    prefix = "[DRY RUN] " if dry_run else ""
+    print(f"{prefix}Encryption migration complete.")
+    print(f"  Case files encrypted: {stats['case_files']}")
+    print(f"  Case notes encrypted: {stats['case_notes']}")
+    print(f"  Chat turns encrypted: {stats['chat_turns']}")
+    print(f"  Already encrypted (skipped): {stats['skipped']}")
+    print(f"  Total rows modified: {total}")
+
+    if dry_run:
+        print("\nNo changes written. Re-run without --dry-run to apply.")
+
+    return 0
 
 
 if __name__ == "__main__":

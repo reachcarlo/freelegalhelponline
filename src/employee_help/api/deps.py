@@ -135,10 +135,22 @@ def init_services() -> None:
 
     _feedback_store = FeedbackStore()
 
-    # Initialize case storage (LITIGAGENT)
+    # Initialize case storage (LITIGAGENT) with optional encryption (P3.3)
+    import os
+
     from employee_help.storage.case_storage import CaseStorage
 
-    _case_storage = CaseStorage(db_path="data/employee_help.db")
+    encryptor = None
+    jwt_secret = os.environ.get("AUTH_JWT_SECRET")
+    if jwt_secret:
+        from employee_help.privacy.encryption import FieldEncryptor, derive_fernet_key
+
+        encryptor = FieldEncryptor(derive_fernet_key(jwt_secret))
+        logger.info("case_storage_encryption_enabled")
+    else:
+        logger.warning("case_storage_encryption_disabled", msg="AUTH_JWT_SECRET not set — case data stored unencrypted")
+
+    _case_storage = CaseStorage(db_path="data/employee_help.db", encryptor=encryptor)
 
     # Initialize case vector store (LITIGAGENT L3.2)
     from employee_help.casefile.case_vector_store import CaseVectorStore
