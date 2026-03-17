@@ -1076,6 +1076,8 @@ Week  LITIGAGENTv2                   PRIVACY.md
 
 **Gate check V2.1c**: Full pipeline test — upload a complaint, wait for processing, call `GET /context`, verify CaseContext JSON includes parties, court, dates. Chat with the case and verify the system prompt includes extracted context. 25 tests passing.
 
+> **V2.1c STATUS: COMPLETE** (2026-03-17) — 31 tests passing across 7 gates (V2.1c.1–V2.1c.7). Context API endpoint (5 tests), Facts API endpoint (6), Pydantic schemas (6), CaseContextBuilder singleton + injection (4), ObfuscationEngine name compatibility (3), CaseChatService context integration (5), SSE facts_extracted event (2). `CaseContextBuilder` singleton in deps.py injected into `CaseChatService`. `casefile_system.j2` renders parties, court, attorneys, claims, dates, employment, financials from `CaseContext`. `process_file()` broadcasts `facts_extracted` SSE event after Tier 1 extraction. `CaseContext.all_person_names`/`all_entity_names` use `dict.fromkeys()` for deterministic deduped order.
+
 **V2.1 total: ~8 days, 144 tests**
 
 ---

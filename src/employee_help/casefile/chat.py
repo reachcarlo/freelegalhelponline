@@ -14,11 +14,14 @@ import structlog
 
 if TYPE_CHECKING:
     from employee_help.casefile.case_vector_store import CaseVectorStore
+    from employee_help.casefile.context import CaseContext
+    from employee_help.casefile.context_builder import CaseContextBuilder
     from employee_help.generation.llm import LLMClient
     from employee_help.generation.prompts import PromptBuilder
     from employee_help.privacy.engine import ObfuscationEngine
     from employee_help.retrieval.embedder import EmbeddingService
     from employee_help.retrieval.service import RetrievalResult, RetrievalService
+    from employee_help.storage.case_fact_storage import CaseFactStorage
     from employee_help.storage.case_storage import CaseStorage
 
 logger = structlog.get_logger(__name__)
@@ -63,6 +66,8 @@ class CaseChatService:
         case_top_k: int = CASE_TOP_K,
         kb_top_k: int = KB_TOP_K,
         obfuscation_engine: ObfuscationEngine | None = None,
+        context_builder: CaseContextBuilder | None = None,
+        case_fact_storage: CaseFactStorage | None = None,
     ) -> None:
         self.case_vector_store = case_vector_store
         self.embedding_service = embedding_service
@@ -73,6 +78,8 @@ class CaseChatService:
         self.case_top_k = case_top_k
         self.kb_top_k = kb_top_k
         self._obfuscation_engine = obfuscation_engine
+        self._context_builder = context_builder
+        self._case_fact_storage = case_fact_storage
         self.logger = structlog.get_logger(__name__)
 
     # ── Retrieval ───────────────────────────────────────────────
@@ -139,6 +146,22 @@ class CaseChatService:
             result.append(entry)
         return result
 
+    # ── Case context ─────────────────────────────────────────────
+
+    def _build_case_context(self, case_id: str) -> CaseContext | None:
+        """Build CaseContext from extracted facts, if builder and storage are available."""
+        if self._context_builder is None or self._case_fact_storage is None:
+            return None
+        try:
+            case = self.case_storage.get_case(case_id) if self.case_storage else None
+            case_name = case.name if case else case_id
+            return self._context_builder.build(
+                case_id, case_name, self._case_fact_storage
+            )
+        except Exception:
+            self.logger.warning("case_context_build_failed", case_id=case_id, exc_info=True)
+            return None
+
     # ── Prompt building ─────────────────────────────────────────
 
     def build_case_document_blocks(
@@ -188,11 +211,14 @@ class CaseChatService:
     def build_case_system_prompt(
         self,
         case_notes: list[dict[str, Any]],
+        case_context: CaseContext | None = None,
     ) -> str:
         """Build the system prompt for case chat.
 
         Uses the casefile_system.j2 template if available,
-        otherwise falls back to an inline prompt.
+        otherwise falls back to an inline prompt.  When *case_context*
+        is provided, party names, claims, dates and other extracted
+        metadata are injected into the template.
         """
         try:
             template_text = self.prompt_builder._load_template(
@@ -201,6 +227,7 @@ class CaseChatService:
             return self.prompt_builder._render_template(
                 template_text,
                 case_notes=case_notes,
+                case_context=case_context,
             )
         except FileNotFoundError:
             return self._fallback_system_prompt(case_notes)
@@ -290,8 +317,9 @@ class CaseChatService:
             empty_kb: list[RR] = []
             return empty_stream(), [], empty_kb, []
 
-        # 2. Get case notes
+        # 2. Get case notes and case context
         case_notes = self.get_case_notes(case_id)
+        case_context = self._build_case_context(case_id)
 
         # 3. Obfuscation (if engine available)
         obf_ctx = None
@@ -307,8 +335,10 @@ class CaseChatService:
             obf_case_results = case_results
             obf_case_notes = case_notes
 
-        # 4. Build system prompt (with obfuscated notes)
-        system_prompt = self.build_case_system_prompt(obf_case_notes)
+        # 4. Build system prompt (with obfuscated notes + case context)
+        system_prompt = self.build_case_system_prompt(
+            obf_case_notes, case_context=case_context
+        )
 
         # 5. Build document blocks (KB blocks pass through unmodified)
         document_blocks, _context_order = self.build_case_document_blocks(
@@ -393,8 +423,9 @@ class CaseChatService:
             empty_kb: list[RR] = []
             return empty_stream(), [], empty_kb, []
 
-        # 2. Get case notes
+        # 2. Get case notes and case context
         case_notes = self.get_case_notes(case_id)
+        case_context = self._build_case_context(case_id)
 
         # 3. Obfuscation (if engine available)
         obf_ctx = None
@@ -428,7 +459,9 @@ class CaseChatService:
             obf_case_notes = case_notes
 
         # 4. Build context
-        system_prompt = self.build_case_system_prompt(obf_case_notes)
+        system_prompt = self.build_case_system_prompt(
+            obf_case_notes, case_context=case_context
+        )
         document_blocks, _context_order = self.build_case_document_blocks(
             obf_case_results, kb_results,
         )

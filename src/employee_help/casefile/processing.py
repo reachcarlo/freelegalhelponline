@@ -426,6 +426,11 @@ async def process_file(
                     doc_type=doc_type.value,
                     fact_count=fact_count,
                 )
+                await broadcast_status(case_id, {
+                    "file_id": file_id,
+                    "status": "facts_extracted",
+                    "count": fact_count,
+                })
             except Exception as ext_exc:
                 # Extraction failure doesn't block file readiness
                 log.error(

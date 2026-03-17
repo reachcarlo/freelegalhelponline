@@ -155,4 +155,4 @@ class CaseContext:
                 names.append(a.firm)
         for e in self.employment_history:
             names.append(e.employer)
-        return list(set(names))
+        return list(dict.fromkeys(names))

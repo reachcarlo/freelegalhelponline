@@ -23,6 +23,7 @@ _embedding_service = None
 _case_vector_store = None
 _case_chat_service = None
 _obfuscation_engine = None
+_context_builder = None
 _auth_storage = None
 _session_manager = None
 _google_provider = None
@@ -174,6 +175,12 @@ def init_services() -> None:
     recognizer = EntityRecognizer()
     _obfuscation_engine = ObfuscationEngine(recognizer=recognizer)
 
+    # Initialize context builder singleton (LITIGAGENTv2 V2.1c.4)
+    global _context_builder
+    from employee_help.casefile.context_builder import CaseContextBuilder
+
+    _context_builder = CaseContextBuilder()
+
     # Initialize case chat service (LITIGAGENT L3.4)
     from employee_help.casefile.chat import CaseChatService
 
@@ -185,6 +192,8 @@ def init_services() -> None:
         prompt_builder=prompt_builder,
         case_storage=_case_storage,
         obfuscation_engine=_obfuscation_engine,
+        context_builder=_context_builder,
+        case_fact_storage=_case_fact_storage,
     )
 
     # Initialize auth services
@@ -283,7 +292,7 @@ def shutdown_services() -> None:
     global _retrieval_service, _answer_service, _feedback_store, _case_storage
     global _case_fact_storage
     global _embedding_service, _case_vector_store, _case_chat_service
-    global _obfuscation_engine
+    global _obfuscation_engine, _context_builder
     global _auth_storage, _session_manager, _google_provider, _microsoft_provider
     global _audit_logger
     if _feedback_store is not None:
@@ -305,6 +314,7 @@ def shutdown_services() -> None:
     _case_vector_store = None
     _case_chat_service = None
     _obfuscation_engine = None
+    _context_builder = None
     _auth_storage = None
     _session_manager = None
     _google_provider = None
@@ -362,6 +372,11 @@ def get_case_chat_service():
 def get_obfuscation_engine():
     """Return the ObfuscationEngine singleton (may be None)."""
     return _obfuscation_engine
+
+
+def get_context_builder():
+    """Return the CaseContextBuilder singleton (may be None)."""
+    return _context_builder
 
 
 def get_conversation_config() -> dict:

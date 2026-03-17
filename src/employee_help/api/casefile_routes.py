@@ -16,6 +16,9 @@ from fastapi.responses import FileResponse, StreamingResponse
 from employee_help.api.casefile_schemas import (
     CaseChatRequest,
     CaseChatSourceInfo,
+    CaseContextResponse,
+    CaseFactListResponse,
+    CaseFactResponse,
     CaseFileDetailResponse,
     CaseFileResponse,
     CaseListResponse,
@@ -275,6 +278,146 @@ async def archive_case(case_id: str, request: Request):
         raise HTTPException(404, f"Case not found: {case_id}")
     logger.info("case_archived", case_id=case_id)
     _audit("case.archive", request, resource_type="case", resource_id=case_id)
+
+
+# ── Case Context (V2.1c) ─────────────────────────────────────────
+
+
+@casefile_router.get("/{case_id}/context", response_model=CaseContextResponse)
+async def get_case_context(case_id: str, request: Request):
+    """Build and return the assembled CaseContext for a case."""
+    user = _require_user(request)
+    case = _require_case(case_id, user_id=user.sub)
+
+    cfs = _get_case_fact_storage()
+    if cfs is None:
+        raise HTTPException(503, "Fact storage not available")
+
+    from employee_help.api.deps import get_context_builder
+
+    builder = get_context_builder()
+    if builder is None:
+        from employee_help.casefile.context_builder import CaseContextBuilder
+
+        builder = CaseContextBuilder()
+    ctx = builder.build(case_id, case.name, cfs)
+
+    return CaseContextResponse(
+        case_id=ctx.case_id,
+        case_name=ctx.case_name,
+        parties=[
+            {"name": p.name, "role": p.role, "party_type": p.party_type, "count": p.count}
+            for p in ctx.parties
+        ],
+        court=(
+            {
+                "court": ctx.court.court,
+                "county": ctx.court.county,
+                "department": ctx.court.department,
+                "judge": ctx.court.judge,
+            }
+            if ctx.court
+            else None
+        ),
+        attorneys=[
+            {
+                "name": a.name,
+                "side": a.side,
+                "bar_number": a.bar_number,
+                "firm": a.firm,
+                "email": a.email,
+            }
+            for a in ctx.attorneys
+        ],
+        employment_history=[
+            {
+                "employer": e.employer,
+                "position": e.position,
+                "department": e.department,
+                "compensation_rate": e.compensation_rate,
+                "compensation_type": e.compensation_type,
+                "pay_period": e.pay_period,
+                "start_date": e.start_date,
+                "end_date": e.end_date,
+                "change_reason": e.change_reason,
+            }
+            for e in ctx.employment_history
+        ],
+        claims=[
+            {
+                "claim_type": c.claim_type,
+                "status": c.status,
+                "protected_class": c.protected_class,
+                "supporting_facts": c.supporting_facts,
+                "reason": c.reason,
+            }
+            for c in ctx.claims
+        ],
+        key_dates=[
+            {"label": d.label, "date": d.date, "date_type": d.date_type}
+            for d in ctx.key_dates
+        ],
+        financials=[
+            {"label": f.label, "amount": f.amount, "date": f.date}
+            for f in ctx.financials
+        ],
+        fact_count=ctx.fact_count,
+        confirmed_count=ctx.confirmed_count,
+        extraction_sources=ctx.extraction_sources,
+        plaintiff_names=ctx.plaintiff_names,
+        defendant_names=ctx.defendant_names,
+        all_person_names=ctx.all_person_names,
+        all_entity_names=ctx.all_entity_names,
+    )
+
+
+@casefile_router.get("/{case_id}/facts", response_model=CaseFactListResponse)
+async def list_case_facts(
+    case_id: str,
+    request: Request,
+    category: str | None = None,
+):
+    """List current (non-superseded) facts for a case, optionally filtered by category."""
+    user = _require_user(request)
+    _require_case(case_id, user_id=user.sub)
+
+    cfs = _get_case_fact_storage()
+    if cfs is None:
+        raise HTTPException(503, "Fact storage not available")
+
+    # Validate category if provided
+    if category is not None:
+        from employee_help.storage.models import FactCategory as FC
+
+        valid = {c.value for c in FC}
+        if category not in valid:
+            raise HTTPException(
+                400,
+                f"Invalid category: {category}. "
+                f"Valid: {', '.join(sorted(valid))}",
+            )
+
+    facts = cfs.list_current_facts(case_id, category=category)
+    return CaseFactListResponse(
+        facts=[
+            CaseFactResponse(
+                id=f.id,
+                case_id=f.case_id,
+                category=f.category.value,
+                fact_type=f.fact_type,
+                value=f.value,
+                source_file_id=f.source_file_id,
+                extraction_method=f.extraction_method.value,
+                confidence=f.confidence,
+                confirmed=f.confirmed,
+                superseded_by=f.superseded_by,
+                effective_date=f.effective_date,
+                created_at=f.created_at.isoformat(),
+            )
+            for f in facts
+        ],
+        total=len(facts),
+    )
 
 
 # ── File management ──────────────────────────────────────────────

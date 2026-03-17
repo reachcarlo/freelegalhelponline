@@ -225,3 +225,122 @@ class ChatHistoryResponse(BaseModel):
     session_id: str
     case_id: str
     turns: list[ChatTurnResponse]
+
+
+# ── CaseContext schemas (V2.1c) ──────────────────────────────────
+
+
+class PartyViewResponse(BaseModel):
+    """A party in the case."""
+
+    name: str
+    role: str
+    party_type: str
+    count: int | None = None
+
+
+class CourtViewResponse(BaseModel):
+    """Court information."""
+
+    court: str
+    county: str | None = None
+    department: str | None = None
+    judge: str | None = None
+
+
+class AttorneyViewResponse(BaseModel):
+    """An attorney in the case."""
+
+    name: str
+    side: str
+    bar_number: str | None = None
+    firm: str | None = None
+    email: str | None = None
+
+
+class EmploymentPeriodViewResponse(BaseModel):
+    """An employment period."""
+
+    employer: str
+    position: str | None = None
+    department: str | None = None
+    compensation_rate: float | None = None
+    compensation_type: str | None = None
+    pay_period: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    change_reason: str | None = None
+
+
+class ClaimViewResponse(BaseModel):
+    """A legal claim."""
+
+    claim_type: str
+    status: str = "active"
+    protected_class: str | None = None
+    supporting_facts: str | None = None
+    reason: str | None = None
+
+
+class DateViewResponse(BaseModel):
+    """A key date."""
+
+    label: str
+    date: str
+    date_type: str | None = None
+
+
+class FinancialViewResponse(BaseModel):
+    """A financial entry."""
+
+    label: str
+    amount: float
+    date: str | None = None
+
+
+class CaseContextResponse(BaseModel):
+    """Response body for GET /api/cases/{case_id}/context."""
+
+    case_id: str
+    case_name: str
+    parties: list[PartyViewResponse] = Field(default_factory=list)
+    court: CourtViewResponse | None = None
+    attorneys: list[AttorneyViewResponse] = Field(default_factory=list)
+    employment_history: list[EmploymentPeriodViewResponse] = Field(default_factory=list)
+    claims: list[ClaimViewResponse] = Field(default_factory=list)
+    key_dates: list[DateViewResponse] = Field(default_factory=list)
+    financials: list[FinancialViewResponse] = Field(default_factory=list)
+    fact_count: int = 0
+    confirmed_count: int = 0
+    extraction_sources: dict[str, list[str]] = Field(default_factory=dict)
+    plaintiff_names: list[str] = Field(default_factory=list)
+    defendant_names: list[str] = Field(default_factory=list)
+    all_person_names: list[str] = Field(default_factory=list)
+    all_entity_names: list[str] = Field(default_factory=list)
+
+
+# ── CaseFact schemas (V2.1c.2) ──────────────────────────────────
+
+
+class CaseFactResponse(BaseModel):
+    """A single case fact."""
+
+    id: str
+    case_id: str
+    category: str
+    fact_type: str
+    value: dict
+    source_file_id: str | None = None
+    extraction_method: str
+    confidence: float
+    confirmed: bool = False
+    superseded_by: str | None = None
+    effective_date: str | None = None
+    created_at: str
+
+
+class CaseFactListResponse(BaseModel):
+    """Response body for GET /api/cases/{case_id}/facts."""
+
+    facts: list[CaseFactResponse]
+    total: int
