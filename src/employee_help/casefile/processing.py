@@ -25,6 +25,7 @@ from employee_help.storage.models import CaseChunk, FileType, ProcessingStatus
 if TYPE_CHECKING:
     from employee_help.casefile.case_vector_store import CaseVectorStore
     from employee_help.retrieval.embedder import EmbeddingService
+    from employee_help.storage.case_fact_storage import CaseFactStorage
 
 logger = structlog.get_logger(__name__)
 
@@ -317,6 +318,7 @@ async def process_file(
     case_id: str,
     embedder: EmbeddingService | None = None,
     case_vector_store: CaseVectorStore | None = None,
+    case_fact_storage: CaseFactStorage | None = None,
 ) -> None:
     """Background task: extract text from an uploaded file, then chunk + embed.
 
@@ -325,8 +327,9 @@ async def process_file(
     3. Resolve extractor via registry
     4. Extract text
     5. Store extracted_text + edited_text (status: READY)
-    6. Chunk + embed + store in LanceDB (if embedder provided)
-    7. Broadcast SSE event
+    6. Run Tier 1 extraction → create CaseFacts (if fact storage provided)
+    7. Chunk + embed + store in LanceDB (if embedder provided)
+    8. Broadcast SSE event
     """
     log = logger.bind(file_id=file_id, case_id=case_id)
 
@@ -400,6 +403,36 @@ async def process_file(
             ocr_confidence=result.ocr_confidence,
             warnings=result.warnings,
         )
+
+        # Tier 1 extraction → CaseFacts (after text extraction, before embedding)
+        # Delete old facts first (handles reprocess case; no-op for new uploads)
+        fact_count = 0
+        if text and case_fact_storage is not None:
+            try:
+                case_fact_storage.delete_facts_for_file(file_id)
+
+                from employee_help.casefile.extraction import ExtractionOrchestrator
+
+                orchestrator = ExtractionOrchestrator()
+                doc_type, facts = orchestrator.extract_facts(
+                    text, cf.original_filename, case_id, file_id,
+                )
+                for fact in facts:
+                    case_fact_storage.add_fact(fact)
+                fact_count = len(facts)
+                log.info(
+                    "facts_extracted",
+                    filename=cf.original_filename,
+                    doc_type=doc_type.value,
+                    fact_count=fact_count,
+                )
+            except Exception as ext_exc:
+                # Extraction failure doesn't block file readiness
+                log.error(
+                    "fact_extraction_failed",
+                    error=str(ext_exc),
+                    exc_info=True,
+                )
 
         # Chunk + embed (if embedding services are available)
         chunk_count = 0

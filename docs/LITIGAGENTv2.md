@@ -1044,6 +1044,8 @@ Week  LITIGAGENTv2                   PRIVACY.md
 
 **Gate check V2.1a**: `CaseContextBuilder` correctly assembles CaseContext from a mixed bag of facts with different categories, confidence levels, confirmed/unconfirmed status, and supersession chains. Employment periods appear as an ordered list, not a single flat entry. Superseded facts are excluded. 48 tests passing.
 
+> **V2.1a STATUS: COMPLETE** (2026-03-15) — 48 tests passing across 5 gates (V2.1a.1–V2.1a.5).
+
 #### V2.1b — Tier 1 Extractors & Document Classifier (3 days)
 
 | Gate | Task | Files | Tests | Est. |
@@ -1057,6 +1059,8 @@ Week  LITIGAGENTv2                   PRIVACY.md
 | V2.1b.7 | Re-extraction on file delete/reprocess — `delete_facts_for_file()` called when a file is deleted or reprocessed, then extractors re-run | `casefile/processing.py` | 4 integration | 0.3d |
 
 **Gate check V2.1b**: Upload a sample California complaint PDF. After processing completes, `list_current_facts(case_id, category="party")` returns plaintiff and defendant facts. `list_current_facts(case_id, category="court")` returns court info. `DocumentClassifier` correctly identifies the file as a complaint. 71 tests passing.
+
+> **V2.1b STATUS: COMPLETE** (2026-03-16) — 150 tests passing across 7 gates (V2.1b.1–V2.1b.7). DocumentClassifier (24 tests), CaptionExtractor (26), DateExtractor (25), FinancialExtractor (25), EmploymentExtractor (31), ExtractionOrchestrator (15), Re-extraction (4). CaseFactStorage singleton added to deps.py. `process_file()` pipeline integrated: delete old facts → classify → extract → persist. File delete cleans up facts. Reprocess replaces facts atomically.
 
 #### V2.1c — Context API & Seeding Interface (2 days)
 

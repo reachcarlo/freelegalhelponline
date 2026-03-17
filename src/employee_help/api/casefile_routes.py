@@ -95,6 +95,13 @@ def _get_embedding_deps():
     return get_embedding_service(), get_case_vector_store()
 
 
+def _get_case_fact_storage():
+    """Get the CaseFactStorage singleton (may be None)."""
+    from employee_help.api.deps import get_case_fact_storage
+
+    return get_case_fact_storage()
+
+
 # ── Helpers ───────────────────────────────────────────────────────
 
 
@@ -339,10 +346,11 @@ async def upload_files(case_id: str, request: Request, files: list[UploadFile] =
         cf = storage.create_case_file(cf)
         results.append(_file_response(cf))
 
-        # Launch background processing (with embedding if available)
+        # Launch background processing (with embedding + fact extraction if available)
         embedder, cvs = _get_embedding_deps()
+        cfs = _get_case_fact_storage()
         asyncio.create_task(
-            process_file(storage, cf.id, case_id, embedder, cvs)
+            process_file(storage, cf.id, case_id, embedder, cvs, cfs)
         )
 
         logger.info(
@@ -434,6 +442,11 @@ async def delete_file(case_id: str, file_id: str, request: Request):
     if cvs is not None:
         cvs.delete_file_embeddings(file_id)
 
+    # Delete extracted facts for this file (V2.1b.7)
+    cfs = _get_case_fact_storage()
+    if cfs is not None:
+        cfs.delete_facts_for_file(file_id)
+
     # Delete chunks first, then file
     storage.delete_case_chunks_for_file(file_id)
     storage.delete_case_file(file_id)
@@ -462,10 +475,11 @@ async def reprocess_file(case_id: str, file_id: str, request: Request):
     # Reset status to QUEUED
     storage.update_case_file_status(file_id, ProcessingStatus.QUEUED)
 
-    # Relaunch background processing (with embedding if available)
+    # Relaunch background processing (with embedding + fact extraction if available)
     embedder, cvs = _get_embedding_deps()
+    cfs = _get_case_fact_storage()
     asyncio.create_task(
-        process_file(storage, file_id, case_id, embedder, cvs)
+        process_file(storage, file_id, case_id, embedder, cvs, cfs)
     )
 
     # Refetch for response

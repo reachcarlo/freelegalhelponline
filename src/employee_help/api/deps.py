@@ -18,6 +18,7 @@ _retrieval_service = None
 _answer_service = None
 _feedback_store = None
 _case_storage = None
+_case_fact_storage = None
 _embedding_service = None
 _case_vector_store = None
 _case_chat_service = None
@@ -152,6 +153,12 @@ def init_services() -> None:
 
     _case_storage = CaseStorage(db_path="data/employee_help.db", encryptor=encryptor)
 
+    # Initialize case fact storage (LITIGAGENTv2 V2.1b.7)
+    global _case_fact_storage
+    from employee_help.storage.case_fact_storage import CaseFactStorage
+
+    _case_fact_storage = CaseFactStorage(db_path="data/employee_help.db")
+
     # Initialize case vector store (LITIGAGENT L3.2)
     from employee_help.casefile.case_vector_store import CaseVectorStore
 
@@ -274,6 +281,7 @@ def _init_auth_services() -> None:
 def shutdown_services() -> None:
     """Clean up services. Called at FastAPI shutdown."""
     global _retrieval_service, _answer_service, _feedback_store, _case_storage
+    global _case_fact_storage
     global _embedding_service, _case_vector_store, _case_chat_service
     global _obfuscation_engine
     global _auth_storage, _session_manager, _google_provider, _microsoft_provider
@@ -282,6 +290,8 @@ def shutdown_services() -> None:
         _feedback_store.close()
     if _case_storage is not None:
         _case_storage.close()
+    if _case_fact_storage is not None:
+        _case_fact_storage.close()
     if _auth_storage is not None:
         _auth_storage.close()
     if _audit_logger is not None:
@@ -290,6 +300,7 @@ def shutdown_services() -> None:
     _answer_service = None
     _feedback_store = None
     _case_storage = None
+    _case_fact_storage = None
     _embedding_service = None
     _case_vector_store = None
     _case_chat_service = None
@@ -326,6 +337,11 @@ def get_case_storage():
     if _case_storage is None:
         raise RuntimeError("Case storage not initialized. Is the server starting up?")
     return _case_storage
+
+
+def get_case_fact_storage():
+    """Return the CaseFactStorage singleton (may be None)."""
+    return _case_fact_storage
 
 
 def get_embedding_service():
