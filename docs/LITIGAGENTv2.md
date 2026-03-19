@@ -1,6 +1,6 @@
 # LITIGAGENTv2 — The Junior Associate
 
-> **Status**: PLANNING
+> **Status**: IN PROGRESS — V2.2a COMPLETE
 > **Predecessor**: [LITIGAGENT.md](./LITIGAGENT.md) (Phases L1–L3, the foundation)
 > **Date**: 2026-03-15
 
@@ -1099,6 +1099,8 @@ Week  LITIGAGENTv2                   PRIVACY.md
 | V2.2a.7 | Frontend: Add "Info" link in case layout header (pre-workspace shell — temporary placement until V2.3) | `frontend/components/litigagent/case-layout.tsx` | 3 E2E | 0.3d |
 
 **Gate check V2.2a**: Attorney can navigate to Case Info from case layout. Extracted facts display with source attribution. Clicking confirm updates the fact. 18 tests passing.
+
+> **V2.2a STATUS: COMPLETE** (2026-03-19) — 21 tests passing across 7 gates (V2.2a.1–V2.2a.7). Backend: facts history endpoint (3 tests), confirm endpoint (3), supersede endpoint (5), add manual fact endpoint (4). Frontend: `case-info.tsx` read-only panel with 7 grouped sections (parties, court, attorneys, employment, claims, dates, financials), source attribution (file name resolution from IDs), confidence badges (high/medium/low), extraction method tags, effective dates, confirm buttons (hover-reveal). `litigagent-api.ts` gains `getCaseContext()`, `listFacts()`, `confirmFact()` client functions + full TypeScript interfaces. `case-layout.tsx` header "Case Info" button toggles panel (replaces three-panel file view). 3 Playwright E2E tests: toggle open/close, facts grouped with attribution, confirm button interaction.
 
 #### V2.2b — Editable Case Info (3 days)
 

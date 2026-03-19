@@ -10,6 +10,7 @@ import {
   getCase,
   listFiles,
 } from "@/lib/litigagent-api";
+import CaseInfoPanel from "./case-info";
 import ChatDrawer from "./chat-drawer";
 import FilePanel from "./file-panel";
 import NotesPanel from "./notes-panel";
@@ -26,6 +27,7 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [notesCollapsed, setNotesCollapsed] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -199,6 +201,31 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Case Info button */}
+          <button
+            className={`flex min-h-[36px] items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+              infoOpen
+                ? "border-accent bg-accent/10 text-accent"
+                : "border-border text-text-secondary hover:bg-accent-surface hover:text-accent"
+            }`}
+            title="Case Info"
+            onClick={() => setInfoOpen((v) => !v)}
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"
+              />
+            </svg>
+            Case Info
+          </button>
           {/* Chat button */}
           <button
             className={`flex min-h-[36px] items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors ${
@@ -227,33 +254,43 @@ export default function CaseLayout({ caseId }: CaseLayoutProps) {
         </div>
       </div>
 
-      {/* Three-panel content */}
+      {/* Content area */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Panel 1: Files */}
-        <FilePanel
-          caseId={caseId}
-          files={files}
-          selectedFileId={selectedFileId}
-          onSelectFile={handleSelectFile}
-          onFilesAdded={handleFilesAdded}
-          onFileDeleted={handleFileDeleted}
-          processingCount={processingCount}
-        />
+        {infoOpen ? (
+          <CaseInfoPanel
+            caseId={caseId}
+            files={files}
+            onClose={() => setInfoOpen(false)}
+          />
+        ) : (
+          <>
+            {/* Panel 1: Files */}
+            <FilePanel
+              caseId={caseId}
+              files={files}
+              selectedFileId={selectedFileId}
+              onSelectFile={handleSelectFile}
+              onFilesAdded={handleFilesAdded}
+              onFileDeleted={handleFileDeleted}
+              processingCount={processingCount}
+            />
 
-        {/* Panel 2: Extracted text */}
-        <TextPanel
-          caseId={caseId}
-          files={files}
-          selectedFileId={selectedFileId}
-        />
+            {/* Panel 2: Extracted text */}
+            <TextPanel
+              caseId={caseId}
+              files={files}
+              selectedFileId={selectedFileId}
+            />
 
-        {/* Panel 3: Notes */}
-        <NotesPanel
-          caseId={caseId}
-          selectedFileId={selectedFileId}
-          collapsed={notesCollapsed}
-          onToggle={() => setNotesCollapsed((v) => !v)}
-        />
+            {/* Panel 3: Notes */}
+            <NotesPanel
+              caseId={caseId}
+              selectedFileId={selectedFileId}
+              collapsed={notesCollapsed}
+              onToggle={() => setNotesCollapsed((v) => !v)}
+            />
+          </>
+        )}
       </div>
 
       {/* Chat drawer overlay */}

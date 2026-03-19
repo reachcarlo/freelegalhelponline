@@ -339,6 +339,25 @@ class CaseFactResponse(BaseModel):
     created_at: str
 
 
+class CreateFactRequest(BaseModel):
+    """Request body for POST /api/cases/{case_id}/facts (manual fact)."""
+
+    category: str
+    fact_type: str = Field(..., min_length=1, max_length=200)
+    value: dict
+    source_file_id: str | None = None
+    effective_date: str | None = None
+
+
+class SupersedeFactRequest(BaseModel):
+    """Request body for POST /api/cases/{case_id}/facts/{fact_id}/supersede."""
+
+    category: str
+    fact_type: str = Field(..., min_length=1, max_length=200)
+    value: dict
+    effective_date: str | None = None
+
+
 class CaseFactListResponse(BaseModel):
     """Response body for GET /api/cases/{case_id}/facts."""
 

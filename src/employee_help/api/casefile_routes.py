@@ -19,6 +19,8 @@ from employee_help.api.casefile_schemas import (
     CaseContextResponse,
     CaseFactListResponse,
     CaseFactResponse,
+    CreateFactRequest,
+    SupersedeFactRequest,
     CaseFileDetailResponse,
     CaseFileResponse,
     CaseListResponse,
@@ -53,6 +55,7 @@ from employee_help.storage.models import (
     Case,
     CaseChatSession,
     CaseChatTurn,
+    CaseFact,
     CaseFile,
     CaseNote,
     ProcessingStatus,
@@ -106,6 +109,23 @@ def _get_case_fact_storage():
 
 
 # ── Helpers ───────────────────────────────────────────────────────
+
+
+def _fact_to_response(f: CaseFact) -> CaseFactResponse:
+    return CaseFactResponse(
+        id=f.id,
+        case_id=f.case_id,
+        category=f.category.value,
+        fact_type=f.fact_type,
+        value=f.value,
+        source_file_id=f.source_file_id,
+        extraction_method=f.extraction_method.value,
+        confidence=f.confidence,
+        confirmed=f.confirmed,
+        superseded_by=f.superseded_by,
+        effective_date=f.effective_date,
+        created_at=f.created_at.isoformat(),
+    )
 
 
 def _case_response(case: Case, file_count: int = 0) -> CaseResponse:
@@ -399,25 +419,150 @@ async def list_case_facts(
 
     facts = cfs.list_current_facts(case_id, category=category)
     return CaseFactListResponse(
-        facts=[
-            CaseFactResponse(
-                id=f.id,
-                case_id=f.case_id,
-                category=f.category.value,
-                fact_type=f.fact_type,
-                value=f.value,
-                source_file_id=f.source_file_id,
-                extraction_method=f.extraction_method.value,
-                confidence=f.confidence,
-                confirmed=f.confirmed,
-                superseded_by=f.superseded_by,
-                effective_date=f.effective_date,
-                created_at=f.created_at.isoformat(),
-            )
-            for f in facts
-        ],
+        facts=[_fact_to_response(f) for f in facts],
         total=len(facts),
     )
+
+
+@casefile_router.get("/{case_id}/facts/history", response_model=CaseFactListResponse)
+async def list_case_facts_history(
+    case_id: str,
+    request: Request,
+    category: str | None = None,
+):
+    """List ALL facts for a case including superseded (audit trail / history view)."""
+    user = _require_user(request)
+    _require_case(case_id, user_id=user.sub)
+
+    cfs = _get_case_fact_storage()
+    if cfs is None:
+        raise HTTPException(503, "Fact storage not available")
+
+    if category is not None:
+        from employee_help.storage.models import FactCategory as FC
+
+        valid = {c.value for c in FC}
+        if category not in valid:
+            raise HTTPException(
+                400,
+                f"Invalid category: {category}. "
+                f"Valid: {', '.join(sorted(valid))}",
+            )
+
+    facts = cfs.list_all_facts(case_id, category=category)
+    return CaseFactListResponse(
+        facts=[_fact_to_response(f) for f in facts],
+        total=len(facts),
+    )
+
+
+@casefile_router.post(
+    "/{case_id}/facts", response_model=CaseFactResponse, status_code=201
+)
+async def add_manual_fact(
+    case_id: str,
+    body: CreateFactRequest,
+    request: Request,
+):
+    """Add a manual fact to a case (extraction_method=MANUAL, confidence=1.0, confirmed=True)."""
+    from employee_help.storage.models import ExtractionMethod, FactCategory
+
+    user = _require_user(request)
+    _require_case(case_id, user_id=user.sub)
+
+    # Validate category
+    valid_cats = {c.value for c in FactCategory}
+    if body.category not in valid_cats:
+        raise HTTPException(
+            400,
+            f"Invalid category: {body.category}. "
+            f"Valid: {', '.join(sorted(valid_cats))}",
+        )
+
+    cfs = _get_case_fact_storage()
+    if cfs is None:
+        raise HTTPException(503, "Fact storage not available")
+
+    fact = CaseFact(
+        case_id=case_id,
+        category=FactCategory(body.category),
+        fact_type=body.fact_type,
+        value=body.value,
+        source_file_id=body.source_file_id,
+        extraction_method=ExtractionMethod.MANUAL,
+        confidence=1.0,
+        confirmed=True,
+        effective_date=body.effective_date,
+    )
+    created = cfs.add_fact(fact)
+    return _fact_to_response(created)
+
+
+@casefile_router.put("/{case_id}/facts/{fact_id}/confirm", response_model=CaseFactResponse)
+async def confirm_case_fact(
+    case_id: str,
+    fact_id: str,
+    request: Request,
+):
+    """Confirm a fact. The only allowed mutation on an existing fact."""
+    user = _require_user(request)
+    _require_case(case_id, user_id=user.sub)
+
+    cfs = _get_case_fact_storage()
+    if cfs is None:
+        raise HTTPException(503, "Fact storage not available")
+
+    fact = cfs.get_fact(fact_id)
+    if fact is None or fact.case_id != case_id:
+        raise HTTPException(404, "Fact not found")
+
+    cfs.confirm(fact_id)
+    fact.confirmed = True
+    return _fact_to_response(fact)
+
+
+@casefile_router.post("/{case_id}/facts/{fact_id}/supersede", response_model=CaseFactResponse)
+async def supersede_case_fact(
+    case_id: str,
+    fact_id: str,
+    body: SupersedeFactRequest,
+    request: Request,
+):
+    """Supersede a fact with a new value. Creates a new MANUAL fact and links the old one."""
+    from employee_help.storage.models import ExtractionMethod, FactCategory
+
+    user = _require_user(request)
+    _require_case(case_id, user_id=user.sub)
+
+    # Validate category
+    valid_cats = {c.value for c in FactCategory}
+    if body.category not in valid_cats:
+        raise HTTPException(
+            400,
+            f"Invalid category: {body.category}. "
+            f"Valid: {', '.join(sorted(valid_cats))}",
+        )
+
+    cfs = _get_case_fact_storage()
+    if cfs is None:
+        raise HTTPException(503, "Fact storage not available")
+
+    old_fact = cfs.get_fact(fact_id)
+    if old_fact is None or old_fact.case_id != case_id:
+        raise HTTPException(404, "Fact not found")
+
+    new_fact = CaseFact(
+        case_id=case_id,
+        category=FactCategory(body.category),
+        fact_type=body.fact_type,
+        value=body.value,
+        extraction_method=ExtractionMethod.MANUAL,
+        confidence=1.0,
+        confirmed=True,
+        effective_date=body.effective_date,
+    )
+    created = cfs.supersede(fact_id, new_fact)
+    return _fact_to_response(created)
 
 
 # ── File management ──────────────────────────────────────────────

@@ -267,6 +267,121 @@ export async function deleteNote(
   if (!res.ok) throw new Error(`Failed to delete note (${res.status})`);
 }
 
+// ── Case Context & Facts ──────────────────────────────────────
+
+export interface PartyView {
+  name: string;
+  role: string;
+  party_type: string;
+  count: number | null;
+}
+
+export interface CourtView {
+  court: string;
+  county: string | null;
+  department: string | null;
+  judge: string | null;
+}
+
+export interface AttorneyView {
+  name: string;
+  side: string;
+  bar_number: string | null;
+  firm: string | null;
+  email: string | null;
+}
+
+export interface EmploymentPeriodView {
+  employer: string;
+  position: string | null;
+  department: string | null;
+  compensation_rate: number | null;
+  compensation_type: string | null;
+  pay_period: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  change_reason: string | null;
+}
+
+export interface ClaimView {
+  claim_type: string;
+  status: string;
+  protected_class: string | null;
+  supporting_facts: string | null;
+  reason: string | null;
+}
+
+export interface DateView {
+  label: string;
+  date: string;
+  date_type: string | null;
+}
+
+export interface FinancialView {
+  label: string;
+  amount: number;
+  date: string | null;
+}
+
+export interface CaseContextInfo {
+  case_id: string;
+  case_name: string;
+  parties: PartyView[];
+  court: CourtView | null;
+  attorneys: AttorneyView[];
+  employment_history: EmploymentPeriodView[];
+  claims: ClaimView[];
+  key_dates: DateView[];
+  financials: FinancialView[];
+  fact_count: number;
+  confirmed_count: number;
+  extraction_sources: Record<string, string[]>;
+}
+
+export interface CaseFactInfo {
+  id: string;
+  case_id: string;
+  category: string;
+  fact_type: string;
+  value: Record<string, unknown>;
+  source_file_id: string | null;
+  extraction_method: string;
+  confidence: number;
+  confirmed: boolean;
+  superseded_by: string | null;
+  effective_date: string | null;
+  created_at: string;
+}
+
+export async function getCaseContext(
+  caseId: string
+): Promise<CaseContextInfo> {
+  const res = await fetch(`/api/cases/${caseId}/context`);
+  if (!res.ok) throw new Error(`Failed to get case context (${res.status})`);
+  return res.json();
+}
+
+export async function listFacts(
+  caseId: string,
+  category?: string
+): Promise<{ facts: CaseFactInfo[]; total: number }> {
+  const params = category ? `?category=${category}` : "";
+  const res = await fetch(`/api/cases/${caseId}/facts${params}`);
+  if (!res.ok) throw new Error(`Failed to list facts (${res.status})`);
+  return res.json();
+}
+
+export async function confirmFact(
+  caseId: string,
+  factId: string
+): Promise<CaseFactInfo> {
+  const res = await fetch(`/api/cases/${caseId}/facts/${factId}/confirm`, {
+    method: "PUT",
+  });
+  if (!res.ok) throw new Error(`Failed to confirm fact (${res.status})`);
+  return res.json();
+}
+
 // ── Chat Types ────────────────────────────────────────────────
 
 export interface ChatSourceInfo {

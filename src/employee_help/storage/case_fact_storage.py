@@ -109,6 +109,13 @@ class CaseFactStorage:
         self._conn.commit()
         return new_fact
 
+    def get_fact(self, fact_id: str) -> CaseFact | None:
+        """Get a single fact by ID, or None if not found."""
+        row = self._conn.execute(
+            "SELECT * FROM case_facts WHERE id = ?", (fact_id,),
+        ).fetchone()
+        return self._row_to_fact(row) if row else None
+
     def confirm(self, fact_id: str) -> None:
         """Set confirmed = True on a fact. The only mutation allowed."""
         self._conn.execute(
