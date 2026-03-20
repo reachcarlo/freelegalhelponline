@@ -382,6 +382,46 @@ export async function confirmFact(
   return res.json();
 }
 
+export async function addFact(
+  caseId: string,
+  body: {
+    category: string;
+    fact_type: string;
+    value: Record<string, unknown>;
+    effective_date?: string | null;
+  }
+): Promise<CaseFactInfo> {
+  const res = await fetch(`/api/cases/${caseId}/facts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Failed to add fact (${res.status})`);
+  return res.json();
+}
+
+export async function supersedeFact(
+  caseId: string,
+  factId: string,
+  body: {
+    category: string;
+    fact_type: string;
+    value: Record<string, unknown>;
+    effective_date?: string | null;
+  }
+): Promise<CaseFactInfo> {
+  const res = await fetch(
+    `/api/cases/${caseId}/facts/${factId}/supersede`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!res.ok) throw new Error(`Failed to supersede fact (${res.status})`);
+  return res.json();
+}
+
 // ── Chat Types ────────────────────────────────────────────────
 
 export interface ChatSourceInfo {
