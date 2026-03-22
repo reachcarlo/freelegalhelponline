@@ -422,6 +422,31 @@ export async function supersedeFact(
   return res.json();
 }
 
+// ── Tier 2 Extraction ─────────────────────────────────────────
+
+export interface ExtractResult {
+  facts_created: number;
+  files_processed: number;
+  factual_summary: string | null;
+  facts: CaseFactInfo[];
+}
+
+export async function triggerExtraction(
+  caseId: string,
+  fileId?: string
+): Promise<ExtractResult> {
+  const res = await fetch(`/api/cases/${caseId}/extract`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_id: fileId || null }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Extraction failed (${res.status})`);
+  }
+  return res.json();
+}
+
 // ── Chat Types ────────────────────────────────────────────────
 
 export interface ChatSourceInfo {

@@ -20,6 +20,8 @@ from employee_help.api.casefile_schemas import (
     CaseFactListResponse,
     CaseFactResponse,
     CreateFactRequest,
+    ExtractRequest,
+    ExtractResponse,
     SupersedeFactRequest,
     CaseFileDetailResponse,
     CaseFileResponse,
@@ -565,6 +567,117 @@ async def supersede_case_fact(
     return _fact_to_response(created)
 
 
+# ── Tier 2 LLM extraction (V2.2c.3) ─────────────────────────────
+
+
+@casefile_router.post("/{case_id}/extract", response_model=ExtractResponse)
+async def trigger_tier2_extraction(
+    case_id: str,
+    body: ExtractRequest,
+    request: Request,
+):
+    """Trigger Tier 2 LLM-based metadata extraction.
+
+    If file_id is specified, extracts from that single file.
+    If file_id is omitted, extracts from all key documents (complaints,
+    answers, demand letters) that have status=ready.
+    """
+    from employee_help.api.deps import get_llm_client
+    from employee_help.casefile.classifiers import DocumentClassifier
+    from employee_help.casefile.extractors.tier2 import (
+        TIER2_DOC_TYPES,
+        Tier2ExtractionError,
+        Tier2Extractor,
+    )
+
+    user = _require_user(request)
+    _require_case(case_id, user_id=user.sub)
+
+    cfs = _get_case_fact_storage()
+    if cfs is None:
+        raise HTTPException(503, "Fact storage not available")
+
+    llm_client = get_llm_client()
+    if llm_client is None:
+        raise HTTPException(503, "LLM service not available")
+
+    from employee_help.api.deps import get_obfuscation_engine
+
+    storage = _get_case_storage()
+    classifier = DocumentClassifier()
+    extractor = Tier2Extractor(
+        llm_client, obfuscation_engine=get_obfuscation_engine(),
+    )
+
+    # Determine which files to process
+    if body.file_id:
+        # Single file mode
+        cf = storage.get_case_file(body.file_id)
+        if cf is None or cf.case_id != case_id:
+            raise HTTPException(404, "File not found")
+        if cf.processing_status != ProcessingStatus.READY:
+            raise HTTPException(
+                400, f"File not ready for extraction (status: {cf.processing_status.value})"
+            )
+        files_to_process = [cf]
+    else:
+        # All key documents mode — find ready files whose doc type is extractable
+        all_files = storage.list_case_files(case_id)
+        files_to_process = [
+            f for f in all_files
+            if f.processing_status == ProcessingStatus.READY
+        ]
+
+    all_facts: list[CaseFact] = []
+    files_processed = 0
+    last_summary: str | None = None
+
+    for cf in files_to_process:
+        text = cf.edited_text or cf.extracted_text
+        if not text or not text.strip():
+            continue
+
+        doc_type = classifier.classify(text, cf.original_filename)
+        if not extractor.can_extract(doc_type):
+            # Skip files that aren't complaints/answers/demand letters
+            if body.file_id:
+                # If explicitly requested, extract anyway with generic doc type
+                from employee_help.casefile.classifiers import DocumentType
+                doc_type = DocumentType.COMPLAINT
+            else:
+                continue
+
+        try:
+            result = extractor.extract(text, case_id, cf.id, doc_type=doc_type)
+        except Tier2ExtractionError as e:
+            logger.error(
+                "tier2_extraction_failed",
+                file_id=cf.id,
+                error=str(e),
+            )
+            if body.file_id:
+                # Single file mode — propagate error
+                raise HTTPException(502, f"Extraction failed: {e}")
+            # Multi-file mode — skip and continue
+            continue
+
+        # Persist extracted facts
+        for fact in result.facts:
+            cfs.add_fact(fact)
+        all_facts.extend(result.facts)
+        files_processed += 1
+
+        if result.factual_summary:
+            last_summary = result.factual_summary
+
+    return ExtractResponse(
+        facts_created=len(all_facts),
+        files_processed=files_processed,
+        factual_summary=last_summary,
+        facts=[_fact_to_response(f) for f in all_facts],
+    )
+
+
 # ── File management ──────────────────────────────────────────────
 
 
@@ -635,10 +748,15 @@ async def upload_files(case_id: str, request: Request, files: list[UploadFile] =
         results.append(_file_response(cf))
 
         # Launch background processing (with embedding + fact extraction if available)
+        from employee_help.api.deps import get_llm_client, get_obfuscation_engine
+
         embedder, cvs = _get_embedding_deps()
         cfs = _get_case_fact_storage()
         asyncio.create_task(
-            process_file(storage, cf.id, case_id, embedder, cvs, cfs)
+            process_file(
+                storage, cf.id, case_id, embedder, cvs, cfs,
+                get_llm_client(), get_obfuscation_engine(),
+            )
         )
 
         logger.info(
@@ -764,10 +882,15 @@ async def reprocess_file(case_id: str, file_id: str, request: Request):
     storage.update_case_file_status(file_id, ProcessingStatus.QUEUED)
 
     # Relaunch background processing (with embedding + fact extraction if available)
+    from employee_help.api.deps import get_llm_client, get_obfuscation_engine
+
     embedder, cvs = _get_embedding_deps()
     cfs = _get_case_fact_storage()
     asyncio.create_task(
-        process_file(storage, file_id, case_id, embedder, cvs, cfs)
+        process_file(
+            storage, file_id, case_id, embedder, cvs, cfs,
+            get_llm_client(), get_obfuscation_engine(),
+        )
     )
 
     # Refetch for response

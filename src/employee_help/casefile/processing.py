@@ -24,6 +24,8 @@ from employee_help.storage.models import CaseChunk, FileType, ProcessingStatus
 
 if TYPE_CHECKING:
     from employee_help.casefile.case_vector_store import CaseVectorStore
+    from employee_help.generation.llm import LLMClient
+    from employee_help.privacy.engine import ObfuscationEngine
     from employee_help.retrieval.embedder import EmbeddingService
     from employee_help.storage.case_fact_storage import CaseFactStorage
 
@@ -319,6 +321,8 @@ async def process_file(
     embedder: EmbeddingService | None = None,
     case_vector_store: CaseVectorStore | None = None,
     case_fact_storage: CaseFactStorage | None = None,
+    llm_client: LLMClient | None = None,
+    obfuscation_engine: ObfuscationEngine | None = None,
 ) -> None:
     """Background task: extract text from an uploaded file, then chunk + embed.
 
@@ -328,8 +332,9 @@ async def process_file(
     4. Extract text
     5. Store extracted_text + edited_text (status: READY)
     6. Run Tier 1 extraction → create CaseFacts (if fact storage provided)
-    7. Chunk + embed + store in LanceDB (if embedder provided)
-    8. Broadcast SSE event
+    7. Auto-trigger Tier 2 LLM extraction for key documents (if llm_client provided)
+    8. Chunk + embed + store in LanceDB (if embedder provided)
+    9. Broadcast SSE event
     """
     log = logger.bind(file_id=file_id, case_id=case_id)
 
@@ -407,6 +412,7 @@ async def process_file(
         # Tier 1 extraction → CaseFacts (after text extraction, before embedding)
         # Delete old facts first (handles reprocess case; no-op for new uploads)
         fact_count = 0
+        doc_type = None
         if text and case_fact_storage is not None:
             try:
                 case_fact_storage.delete_facts_for_file(file_id)
@@ -436,6 +442,50 @@ async def process_file(
                 log.error(
                     "fact_extraction_failed",
                     error=str(ext_exc),
+                    exc_info=True,
+                )
+
+        # Tier 2 LLM extraction — auto-trigger for key documents (V2.2c.4)
+        if (
+            text
+            and doc_type is not None
+            and llm_client is not None
+            and case_fact_storage is not None
+        ):
+            try:
+                from employee_help.casefile.extractors.tier2 import (
+                    TIER2_DOC_TYPES,
+                    Tier2Extractor,
+                )
+
+                if doc_type in TIER2_DOC_TYPES:
+                    tier2 = Tier2Extractor(
+                        llm_client,
+                        obfuscation_engine=obfuscation_engine,
+                    )
+                    tier2_result = tier2.extract(
+                        text, case_id, file_id, doc_type=doc_type,
+                    )
+                    for fact in tier2_result.facts:
+                        case_fact_storage.add_fact(fact)
+                    log.info(
+                        "tier2_auto_extracted",
+                        filename=cf.original_filename,
+                        doc_type=doc_type.value,
+                        fact_count=len(tier2_result.facts),
+                        input_tokens=tier2_result.input_tokens,
+                        output_tokens=tier2_result.output_tokens,
+                    )
+                    await broadcast_status(case_id, {
+                        "file_id": file_id,
+                        "status": "tier2_extracted",
+                        "count": len(tier2_result.facts),
+                    })
+            except Exception as tier2_exc:
+                # Tier 2 failure doesn't block file readiness
+                log.error(
+                    "tier2_auto_extraction_failed",
+                    error=str(tier2_exc),
                     exc_info=True,
                 )
 

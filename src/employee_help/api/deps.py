@@ -29,6 +29,7 @@ _session_manager = None
 _google_provider = None
 _microsoft_provider = None
 _audit_logger = None
+_llm_client = None
 
 
 def _load_rag_config() -> dict:
@@ -97,11 +98,13 @@ def init_services() -> None:
     # Build answer service (same pattern as cli.py:_handle_ask)
     gen_cfg = rag_config.get("generation", {})
 
+    global _llm_client
     llm_client = LLMClient(
         timeout=gen_cfg.get("timeout_seconds", 30),
         consumer_model=gen_cfg.get("consumer_model"),
         attorney_model=gen_cfg.get("attorney_model"),
     )
+    _llm_client = llm_client
 
     prompt_builder = PromptBuilder(
         max_context_tokens=gen_cfg.get("max_context_tokens", 6000),
@@ -294,7 +297,7 @@ def shutdown_services() -> None:
     global _embedding_service, _case_vector_store, _case_chat_service
     global _obfuscation_engine, _context_builder
     global _auth_storage, _session_manager, _google_provider, _microsoft_provider
-    global _audit_logger
+    global _audit_logger, _llm_client
     if _feedback_store is not None:
         _feedback_store.close()
     if _case_storage is not None:
@@ -320,6 +323,7 @@ def shutdown_services() -> None:
     _google_provider = None
     _microsoft_provider = None
     _audit_logger = None
+    _llm_client = None
     logger.info("services_shutdown")
 
 
@@ -377,6 +381,11 @@ def get_obfuscation_engine():
 def get_context_builder():
     """Return the CaseContextBuilder singleton (may be None)."""
     return _context_builder
+
+
+def get_llm_client():
+    """Return the LLMClient singleton (may be None)."""
+    return _llm_client
 
 
 def get_conversation_config() -> dict:

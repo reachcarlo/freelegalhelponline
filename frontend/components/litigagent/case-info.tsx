@@ -10,6 +10,7 @@ import {
   getCaseContext,
   listFacts,
   supersedeFact,
+  triggerExtraction,
 } from "@/lib/litigagent-api";
 
 interface CaseInfoProps {
@@ -781,6 +782,9 @@ export default function CaseInfo({ caseId, files, onClose }: CaseInfoProps) {
   const [error, setError] = useState<string | null>(null);
   const [editingFactId, setEditingFactId] = useState<string | null>(null);
   const [addingCategory, setAddingCategory] = useState<string | null>(null);
+  const [extractingFileId, setExtractingFileId] = useState<string | null>(null);
+  const [extractResult, setExtractResult] = useState<{ factsCreated: number; summary: string | null } | null>(null);
+  const [extractError, setExtractError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -893,6 +897,33 @@ export default function CaseInfo({ caseId, files, onClose }: CaseInfoProps) {
     [caseId, facts]
   );
 
+  const handleExtract = useCallback(
+    async (fileId?: string) => {
+      try {
+        setExtractingFileId(fileId || "__all__");
+        setExtractError(null);
+        setExtractResult(null);
+        const result = await triggerExtraction(caseId, fileId);
+        setExtractResult({
+          factsCreated: result.facts_created,
+          summary: result.factual_summary,
+        });
+        // Refresh facts list
+        const factsResp = await listFacts(caseId);
+        setFacts(factsResp.facts);
+      } catch (e: unknown) {
+        setExtractError(
+          e instanceof Error ? e.message : "Extraction failed"
+        );
+      } finally {
+        setExtractingFileId(null);
+      }
+    },
+    [caseId]
+  );
+
+  const readyFiles = files.filter((f) => f.processing_status === "ready");
+
   // Group facts by category
   const factsByCategory = facts.reduce<Record<string, CaseFactInfo[]>>(
     (acc, f) => {
@@ -986,6 +1017,56 @@ export default function CaseInfo({ caseId, files, onClose }: CaseInfoProps) {
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 py-3">
+        {/* AI Extraction section */}
+        {readyFiles.length > 0 && (
+          <div className="mb-3 rounded-lg border border-border bg-surface/50 p-3" data-testid="extract-section">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-tertiary">
+              AI Extraction
+            </h3>
+            <div className="space-y-1.5">
+              {readyFiles.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => handleExtract(f.id)}
+                  disabled={extractingFileId !== null}
+                  className="flex w-full items-center gap-2 rounded border border-border px-3 py-1.5 text-left text-xs text-text-secondary transition-colors hover:bg-accent-surface hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                  data-testid="extract-file-button"
+                >
+                  {extractingFileId === f.id ? (
+                    <>
+                      <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Extracting...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+                      </svg>
+                      Extract more details from {f.original_filename}
+                    </>
+                  )}
+                </button>
+              ))}
+            </div>
+            {extractResult && (
+              <p className="mt-2 text-xs text-green-600" data-testid="extract-success">
+                Extracted {extractResult.factsCreated} new fact{extractResult.factsCreated !== 1 ? "s" : ""}.
+                {extractResult.summary && (
+                  <span className="ml-1 text-text-tertiary">{extractResult.summary}</span>
+                )}
+              </p>
+            )}
+            {extractError && (
+              <p className="mt-2 text-xs text-error-text" data-testid="extract-error">
+                {extractError}
+              </p>
+            )}
+          </div>
+        )}
+
         {facts.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <p className="text-sm text-text-tertiary">

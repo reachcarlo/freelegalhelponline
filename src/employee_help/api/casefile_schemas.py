@@ -363,3 +363,24 @@ class CaseFactListResponse(BaseModel):
 
     facts: list[CaseFactResponse]
     total: int
+
+
+# ── Tier 2 extraction schemas (V2.2c.3) ─────────────────────────
+
+
+class ExtractRequest(BaseModel):
+    """Request body for POST /api/cases/{case_id}/extract."""
+
+    file_id: str | None = Field(
+        default=None,
+        description="Specific file to extract from. If omitted, extracts from all key documents.",
+    )
+
+
+class ExtractResponse(BaseModel):
+    """Response body for POST /api/cases/{case_id}/extract."""
+
+    facts_created: int
+    files_processed: int
+    factual_summary: str | None = None
+    facts: list[CaseFactResponse] = Field(default_factory=list)
