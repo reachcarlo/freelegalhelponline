@@ -93,9 +93,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Core",
     items: [
-      { key: "files", label: "Files", icon: FolderIcon, segment: "" },
-      { key: "chat", label: "Chat", icon: ChatIcon, segment: "chat", disabled: true },
-      { key: "info", label: "Info", icon: InfoIcon, segment: "info", disabled: true },
+      { key: "files", label: "Files", icon: FolderIcon, segment: "files" },
+      { key: "chat", label: "Chat", icon: ChatIcon, segment: "chat" },
+      { key: "info", label: "Info", icon: InfoIcon, segment: "info" },
     ],
   },
   {

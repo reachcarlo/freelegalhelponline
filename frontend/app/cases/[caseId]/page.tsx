@@ -1,19 +1,16 @@
-"use client";
-
-import { use } from "react";
-import CaseLayout from "@/components/litigagent/case-layout";
+import { redirect } from "next/navigation";
 
 /**
- * Default case workspace view — renders the existing three-panel layout.
+ * Default case workspace route — redirects to the files view.
  *
- * showHeader=false because the workspace shell (layout.tsx) provides
- * the case header. V2.3b.1 will migrate this to /cases/[caseId]/files.
+ * The canonical route for the files tool is /cases/[caseId]/files.
+ * This redirect ensures bookmarks and direct navigation still work.
  */
-export default function CaseWorkspacePage({
+export default async function CaseWorkspacePage({
   params,
 }: {
   params: Promise<{ caseId: string }>;
 }) {
-  const { caseId } = use(params);
-  return <CaseLayout caseId={caseId} showHeader={false} />;
+  const { caseId } = await params;
+  redirect(`/cases/${caseId}/files`);
 }

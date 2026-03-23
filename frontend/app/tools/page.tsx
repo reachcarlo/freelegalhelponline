@@ -42,18 +42,18 @@ const tools = [
     href: "/tools/discovery/objection-drafter",
     title: "Discovery Objection Drafter",
     description:
-      "AI-powered objection drafter. Paste discovery requests, get formatted objections with strength ratings, statutory and case law citations. Supports interrogatories, RFPs, and RFAs.",
+      "AI-powered objection drafter. Paste discovery requests, get formatted objections with strength ratings, statutory and case law citations. Supports interrogatories, RFPs, and RFAs. Also available from the case workspace.",
     requiresAuth: true,
   },
   {
     href: "/tools/discovery",
     title: "Discovery Document Generator",
     description:
-      "Generate employment law discovery documents — Form Interrogatories (DISC-001/002), Special Interrogatories, Requests for Production, and Requests for Admission.",
+      "Generate employment law discovery documents — Form Interrogatories (DISC-001/002), Special Interrogatories, Requests for Production, and Requests for Admission. Also available from the case workspace.",
     requiresAuth: true,
   },
   {
-    href: "/tools/litigagent",
+    href: "/cases",
     title: "LITIGAGENT Case File Analyzer",
     description:
       "Upload case files (PDF, Word, email, text), extract text automatically, and organize with notes. Your AI associate that reads every document and remembers every detail.",

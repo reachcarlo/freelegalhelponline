@@ -1,8 +1,8 @@
 # LITIGAGENTv2 — The Junior Associate
 
-> **Status**: IN PROGRESS — V2.3a COMPLETE
+> **Status**: IN PROGRESS — V2.3b COMPLETE
 > **Predecessor**: [LITIGAGENT.md](./LITIGAGENT.md) (Phases L1–L3, the foundation)
-> **Date**: 2026-03-22
+> **Date**: 2026-03-23
 
 ---
 
@@ -1167,6 +1167,8 @@ Week  LITIGAGENTv2                   PRIVACY.md
 | V2.3b.7 | Command palette (`Cmd+K`): quick-switch between tools within workspace | `frontend/components/litigagent/command-palette.tsx` | 2 E2E | 0.5d |
 
 **Gate check V2.3b**: Navigate to case workspace → Files → Chat → Info → back to Files. State is preserved. Old routes redirect. Breadcrumb updates. Command palette opens and navigates. 13 E2E tests passing.
+
+> **V2.3b STATUS: COMPLETE** (2026-03-23) — 13 E2E tests passing across 7 gates (V2.3b.1–V2.3b.7). **V2.3b.1**: Tool canvas — Files/Chat/Info render as child routes (`/cases/[caseId]/files|chat|info`). `chat-panel.tsx` extracted from `chat-drawer.tsx` as full-panel component. `case-layout.tsx` gains `showHeader` prop (compact toolbar in workspace, full header standalone). 3 E2E tests (`workspace-navigation.spec.ts`). **V2.3b.2**: State preservation — `WorkspaceProvider` in `lib/workspace-context.tsx` wraps workspace layout. `useRef<Map>` store (no re-renders). `useToolState`/`useToolStateOptional` hooks. Files tool preserves `selectedFileId`/`notesCollapsed`; Chat tool preserves `messages`/`sessionId`/`input` (skips API reload on restore). 3 E2E tests (`workspace-state.spec.ts`). **V2.3b.3**: Legacy `/tools/litigagent/[caseId]` → server `redirect()` to `/cases/[caseId]/files`. **V2.3b.4**: Legacy `/tools/litigagent` → server `redirect()` to `/cases`. `case-list.tsx` updated to navigate to `/cases/[id]`. Combined 2 E2E tests (`workspace-redirect.spec.ts`). **V2.3b.5**: Tools index — LITIGAGENT card `href` → `/cases`, discovery cards note "Also available from the case workspace." **V2.3b.6**: Breadcrumb — `Breadcrumb` component in `workspace-shell.tsx` renders `Cases > Case Name > Tool` (chevron separators, `usePathname`-derived segments, nested segment support). Replaced back-button header. Error state uses `<Link>` instead of `router.push`. **V2.3b.7**: Command palette — `command-palette.tsx` modal. `Cmd+K`/`Ctrl+K` global listener, search filter, `↑↓` keyboard navigation, disabled items with "Coming soon", backdrop click/Esc close. Excludes current tool from list. 2 E2E tests (`command-palette.spec.ts`). Key files: `lib/workspace-context.tsx`, `components/litigagent/command-palette.tsx`, `components/litigagent/chat-panel.tsx`, `components/litigagent/workspace-shell.tsx`, `app/cases/[caseId]/{files,chat,info}/page.tsx`.
 
 **V2.3 total: ~6 days, 16 E2E tests**
 

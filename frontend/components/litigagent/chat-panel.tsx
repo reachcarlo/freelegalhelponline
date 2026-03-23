@@ -12,113 +12,73 @@ import {
   deleteChatSession,
   getChatHistory,
   listChatSessions,
+  listFiles,
 } from "@/lib/litigagent-api";
+import { useToolStateOptional } from "@/lib/workspace-context";
+import {
+  ChatMessage,
+  computeSuggestions,
+  formatSessionDate,
+} from "./chat-drawer";
 
-interface ChatDrawerProps {
-  open: boolean;
-  onClose: () => void;
+interface ChatToolState {
+  [key: string]: unknown;
+  messages?: ChatMessage[];
+  sessionId?: string | null;
+  input?: string;
+}
+
+interface ChatPanelProps {
   caseId: string;
-  files?: CaseFileInfo[];
-  onNavigateToFile?: (fileId: string) => void;
 }
-
-export interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-  caseSources?: ChatSourceInfo[];
-  kbSources?: ChatSourceInfo[];
-}
-
-// Suggestions shown when no files are uploaded yet
-const EMPTY_SUGGESTIONS = [
-  "What types of documents should I upload for my case?",
-  "What employment claims might apply to my situation?",
-  "How does the case analysis process work?",
-];
 
 /**
- * Generate contextual suggested questions based on case file metadata.
- * Analyzes filenames and file types to propose relevant analysis questions.
+ * Full-panel chat for the /cases/[caseId]/chat route.
+ *
+ * Reuses shared helpers from chat-drawer but renders as an inline
+ * flex-column panel instead of a fixed-position overlay.
  */
-export function computeSuggestions(files: CaseFileInfo[]): string[] {
-  if (files.length === 0) return EMPTY_SUGGESTIONS;
+export default function ChatPanel({ caseId }: ChatPanelProps) {
+  const [getChatState, setChatState] = useToolStateOptional<ChatToolState>("chat");
 
-  const suggestions: string[] = [];
-  const lowerNames = files.map((f) => f.original_filename.toLowerCase());
-  const types = new Set(files.map((f) => f.file_type));
-
-  // Detect document categories from filenames
-  if (lowerNames.some((n) => n.includes("complaint")))
-    suggestions.push("Analyze the complaint and identify all causes of action");
-  if (lowerNames.some((n) => n.includes("answer") && !n.includes("unanswered")))
-    suggestions.push("What affirmative defenses are raised in the answer?");
-  if (lowerNames.some((n) => n.includes("contract") || n.includes("agreement") || n.includes("offer letter")))
-    suggestions.push("What key terms and restrictions are in the employment agreement?");
-  if (lowerNames.some((n) => n.includes("pay") || n.includes("stub") || n.includes("wage") || n.includes("w-2") || n.includes("w2")))
-    suggestions.push("Analyze the pay records for wage and hour violations");
-  if (lowerNames.some((n) => n.includes("terminat") || n.includes("separation") || n.includes("discharge")))
-    suggestions.push("What grounds are stated for the termination and do they hold up legally?");
-  if (lowerNames.some((n) => n.includes("policy") || n.includes("handbook") || n.includes("manual")))
-    suggestions.push("Do any company policies conflict with California employment law?");
-  if (lowerNames.some((n) => n.includes("performance") || n.includes("evaluation") || n.includes("write-up") || n.includes("writeup")))
-    suggestions.push("Summarize the performance evaluations and identify any pretextual patterns");
-  if (lowerNames.some((n) => n.includes("interrogator") || n.includes("request for") || n.includes("deposition") || n.includes("discovery")))
-    suggestions.push("Review the discovery documents and identify key admissions");
-
-  // Add file-type-based suggestions
-  if ((types.has("eml") || types.has("msg") || types.has("mbox")) && suggestions.length < 4)
-    suggestions.push("Summarize key email communications and identify important admissions");
-  if ((types.has("xlsx") || types.has("xls") || types.has("csv")) && suggestions.length < 4)
-    suggestions.push("Analyze the spreadsheet data for patterns or discrepancies");
-
-  // Fill remaining slots with general case analysis questions
-  const general = [
-    "Create a timeline of key events from these documents",
-    "What potential employment law claims do these documents support?",
-    "Summarize all damages evidence across the case files",
-    "What witnesses are identified in these documents?",
-  ];
-  for (const q of general) {
-    if (suggestions.length >= 4) break;
-    suggestions.push(q);
-  }
-
-  return suggestions.slice(0, 4);
-}
-
-export function formatSessionDate(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffDays === 0) {
-    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  }
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return d.toLocaleDateString([], { weekday: "short" });
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
-}
-
-export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToFile }: ChatDrawerProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [input, setInput] = useState("");
+  // Restore persisted state from workspace context on mount
+  const restored = getChatState();
+  const [files, setFiles] = useState<CaseFileInfo[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(restored.messages ?? []);
+  const [sessionId, setSessionId] = useState<string | null>(restored.sessionId ?? null);
+  const [input, setInput] = useState(restored.input ?? "");
   const [streaming, setStreaming] = useState(false);
+  const hadRestoredMessages = useRef(
+    (restored.messages?.length ?? 0) > 0,
+  );
   const [error, setError] = useState<string | null>(null);
   const [turnLimitReached, setTurnLimitReached] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [sessions, setSessions] = useState<ChatSessionInfo[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [sessionPreviews, setSessionPreviews] = useState<Record<string, string>>({});
+  const [sessionPreviews, setSessionPreviews] = useState<
+    Record<string, string>
+  >({});
 
-  const suggestions = useMemo(() => computeSuggestions(files || []), [files]);
+  const suggestions = useMemo(() => computeSuggestions(files), [files]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const sessionLoadedRef = useRef(false);
 
-  // Auto-scroll to bottom
+  // Persist state to workspace context on change
+  useEffect(() => {
+    setChatState({ messages, sessionId, input });
+  }, [messages, sessionId, input, setChatState]);
+
+  // Load files for suggestions context
+  useEffect(() => {
+    listFiles(caseId)
+      .then(setFiles)
+      .catch(() => {});
+  }, [caseId]);
+
+  // Auto-scroll
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -129,48 +89,44 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Focus input when drawer opens
+  // Focus input on mount
   useEffect(() => {
-    if (open && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 200);
-    }
-  }, [open]);
+    setTimeout(() => inputRef.current?.focus(), 200);
+  }, []);
 
-  // Load most recent session on first open
+  // Load most recent session (skip if state was restored from context)
   useEffect(() => {
-    if (!open || sessionLoadedRef.current) return;
-    sessionLoadedRef.current = true;
-
+    if (hadRestoredMessages.current) return;
     (async () => {
       try {
-        const sessions = await listChatSessions(caseId);
-        if (sessions.length === 0 || sessions[0].turn_count === 0) return;
-
-        const latest = sessions[0];
+        const s = await listChatSessions(caseId);
+        if (s.length === 0 || s[0].turn_count === 0) return;
+        const latest = s[0];
         const turns = await getChatHistory(caseId, latest.id);
         setSessionId(latest.id);
-
-        const restored: ChatMessage[] = turns.map((t) => ({
-          role: t.role as "user" | "assistant",
-          content: t.content,
-        }));
-        setMessages(restored);
+        setMessages(
+          turns.map((t) => ({
+            role: t.role as "user" | "assistant",
+            content: t.content,
+          }))
+        );
       } catch {
-        // Silently fail — start fresh
+        // start fresh
       }
     })();
-  }, [open, caseId]);
+  }, [caseId]);
 
-  // Cleanup abort controller on unmount
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
     };
   }, []);
 
-  const buildHistory = useCallback((): ChatTurnItem[] => {
-    return messages.map((m) => ({ role: m.role, content: m.content }));
-  }, [messages]);
+  const buildHistory = useCallback(
+    (): ChatTurnItem[] =>
+      messages.map((m) => ({ role: m.role, content: m.content })),
+    [messages]
+  );
 
   const handleSend = useCallback(
     (query?: string) => {
@@ -180,89 +136,84 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
       setInput("");
       setError(null);
 
-      // Add user message
-      const userMsg: ChatMessage = { role: "user", content: text };
-      setMessages((prev) => [...prev, userMsg]);
-
-      // Add placeholder assistant message
-      const assistantMsg: ChatMessage = { role: "assistant", content: "" };
-      setMessages((prev) => [...prev, assistantMsg]);
+      setMessages((prev) => [...prev, { role: "user", content: text }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
       setStreaming(true);
 
       const history = buildHistory();
 
-      const controller = chatWithCase(caseId, text, {
-        onSources: (caseSources, kbSources) => {
-          // Attach sources to the assistant message
-          setMessages((prev) => {
-            const updated = [...prev];
-            const last = updated[updated.length - 1];
-            if (last.role === "assistant") {
-              updated[updated.length - 1] = {
-                ...last,
-                caseSources,
-                kbSources,
-              };
-            }
-            return updated;
-          });
-        },
-        onToken: (text) => {
-          setMessages((prev) => {
-            const updated = [...prev];
-            const last = updated[updated.length - 1];
-            if (last.role === "assistant") {
-              updated[updated.length - 1] = {
-                ...last,
-                content: last.content + text,
-              };
-            }
-            return updated;
-          });
-        },
-        onDone: (metadata: ChatDoneMetadata) => {
-          setSessionId(metadata.session_id);
-          if (metadata.is_final_turn) {
-            setTurnLimitReached(true);
-          }
-          setStreaming(false);
-          abortRef.current = null;
-        },
-        onError: (message) => {
-          if (message === "TURN_LIMIT_EXCEEDED") {
-            setTurnLimitReached(true);
-            // Remove the empty assistant placeholder
+      const controller = chatWithCase(
+        caseId,
+        text,
+        {
+          onSources: (caseSources: ChatSourceInfo[], kbSources: ChatSourceInfo[]) => {
             setMessages((prev) => {
-              if (
-                prev.length >= 2 &&
-                prev[prev.length - 1].role === "assistant" &&
-                prev[prev.length - 1].content === ""
-              ) {
-                return prev.slice(0, -2);
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last.role === "assistant") {
+                updated[updated.length - 1] = {
+                  ...last,
+                  caseSources,
+                  kbSources,
+                };
               }
-              return prev;
+              return updated;
             });
-          } else {
-            setError(message);
-            // Remove empty assistant placeholder on error
+          },
+          onToken: (text: string) => {
             setMessages((prev) => {
-              if (
-                prev.length >= 1 &&
-                prev[prev.length - 1].role === "assistant" &&
-                prev[prev.length - 1].content === ""
-              ) {
-                return prev.slice(0, -1);
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last.role === "assistant") {
+                updated[updated.length - 1] = {
+                  ...last,
+                  content: last.content + text,
+                };
               }
-              return prev;
+              return updated;
             });
-          }
-          setStreaming(false);
-          abortRef.current = null;
+          },
+          onDone: (metadata: ChatDoneMetadata) => {
+            setSessionId(metadata.session_id);
+            if (metadata.is_final_turn) setTurnLimitReached(true);
+            setStreaming(false);
+            abortRef.current = null;
+          },
+          onError: (message: string) => {
+            if (message === "TURN_LIMIT_EXCEEDED") {
+              setTurnLimitReached(true);
+              setMessages((prev) => {
+                if (
+                  prev.length >= 2 &&
+                  prev[prev.length - 1].role === "assistant" &&
+                  prev[prev.length - 1].content === ""
+                ) {
+                  return prev.slice(0, -2);
+                }
+                return prev;
+              });
+            } else {
+              setError(message);
+              setMessages((prev) => {
+                if (
+                  prev.length >= 1 &&
+                  prev[prev.length - 1].role === "assistant" &&
+                  prev[prev.length - 1].content === ""
+                ) {
+                  return prev.slice(0, -1);
+                }
+                return prev;
+              });
+            }
+            setStreaming(false);
+            abortRef.current = null;
+          },
         },
-      }, {
-        session_id: sessionId || undefined,
-        conversation_history: history.length > 0 ? history : undefined,
-      });
+        {
+          session_id: sessionId || undefined,
+          conversation_history: history.length > 0 ? history : undefined,
+        }
+      );
 
       abortRef.current = controller;
     },
@@ -286,7 +237,6 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
     abortRef.current = null;
   }, []);
 
-  // Load session list when history panel opens
   const handleToggleHistory = useCallback(async () => {
     const newShow = !showHistory;
     setShowHistory(newShow);
@@ -297,7 +247,6 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
       const fetched = await listChatSessions(caseId);
       setSessions(fetched);
 
-      // Fetch first user message as preview for each session
       const previews: Record<string, string> = { ...sessionPreviews };
       const toFetch = fetched.filter(
         (s) => s.turn_count > 0 && !previews[s.id]
@@ -307,11 +256,9 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
           try {
             const turns = await getChatHistory(caseId, s.id);
             const firstUser = turns.find((t) => t.role === "user");
-            if (firstUser) {
-              previews[s.id] = firstUser.content;
-            }
+            if (firstUser) previews[s.id] = firstUser.content;
           } catch {
-            // ignore individual preview failures
+            // ignore
           }
         })
       );
@@ -323,7 +270,6 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
     }
   }, [showHistory, caseId, sessionPreviews]);
 
-  // Switch to a different session
   const handleSwitchSession = useCallback(
     async (targetSessionId: string) => {
       if (targetSessionId === sessionId) {
@@ -332,12 +278,13 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
       }
       try {
         const turns = await getChatHistory(caseId, targetSessionId);
-        const restored: ChatMessage[] = turns.map((t) => ({
-          role: t.role as "user" | "assistant",
-          content: t.content,
-        }));
         abortRef.current?.abort();
-        setMessages(restored);
+        setMessages(
+          turns.map((t) => ({
+            role: t.role as "user" | "assistant",
+            content: t.content,
+          }))
+        );
         setSessionId(targetSessionId);
         setError(null);
         setTurnLimitReached(false);
@@ -351,13 +298,11 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
     [caseId, sessionId]
   );
 
-  // Delete a session
   const handleDeleteSession = useCallback(
     async (targetSessionId: string) => {
       try {
         await deleteChatSession(caseId, targetSessionId);
         setSessions((prev) => prev.filter((s) => s.id !== targetSessionId));
-        // If we deleted the current session, reset to empty
         if (targetSessionId === sessionId) {
           setMessages([]);
           setSessionId(null);
@@ -380,15 +325,11 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
 
   return (
     <div
-      className={`fixed inset-y-0 right-0 z-50 flex flex-col bg-surface shadow-2xl transition-transform duration-300 ease-in-out ${
-        open ? "translate-x-0" : "translate-x-full"
-      }`}
-      style={{ width: "min(450px, 100vw)" }}
-      data-testid="chat-drawer"
-      data-state={open ? "open" : "closed"}
+      className="flex h-full flex-col bg-surface"
+      data-testid="chat-panel"
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
         <div className="flex items-center gap-2">
           <svg
             className="h-5 w-5 text-accent"
@@ -451,25 +392,6 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
               />
             </svg>
           </button>
-          <button
-            onClick={onClose}
-            className="rounded p-1.5 text-text-tertiary transition-colors hover:bg-accent-surface hover:text-accent"
-            title="Close chat"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -504,7 +426,6 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
                       ? "bg-accent/5"
                       : "hover:bg-surface cursor-pointer"
                   }`}
-                  data-testid={`session-item-${s.id}`}
                 >
                   <button
                     className="flex-1 text-left"
@@ -530,7 +451,6 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
                     }}
                     className="rounded p-1 text-text-tertiary opacity-0 transition-opacity hover:bg-error-bg hover:text-error-text group-hover:opacity-100"
                     title="Delete conversation"
-                    data-testid={`delete-session-${s.id}`}
                   >
                     <svg
                       className="h-3.5 w-3.5"
@@ -557,7 +477,7 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
         {/* Empty state with suggestions */}
         {messages.length === 0 && !streaming && (
-          <div className="flex h-full flex-col items-center justify-center gap-6">
+          <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-6">
             <div className="text-center">
               <p className="text-sm text-text-secondary">
                 Ask questions about your case files. The AI will search your
@@ -582,7 +502,7 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
         )}
 
         {/* Message list */}
-        <div className="space-y-4">
+        <div className="mx-auto max-w-2xl space-y-4">
           {messages.map((msg, i) => (
             <div key={i}>
               {msg.role === "user" ? (
@@ -596,7 +516,6 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
               ) : (
                 <div className="flex justify-start">
                   <div className="max-w-[90%]">
-                    {/* Assistant text */}
                     <div className="rounded-2xl rounded-bl-md bg-background px-4 py-2.5">
                       {msg.content ? (
                         <p className="whitespace-pre-wrap text-sm leading-relaxed text-text-secondary">
@@ -620,16 +539,10 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
                     {(msg.caseSources?.length || msg.kbSources?.length) && (
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {msg.caseSources?.map((s, j) => (
-                          <button
+                          <span
                             key={`cs-${j}`}
-                            className="inline-flex items-center gap-1 rounded-full bg-accent/8 px-2 py-0.5 text-[11px] text-accent transition-colors hover:bg-accent/20 cursor-pointer"
-                            title={`Go to ${s.title}`}
-                            data-testid={`citation-link-${s.file_id || j}`}
-                            onClick={() => {
-                              if (s.file_id && onNavigateToFile) {
-                                onNavigateToFile(s.file_id);
-                              }
-                            }}
+                            className="inline-flex items-center gap-1 rounded-full bg-accent/8 px-2 py-0.5 text-[11px] text-accent"
+                            title={s.title}
                           >
                             <svg
                               className="h-3 w-3"
@@ -645,7 +558,7 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
                               />
                             </svg>
                             {s.title}
-                          </button>
+                          </span>
                         ))}
                         {msg.kbSources?.map((s, j) => (
                           <span
@@ -682,11 +595,7 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
       {/* Error banner */}
       {error && (
         <div className="mx-4 mb-2 flex items-center justify-between rounded-lg border border-error-border bg-error-bg px-3 py-2">
-          <p className="text-xs text-error-text">
-            {error === "TURN_LIMIT_EXCEEDED"
-              ? "Conversation turn limit reached. Start a new conversation."
-              : error}
-          </p>
+          <p className="text-xs text-error-text">{error}</p>
           <button
             onClick={() => setError(null)}
             className="ml-2 text-error-text hover:opacity-70"
@@ -725,7 +634,7 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
 
       {/* Input area */}
       <div className="border-t border-border px-4 py-3">
-        <div className="flex items-end gap-2">
+        <div className="mx-auto flex max-w-2xl items-end gap-2">
           <textarea
             ref={inputRef}
             className="flex-1 resize-none rounded-lg border border-border bg-input-bg px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
@@ -788,9 +697,12 @@ export default function ChatDrawer({ open, onClose, caseId, files, onNavigateToF
             </button>
           )}
         </div>
-        <p className="mt-1.5 text-[11px] text-text-tertiary">
+        <p className="mx-auto mt-1.5 max-w-2xl text-[11px] text-text-tertiary">
           Identifying information is obfuscated before AI processing.{" "}
-          <Link href="/privacy#case-file-data" className="text-accent hover:text-accent-hover">
+          <Link
+            href="/privacy#case-file-data"
+            className="text-accent hover:text-accent-hover"
+          >
             Details &rarr;
           </Link>
         </p>

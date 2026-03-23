@@ -65,7 +65,7 @@ export default function CaseList() {
       setShowCreate(false);
       setNewName("");
       setNewDesc("");
-      router.push(`/tools/litigagent/${c.id}`);
+      router.push(`/cases/${c.id}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to create case");
     } finally {
@@ -231,7 +231,7 @@ export default function CaseList() {
             {cases.map((c) => (
               <div
                 key={c.id}
-                onClick={() => router.push(`/tools/litigagent/${c.id}`)}
+                onClick={() => router.push(`/cases/${c.id}`)}
                 className="group cursor-pointer rounded-lg border border-border p-4 transition-colors hover:border-border-hover hover:bg-accent-surface"
               >
                 <div className="flex items-start justify-between">

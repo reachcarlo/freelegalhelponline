@@ -145,17 +145,16 @@ test.describe("Workspace Header (V2.3a.5)", () => {
     await expect(factIndicator).toContainText("5/8");
   });
 
-  test("back-to-cases link navigates to /cases", async ({ page }) => {
+  test("breadcrumb Cases link navigates to /cases", async ({ page }) => {
     await mockCaseAPIs(page);
     await page.goto(`/cases/${CASE_ID}`);
 
-    await expect(page.getByTestId("workspace-header")).toBeVisible();
+    await expect(page.getByTestId("workspace-breadcrumb")).toBeVisible();
 
-    const backButton = page.getByTestId("back-to-cases");
-    await expect(backButton).toBeVisible();
-    await expect(backButton).toContainText("Cases");
+    const casesLink = page.getByTestId("workspace-breadcrumb").getByRole("link", { name: "Cases" });
+    await expect(casesLink).toBeVisible();
 
-    await backButton.click();
+    await casesLink.click();
     await page.waitForURL("**/cases");
     expect(page.url()).toContain("/cases");
   });

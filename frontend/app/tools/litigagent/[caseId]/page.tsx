@@ -1,13 +1,16 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { use } from "react";
-import CaseLayout from "@/components/litigagent/case-layout";
-
-export default function CaseDetailPage({
+/**
+ * Legacy case detail route — redirects to the new workspace.
+ *
+ * Old: /tools/litigagent/[caseId]
+ * New: /cases/[caseId]/files
+ */
+export default async function CaseDetailPage({
   params,
 }: {
   params: Promise<{ caseId: string }>;
 }) {
-  const { caseId } = use(params);
-  return <CaseLayout caseId={caseId} />;
+  const { caseId } = await params;
+  redirect(`/cases/${caseId}/files`);
 }

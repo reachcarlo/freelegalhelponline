@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import {
   CaseContextInfo,
   CaseInfo,
@@ -9,10 +10,111 @@ import {
   getCaseContext,
 } from "@/lib/litigagent-api";
 import WorkspaceSidebar, { WorkspaceBottomBar } from "./workspace-sidebar";
+import CommandPalette from "./command-palette";
+
+/** Map URL segment → breadcrumb label */
+const TOOL_LABELS: Record<string, string> = {
+  files: "Files",
+  chat: "Chat",
+  info: "Info",
+  discovery: "Discovery",
+  objections: "Objections",
+  demand: "Demand",
+  timeline: "Timeline",
+  analysis: "Analysis",
+};
 
 interface WorkspaceShellProps {
   caseId: string;
   children: React.ReactNode;
+}
+
+/** Chevron separator for breadcrumb */
+function ChevronSeparator() {
+  return (
+    <svg
+      className="h-3.5 w-3.5 shrink-0 text-text-tertiary"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+      aria-hidden="true"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+    </svg>
+  );
+}
+
+/**
+ * Breadcrumb: Cases > Case Name > Tool
+ *
+ * Derives the current tool from the URL pathname.
+ * All segments except the last are clickable links.
+ */
+function Breadcrumb({
+  caseId,
+  caseName,
+}: {
+  caseId: string;
+  caseName: string;
+}) {
+  const pathname = usePathname();
+  const basePath = `/cases/${caseId}`;
+
+  // Extract segments after /cases/[caseId]/
+  const afterBase = pathname.replace(basePath, "").replace(/^\//, "");
+  const segments = afterBase ? afterBase.split("/").filter(Boolean) : [];
+
+  // Build breadcrumb items: Cases > Case Name > Tool [> Sub-tool]
+  const crumbs: { label: string; href?: string }[] = [
+    { label: "Cases", href: "/cases" },
+    {
+      label: caseName,
+      href: segments.length > 0 ? `${basePath}/files` : undefined,
+    },
+  ];
+
+  // Add tool segments (e.g., "files", "discovery/srogs" → "Discovery" > "SROGs")
+  segments.forEach((seg, i) => {
+    const label = TOOL_LABELS[seg] ?? seg.charAt(0).toUpperCase() + seg.slice(1);
+    const isLast = i === segments.length - 1;
+    crumbs.push({
+      label,
+      href: isLast
+        ? undefined
+        : `${basePath}/${segments.slice(0, i + 1).join("/")}`,
+    });
+  });
+
+  return (
+    <nav
+      className="flex items-center gap-1.5 min-w-0 text-sm"
+      aria-label="Breadcrumb"
+      data-testid="workspace-breadcrumb"
+    >
+      {crumbs.map((crumb, i) => (
+        <span key={i} className="flex items-center gap-1.5 min-w-0">
+          {i > 0 && <ChevronSeparator />}
+          {crumb.href ? (
+            <Link
+              href={crumb.href}
+              className="shrink-0 text-text-tertiary transition-colors hover:text-accent"
+              data-testid={i === 1 ? "case-name" : undefined}
+            >
+              {crumb.label}
+            </Link>
+          ) : (
+            <span
+              className="truncate font-medium text-text-primary"
+              data-testid={i === 1 ? "case-name" : undefined}
+            >
+              {crumb.label}
+            </span>
+          )}
+        </span>
+      ))}
+    </nav>
+  );
 }
 
 /**
@@ -26,7 +128,6 @@ export default function WorkspaceShell({
   caseId,
   children,
 }: WorkspaceShellProps) {
-  const router = useRouter();
   const [caseInfo, setCaseInfo] = useState<CaseInfo | null>(null);
   const [context, setContext] = useState<CaseContextInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,12 +166,12 @@ export default function WorkspaceShell({
       <div className="flex h-full flex-col items-center justify-center bg-background px-4">
         <div className="rounded-lg border border-error-border bg-error-bg px-6 py-4 text-center">
           <p className="text-sm text-error-text">{error}</p>
-          <button
-            onClick={() => router.push("/cases")}
-            className="mt-3 rounded-lg border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface"
+          <Link
+            href="/cases"
+            className="mt-3 inline-block rounded-lg border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface"
           >
             Back to Cases
-          </button>
+          </Link>
         </div>
       </div>
     );
@@ -78,50 +179,14 @@ export default function WorkspaceShell({
 
   return (
     <div className="flex h-full flex-col" data-testid="workspace-shell">
-      {/* Case header */}
+      <CommandPalette caseId={caseId} />
+
+      {/* Case header with breadcrumb */}
       <div
         className="flex items-center justify-between border-b border-border bg-surface px-4 py-2.5"
         data-testid="workspace-header"
       >
-        <div className="flex items-center min-w-0">
-          <button
-            onClick={() => router.push("/cases")}
-            className="flex items-center gap-1 rounded px-2 py-1 text-sm text-text-tertiary transition-colors hover:bg-accent-surface hover:text-accent shrink-0"
-            data-testid="back-to-cases"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
-              />
-            </svg>
-            Cases
-          </button>
-          <span className="mx-3 text-border shrink-0">|</span>
-          <div className="min-w-0">
-            <h1
-              className="text-sm font-semibold text-text-primary truncate"
-              data-testid="case-name"
-            >
-              {caseInfo?.name}
-            </h1>
-            {caseInfo?.description && (
-              <p
-                className="text-xs text-text-tertiary truncate"
-                data-testid="case-description"
-              >
-                {caseInfo.description}
-              </p>
-            )}
-          </div>
-        </div>
+        <Breadcrumb caseId={caseId} caseName={caseInfo?.name ?? ""} />
 
         {/* Fact count indicator */}
         {context && context.fact_count > 0 && (

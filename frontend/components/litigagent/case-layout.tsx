@@ -10,11 +10,18 @@ import {
   getCase,
   listFiles,
 } from "@/lib/litigagent-api";
+import { useToolStateOptional } from "@/lib/workspace-context";
 import CaseInfoPanel from "./case-info";
 import ChatDrawer from "./chat-drawer";
 import FilePanel from "./file-panel";
 import NotesPanel from "./notes-panel";
 import TextPanel from "./text-panel";
+
+interface FilesToolState {
+  [key: string]: unknown;
+  selectedFileId?: string | null;
+  notesCollapsed?: boolean;
+}
 
 interface CaseLayoutProps {
   caseId: string;
@@ -24,15 +31,24 @@ interface CaseLayoutProps {
 
 export default function CaseLayout({ caseId, showHeader = true }: CaseLayoutProps) {
   const router = useRouter();
+  const [getFilesState, setFilesState] = useToolStateOptional<FilesToolState>("files");
+
+  // Restore persisted state from workspace context on mount
+  const restored = getFilesState();
   const [caseInfo, setCaseInfo] = useState<CaseInfo | null>(null);
   const [files, setFiles] = useState<CaseFileInfo[]>([]);
-  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
-  const [notesCollapsed, setNotesCollapsed] = useState(false);
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(restored.selectedFileId ?? null);
+  const [notesCollapsed, setNotesCollapsed] = useState(restored.notesCollapsed ?? false);
   const [chatOpen, setChatOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+
+  // Persist state to workspace context on change
+  useEffect(() => {
+    setFilesState({ selectedFileId, notesCollapsed });
+  }, [selectedFileId, notesCollapsed, setFilesState]);
 
   // Load case info (only when showing own header) and files
   const loadData = useCallback(async () => {
