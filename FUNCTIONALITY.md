@@ -552,14 +552,20 @@ Statically generated at build time for SEO. Topics: wages, discrimination, retal
 
 #### LITIGAGENT — Case File Ingestion Engine (Phases L1.1–L1.12)
 
-Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML, MSG, TXT, XLSX, CSV, images, PPTX), extract text via format-specific extractors, and manage case notes — all in a three-panel layout.
+Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML, MSG, TXT, XLSX, CSV, images, PPTX), extract text via format-specific extractors, and manage case notes — all in a unified workspace shell.
 
-**Three-Panel Layout** (`/tools/litigagent/[caseId]`):
+**Workspace Shell** (`/cases/[caseId]`, V2.3a):
+- **Case header**: Case name, description (case number proxy), fact count indicator (`confirmed/total`), back-to-list link
+- **Sidebar navigation** (md+): 3 groups (Core: Files/Chat/Info, Work Product: Discovery/Objections/Demand, Analysis: Timeline/Analysis), active state from URL, file count badge. Icon-only at 768–1024px, expanded with labels at >1024px
+- **Bottom tab bar** (<768px): Core items only with badge pills, safe-area-inset-bottom
+- **Tool canvas**: Child routes render inside persistent shell
+
+**Three-Panel Layout** (`/cases/[caseId]` default view, also `/tools/litigagent/[caseId]`):
 - **Panel 1 (Files, 280px)**: Drag-and-drop file upload with full-panel drop zone overlay, click-to-browse fallback, file list with type badges and status indicators (processing/ready/error/OCR warning), inline delete on hover
 - **Panel 2 (Text, fluid)**: Extracted text display with sticky file section headers (type badge, filename, page count, OCR confidence, status badge), lazy-loaded text via `getFile()` API, auto-fetches on SSE "ready" transition, scroll-to-file on Panel 1 selection, retry on fetch error (read-only in L1, editable in L2)
 - **Panel 3 (Notes, 320px, collapsible)**: Case-scoped and file-scoped notes with inline CRUD, keyboard shortcuts (Cmd/Ctrl+Enter)
 
-**Case Management** (`/tools/litigagent`):
+**Case Management** (`/cases`, also `/tools/litigagent`):
 - Case list with create, archive, and navigation
 - Per-case file isolation
 
@@ -655,7 +661,7 @@ Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML
 - Case models: `src/employee_help/storage/models.py`
 - File extractors: `src/employee_help/casefile/extractors/`
 - File processing: `src/employee_help/casefile/processing.py`
-- LITIGAGENT frontend: `frontend/components/litigagent/` (6 TSX files)
+- LITIGAGENT frontend: `frontend/components/litigagent/` (9 TSX files)
 
 ### Test Suite
 
@@ -681,7 +687,7 @@ Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML
 | `test_casefile_text_extractor.py` | 22 | Plain text + encoding detection |
 | `test_casefile_email_extractor.py` | 45 | EML, MSG, MBOX extraction |
 | `test_casefile_fixtures.py` | 11 | Extractor + registry + hashing with realistic case fixtures |
-| E2E (Playwright): 15 spec files | 80 | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT upload + text panel + Gate L1 |
+| E2E (Playwright): 28 spec files | ~195 | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT, auth, sessions, workspace |
 
 ---
 
@@ -1021,7 +1027,7 @@ Developer/operator.
 | Slow (ML models) | ~50 | Real BGE embedding, LanceDB operations |
 | Live (external services) | ~100 | Government websites, CourtListener, Claude API |
 | Evaluation | ~50+ | Retrieval metrics, citation accuracy |
-| E2E (Playwright) | ~167 tests / 18 specs | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT, auth, sessions |
+| E2E (Playwright) | ~195 tests / 28 specs | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT, auth, sessions, workspace |
 
 ### Running Tests
 

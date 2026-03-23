@@ -1,8 +1,8 @@
 # LITIGAGENTv2 — The Junior Associate
 
-> **Status**: IN PROGRESS — V2.2a COMPLETE
+> **Status**: IN PROGRESS — V2.3a COMPLETE
 > **Predecessor**: [LITIGAGENT.md](./LITIGAGENT.md) (Phases L1–L3, the foundation)
-> **Date**: 2026-03-15
+> **Date**: 2026-03-22
 
 ---
 
@@ -1130,6 +1130,8 @@ Week  LITIGAGENTv2                   PRIVACY.md
 
 **Gate check V2.2c**: Upload a real California complaint. Tier 2 extraction produces CaseFacts for claims (mapped to ClaimType enum), employment history (multiple positions if mentioned), and protected classes. Facts appear in Case Info view. If P2 is deployed, extraction sends obfuscated text. 23 tests passing.
 
+> **V2.2c STATUS: COMPLETE** (2026-03-22) — 49 tests passing across 6 gates (V2.2c.1–V2.2c.6). `Tier2Extractor` (Claude tool_use structured JSON output), `extract_metadata.j2` prompt template, `POST /api/cases/{case_id}/extract` endpoint, auto-trigger on complaint/answer/demand_letter classification in `process_file()`, `ObfuscationEngine` integration (sends obfuscated text when privacy module available), frontend "Extract more details from [filename]" button in Case Info with loading state. Key files: `casefile/extractors/tier2.py`, `casefile/processing.py`, `casefile_routes.py`, `case-info.tsx`. 47 backend tests + 2 E2E tests.
+
 **V2.2 total: ~9 days, 55 tests**
 
 ---
@@ -1149,6 +1151,8 @@ Week  LITIGAGENTv2                   PRIVACY.md
 | V2.3a.5 | Case header: case name, case number (if known), fact count indicator, back-to-list link | `frontend/components/litigagent/workspace-shell.tsx` | 3 E2E | 0.5d |
 
 **Gate check V2.3a**: Case workspace renders with sidebar. Clicking sidebar items changes the URL. Mobile breakpoint shows bottom tab bar. 3 E2E tests passing.
+
+> **V2.3a STATUS: COMPLETE** (2026-03-22) — 3 E2E tests passing across 5 gates (V2.3a.1–V2.3a.5). **V2.3a.1**: Route structure — `/cases` (case list, reuses `CaseList` component) + `/cases/[caseId]` (workspace shell layout wrapping child routes via `layout.tsx`). **V2.3a.2**: `workspace-shell.tsx` — persistent workspace chrome: case header (back link + case name), sidebar (md+), bottom tab bar (<md), tool canvas. Loads case info via `getCase()`, handles loading/error states. `case-layout.tsx` gains `showHeader` prop (default `true`) — when `false`, skips `getCase()` and shows compact toolbar instead of full header. **V2.3a.3**: `workspace-sidebar.tsx` — grouped sidebar navigation (Core: Files/Chat/Info, Work Product: Discovery/Objections/Demand, Analysis: Timeline/Analysis). 8 inline SVG icon components. `useActiveKey()` derives active nav from `usePathname()`. Disabled items at 50% opacity with "coming soon" tooltip. File count badge on Files item. **V2.3a.4**: Mobile responsive — `WorkspaceBottomBar` named export for `<768px` (Core items only, `env(safe-area-inset-bottom)`, active top accent bar, badge pills). Icon-only sidebar at `768–1024px` (`w-14`), expanded with labels at `>1024px` (`lg:w-48`). **V2.3a.5**: Case header polish — case name + description (case number proxy) with truncation, fact count indicator pill (`confirmed/total` via `getCaseContext()` in parallel, graceful `.catch(() => null)`), `data-testid` attributes for testing. Key files: `frontend/app/cases/page.tsx`, `frontend/app/cases/[caseId]/layout.tsx`, `frontend/app/cases/[caseId]/page.tsx`, `frontend/components/litigagent/workspace-shell.tsx`, `frontend/components/litigagent/workspace-sidebar.tsx`, `frontend/components/litigagent/case-layout.tsx` (modified). E2E: `workspace-header.spec.ts` (3 tests: name+description+facts display, back navigation, fact indicator hidden when 0 facts). Old `/tools/litigagent` routes remain untouched (backward compat — redirects in V2.3b.3/V2.3b.4).
 
 #### V2.3b — Tool Canvas & State Preservation (3 days)
 
