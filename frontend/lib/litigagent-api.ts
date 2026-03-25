@@ -636,3 +636,34 @@ export async function deleteChatSession(
   });
   if (!res.ok) throw new Error(`Failed to delete chat session (${res.status})`);
 }
+
+// ── Artifacts (V2.4.6) ──────────────────────────────────────────
+
+export interface ArtifactInfo {
+  id: string;
+  case_id: string;
+  artifact_type: string;
+  tool_source: string;
+  summary: string | null;
+  file_path: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  created_by: string | null;
+}
+
+export async function listArtifacts(caseId: string): Promise<ArtifactInfo[]> {
+  const res = await fetch(`/api/cases/${caseId}/artifacts`);
+  if (!res.ok) throw new Error(`Failed to list artifacts (${res.status})`);
+  const data = await res.json();
+  return data.artifacts;
+}
+
+export async function deleteArtifact(
+  caseId: string,
+  artifactId: string
+): Promise<void> {
+  const res = await fetch(`/api/cases/${caseId}/artifacts/${artifactId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`Failed to delete artifact (${res.status})`);
+}

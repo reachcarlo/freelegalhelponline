@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import type { DiscoveryRequest, BankCategoryInfo } from "@/lib/discovery-api";
+import type { CaseInfo, DiscoveryRequest, BankCategoryInfo } from "@/lib/discovery-api";
+import { resolveVariables } from "@/lib/discovery-api";
 
 // ── Variable highlighting ─────────────────────────────────────────────
 
@@ -9,11 +10,13 @@ const VAR_RE = /(\{[A-Z_]+\})/g;
 
 /**
  * Render text with any {VARIABLE} placeholders highlighted.
- * Resolved text passes through unchanged.
+ * When caseInfo is provided, resolves variables first; remaining
+ * unresolved placeholders are highlighted in warning style.
  */
-function HighlightedText({ text }: { text: string }) {
-  const parts = text.split(VAR_RE);
-  if (parts.length === 1) return <>{text}</>;
+function HighlightedText({ text, caseInfo }: { text: string; caseInfo?: CaseInfo }) {
+  const resolved = caseInfo ? resolveVariables(text, caseInfo) : text;
+  const parts = resolved.split(VAR_RE);
+  if (parts.length === 1) return <>{resolved}</>;
   return (
     <>
       {parts.map((part, i) =>
@@ -52,6 +55,8 @@ interface RequestBuilderProps {
   limitLabel?: string;
   /** Tool label for Declaration of Necessity CCP references */
   toolLabel?: string;
+  /** Case info for resolving {EMPLOYEE}/{EMPLOYER} variables */
+  caseInfo?: CaseInfo;
 }
 
 // ── Limit counter ────────────────────────────────────────────────────
@@ -115,6 +120,7 @@ function RequestRow({
   onToggle,
   editText,
   onEditTextChange,
+  caseInfo,
 }: {
   request: DiscoveryRequest;
   index: number;
@@ -125,6 +131,7 @@ function RequestRow({
   onToggle: () => void;
   editText: string;
   onEditTextChange: (text: string) => void;
+  caseInfo?: CaseInfo;
 }) {
   return (
     <div
@@ -180,7 +187,7 @@ function RequestRow({
                   {index + 1}.
                 </span>
                 <span className="text-sm text-text-secondary group-hover:text-text-primary transition-colors">
-                  <HighlightedText text={request.text} />
+                  <HighlightedText text={request.text} caseInfo={caseInfo} />
                 </span>
               </div>
               {request.is_custom && (
@@ -306,6 +313,7 @@ export default function RequestBuilder({
   limitType,
   limitLabel = "requests",
   toolLabel,
+  caseInfo,
 }: RequestBuilderProps) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -510,6 +518,7 @@ export default function RequestBuilder({
             onToggle={() => handleToggle(req.id)}
             editText={editText}
             onEditTextChange={setEditText}
+            caseInfo={caseInfo}
           />
         ))}
 

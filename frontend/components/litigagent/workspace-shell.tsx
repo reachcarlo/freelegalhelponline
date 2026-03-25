@@ -22,6 +22,13 @@ const TOOL_LABELS: Record<string, string> = {
   demand: "Demand",
   timeline: "Timeline",
   analysis: "Analysis",
+  // Discovery sub-routes
+  srogs: "SROGs",
+  rfpds: "RFPDs",
+  rfas: "RFAs",
+  "frogs-general": "FROGs General",
+  "frogs-employment": "FROGs Employment",
+  "objection-drafter": "Objection Drafter",
 };
 
 interface WorkspaceShellProps {

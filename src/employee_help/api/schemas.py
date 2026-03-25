@@ -615,6 +615,7 @@ class DiscoveryGenerateRequest(BaseModel):
     adverse_actions: list[str] = Field(default_factory=list, max_length=20)
     custom_definitions: dict[str, str] | None = None
     include_definitions: bool = True
+    case_id: str | None = Field(default=None, description="When provided, saves generated document as a case artifact")
 
     @field_validator("tool_type")
     @classmethod

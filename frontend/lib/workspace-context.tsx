@@ -89,6 +89,7 @@ export function useToolState<T extends ToolState>(tool: string) {
 export function useToolStateOptional<T extends ToolState>(tool: string) {
   const ctx = useContext(WorkspaceContext);
   const noopGet = useCallback(() => ({}) as T, []);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const noopSet = useCallback((_patch: Partial<T>) => {}, []);
 
   const get = useCallback(

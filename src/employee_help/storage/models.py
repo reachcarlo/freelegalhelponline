@@ -274,6 +274,31 @@ class CaseChunk:
             self.id = str(uuid.uuid4())
 
 
+# --- LITIGAGENTv2 Artifact Models ---
+
+
+class ArtifactType(str, Enum):
+    """Type of generated artifact stored in a case."""
+
+    DISCOVERY = "discovery"
+    PROOF_OF_SERVICE = "proof_of_service"
+
+
+@dataclass
+class CaseArtifact:
+    """A generated document attached to a case."""
+
+    case_id: str
+    artifact_type: ArtifactType
+    tool_source: str  # e.g. "srogs", "rfpds", "rfas", "frogs_general"
+    id: str = field(default_factory=_new_uuid)
+    summary: str | None = None
+    file_path: str | None = None
+    metadata: dict[str, Any] | None = None
+    created_at: datetime = field(default_factory=_utcnow)
+    created_by: str | None = None
+
+
 # --- LITIGAGENTv2 Fact Store Models ---
 
 

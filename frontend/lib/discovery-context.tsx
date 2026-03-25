@@ -16,6 +16,8 @@ import type {
   PartyInfo,
   PartyRole,
 } from "@/lib/discovery-api";
+import { CLAIM_TYPES } from "@/lib/discovery-api";
+import type { CaseContextInfo } from "@/lib/litigagent-api";
 
 // ── State shape ──────────────────────────────────────────────────────
 
@@ -90,6 +92,114 @@ const DEFAULT_STATE: DiscoveryState = {
 
 const STORAGE_KEY = "eh-discovery-state";
 
+// ── CaseContext → CaseInfo mapping ───────────────────────────────────
+
+/**
+ * Map CaseContextInfo (from the workspace's case context API) into
+ * the discovery wizard's CaseInfo shape.
+ *
+ * Maps: parties → plaintiffs/defendants, court → court fields,
+ * attorneys → attorney, key_dates → complaint_filed_date/trial_date.
+ */
+export function mapCaseContextToCaseInfo(
+  ctx: CaseContextInfo,
+): Partial<CaseInfo> {
+  const result: Partial<CaseInfo> = {};
+
+  // ── Parties ───────────────────────────────────────────────
+  const plaintiffs = ctx.parties
+    .filter((p) => p.role === "plaintiff")
+    .map(
+      (p): PartyInfo => ({
+        name: p.name,
+        is_entity: p.party_type !== "individual",
+        entity_type: p.party_type !== "individual" ? p.party_type : null,
+      }),
+    );
+  if (plaintiffs.length > 0) result.plaintiffs = plaintiffs;
+
+  const defendants = ctx.parties
+    .filter((p) => p.role === "defendant")
+    .map(
+      (p): PartyInfo => ({
+        name: p.name,
+        is_entity: p.party_type !== "individual",
+        entity_type: p.party_type !== "individual" ? p.party_type : null,
+      }),
+    );
+  if (defendants.length > 0) result.defendants = defendants;
+
+  // ── Court ─────────────────────────────────────────────────
+  if (ctx.court) {
+    if (ctx.court.county) result.court_county = ctx.court.county;
+    if (ctx.court.court)
+      result.court_name = ctx.court.court;
+    if (ctx.court.judge) result.judge_name = ctx.court.judge;
+    if (ctx.court.department) result.department = ctx.court.department;
+  }
+
+  // ── Attorney (first plaintiff-side) ───────────────────────
+  const pAtty = ctx.attorneys.find((a) => a.side === "plaintiff");
+  if (pAtty) {
+    result.attorney = {
+      ...DEFAULT_ATTORNEY,
+      name: pAtty.name,
+      sbn: pAtty.bar_number ?? "",
+      firm_name: pAtty.firm ?? null,
+      email: pAtty.email ?? "",
+    };
+  }
+
+  // ── Key dates ─────────────────────────────────────────────
+  const filed = ctx.key_dates.find(
+    (d) =>
+      d.date_type === "complaint_filed" ||
+      d.label.toLowerCase().includes("complaint filed"),
+  );
+  if (filed) result.complaint_filed_date = filed.date;
+
+  const trial = ctx.key_dates.find(
+    (d) =>
+      d.date_type === "trial" ||
+      d.label.toLowerCase().includes("trial date"),
+  );
+  if (trial) result.trial_date = trial.date;
+
+  return result;
+}
+
+/** Valid claim type values for quick lookup. */
+const VALID_CLAIM_VALUES = new Set(CLAIM_TYPES.map((ct) => ct.value));
+
+/**
+ * Map CaseContext claims to discovery selectedClaims.
+ * Only includes claim_type values that match known CLAIM_TYPES.
+ */
+export function mapCaseContextToClaims(ctx: CaseContextInfo): string[] {
+  return ctx.claims
+    .map((c) => c.claim_type)
+    .filter((v) => VALID_CLAIM_VALUES.has(v));
+}
+
+/**
+ * Infer party role by matching the logged-in user's email against
+ * CaseContext attorneys. If the user's email matches a plaintiff-side
+ * attorney, return "plaintiff"; if defendant-side, return "defendant".
+ * Returns null if no match (caller keeps the default).
+ */
+export function inferPartyRole(
+  ctx: CaseContextInfo,
+  userEmail: string | undefined,
+): PartyRole | null {
+  if (!userEmail) return null;
+  const lower = userEmail.toLowerCase();
+  const match = ctx.attorneys.find(
+    (a) => a.email?.toLowerCase() === lower,
+  );
+  if (!match) return null;
+  return match.side === "plaintiff" ? "plaintiff" : "defendant";
+}
+
 // ── Context value ────────────────────────────────────────────────────
 
 interface DiscoveryContextValue {
@@ -124,8 +234,29 @@ const DiscoveryContext = createContext<DiscoveryContextValue | null>(null);
 
 // ── Provider ─────────────────────────────────────────────────────────
 
-export function DiscoveryProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<DiscoveryState>(DEFAULT_STATE);
+export function DiscoveryProvider({
+  children,
+  caseContext,
+  userEmail,
+}: {
+  children: React.ReactNode;
+  /** When provided (workspace mode), auto-fills caseInfo from case context. */
+  caseContext?: CaseContextInfo;
+  /** Logged-in user's email for party role inference. */
+  userEmail?: string;
+}) {
+  const [state, setState] = useState<DiscoveryState>(() => {
+    if (!caseContext) return { ...DEFAULT_STATE };
+    const mapped = mapCaseContextToCaseInfo(caseContext);
+    const claims = mapCaseContextToClaims(caseContext);
+    const role = inferPartyRole(caseContext, userEmail);
+    return {
+      ...DEFAULT_STATE,
+      partyRole: role ?? DEFAULT_STATE.partyRole,
+      caseInfo: { ...DEFAULT_CASE_INFO, ...mapped, ...(role ? { party_role: role } : {}) },
+      selectedClaims: claims,
+    };
+  });
 
   // Clear sessionStorage on unmount so switching tools or leaving
   // the workflow always starts fresh at step 0.

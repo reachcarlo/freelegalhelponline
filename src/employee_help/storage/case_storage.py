@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from employee_help.storage.models import (
+    ArtifactType,
     Case,
+    CaseArtifact,
     CaseChatSession,
     CaseChatTurn,
     CaseChunk,
@@ -604,4 +606,64 @@ class CaseStorage:
             content=self._decrypt(row["content"]),
             sources=row["sources"],
             created_at=datetime.fromisoformat(row["created_at"]),
+        )
+
+    # ── Artifacts ──────────────────────────────────────────────────
+
+    def create_artifact(self, artifact: CaseArtifact) -> CaseArtifact:
+        now = datetime.now(tz=UTC).isoformat()
+        meta_json = json.dumps(artifact.metadata) if artifact.metadata else None
+        self._conn.execute(
+            """INSERT INTO case_artifacts
+               (id, case_id, artifact_type, tool_source, summary, file_path, metadata, created_at, created_by)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                artifact.id,
+                artifact.case_id,
+                artifact.artifact_type.value if isinstance(artifact.artifact_type, ArtifactType) else artifact.artifact_type,
+                artifact.tool_source,
+                artifact.summary,
+                artifact.file_path,
+                meta_json,
+                now,
+                artifact.created_by,
+            ),
+        )
+        self._conn.commit()
+        artifact.created_at = datetime.fromisoformat(now)
+        return artifact
+
+    def list_artifacts(self, case_id: str) -> list[CaseArtifact]:
+        rows = self._conn.execute(
+            "SELECT * FROM case_artifacts WHERE case_id = ? ORDER BY created_at DESC",
+            (case_id,),
+        ).fetchall()
+        return [self._row_to_artifact(r) for r in rows]
+
+    def get_artifact(self, artifact_id: str) -> CaseArtifact | None:
+        row = self._conn.execute(
+            "SELECT * FROM case_artifacts WHERE id = ?", (artifact_id,)
+        ).fetchone()
+        return self._row_to_artifact(row) if row else None
+
+    def delete_artifact(self, artifact_id: str) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM case_artifacts WHERE id = ?", (artifact_id,)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    @staticmethod
+    def _row_to_artifact(row: sqlite3.Row) -> CaseArtifact:
+        meta = json.loads(row["metadata"]) if row["metadata"] else None
+        return CaseArtifact(
+            id=row["id"],
+            case_id=row["case_id"],
+            artifact_type=ArtifactType(row["artifact_type"]),
+            tool_source=row["tool_source"],
+            summary=row["summary"],
+            file_path=row["file_path"],
+            metadata=meta,
+            created_at=datetime.fromisoformat(row["created_at"]),
+            created_by=row["created_by"],
         )

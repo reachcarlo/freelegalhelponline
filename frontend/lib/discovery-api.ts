@@ -142,6 +142,8 @@ export interface GenerateOptions {
   adverse_actions?: string[];
   custom_definitions?: Record<string, string>;
   include_definitions?: boolean;
+  /** When provided, saves the generated document as a case artifact. */
+  case_id?: string;
 }
 
 /**
@@ -162,6 +164,7 @@ export async function generateDocument(
       adverse_actions: options.adverse_actions ?? [],
       custom_definitions: options.custom_definitions ?? null,
       include_definitions: options.include_definitions ?? true,
+      case_id: options.case_id ?? null,
     }),
   });
 

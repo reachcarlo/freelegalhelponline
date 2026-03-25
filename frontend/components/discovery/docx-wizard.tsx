@@ -36,6 +36,8 @@ interface DocxWizardProps {
   limitLabel?: string;
   /** Show production instructions step (RFPDs) */
   showProductionInstructions?: boolean;
+  /** When set, generated documents are saved as case artifacts. */
+  caseId?: string;
 }
 
 // ── Claim label lookup ───────────────────────────────────────────────
@@ -54,6 +56,7 @@ export default function DocxWizard({
   limitType,
   limitLabel = "requests",
   showProductionInstructions = false,
+  caseId,
 }: DocxWizardProps) {
   const {
     state,
@@ -251,6 +254,7 @@ export default function DocxWizard({
         selected_requests: state.selectedRequests.filter((r) => r.is_selected),
         include_definitions: state.includeDefinitions,
         custom_definitions: customDefs,
+        case_id: caseId,
       });
       downloadBlob(blob, filename);
       setGenSuccess(true);
@@ -259,7 +263,7 @@ export default function DocxWizard({
     } finally {
       setGenerating(false);
     }
-  }, [buildCaseInfo, toolType, state.selectedRequests, state.definitions, state.includeDefinitions]);
+  }, [buildCaseInfo, toolType, state.selectedRequests, state.definitions, state.includeDefinitions, caseId]);
 
   // Current step label
   const currentStepLabel = steps[state.currentStep]?.label || "";
@@ -333,6 +337,7 @@ export default function DocxWizard({
                   limitType={limitType}
                   limitLabel={limitLabel}
                   toolLabel={toolLabel}
+                  caseInfo={state.caseInfo}
                 />
               )}
             </div>

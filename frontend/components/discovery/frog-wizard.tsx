@@ -27,6 +27,8 @@ interface FrogWizardProps {
   toolType: DiscoveryToolType;
   title: string;
   formLabel: string;
+  /** When set, generated documents are saved as case artifacts. */
+  caseId?: string;
 }
 
 const STEPS = [
@@ -49,6 +51,7 @@ export default function FrogWizard({
   toolType,
   title,
   formLabel,
+  caseId,
 }: FrogWizardProps) {
   const {
     state,
@@ -159,6 +162,7 @@ export default function FrogWizard({
         tool_type: toolType,
         case_info: caseInfo,
         selected_sections: state.selectedSections,
+        case_id: caseId,
       });
       downloadBlob(blob, filename);
       setGenSuccess(true);

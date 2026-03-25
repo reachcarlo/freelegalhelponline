@@ -66,6 +66,50 @@ def _audit_log(action: str, request, **kwargs) -> None:
         logger.warning("audit_log_failed", action=action, exc_info=True)
 
 
+_TOOL_LABELS = {
+    "srogs": "SROGs",
+    "rfpds": "RFPDs",
+    "rfas": "RFAs",
+    "frogs_general": "FROGs General",
+    "frogs_employment": "FROGs Employment",
+}
+
+
+def _save_discovery_artifact(
+    *,
+    case_id: str,
+    tool: str,
+    filename: str,
+    file_size: int,
+    generation_id: str,
+    http_request: Request,
+) -> None:
+    """Best-effort save of a discovery generation as a case artifact."""
+    try:
+        from employee_help.api.deps import get_case_storage
+        from employee_help.storage.models import ArtifactType, CaseArtifact
+
+        storage = get_case_storage()
+        user = getattr(http_request.state, "user", None)
+        label = _TOOL_LABELS.get(tool, tool)
+        artifact = CaseArtifact(
+            case_id=case_id,
+            artifact_type=ArtifactType.DISCOVERY,
+            tool_source=tool,
+            summary=f"{label} generated ({filename})",
+            metadata={
+                "generation_id": generation_id,
+                "filename": filename,
+                "file_size": file_size,
+            },
+            created_by=user.sub if user else None,
+        )
+        storage.create_artifact(artifact)
+        logger.info("discovery_artifact_saved", case_id=case_id, artifact_id=artifact.id)
+    except Exception:
+        logger.warning("discovery_artifact_save_failed", case_id=case_id, exc_info=True)
+
+
 # ---------------------------------------------------------------------------
 # Helper: convert API schema to domain models
 # ---------------------------------------------------------------------------
@@ -475,6 +519,17 @@ async def generate_discovery(request: DiscoveryGenerateRequest, http_request: Re
             resource_type="discovery", resource_id=generation_id,
             metadata={"tool_type": tool},
         )
+
+        # Save artifact to case when case_id is provided (V2.4.6)
+        if request.case_id:
+            _save_discovery_artifact(
+                case_id=request.case_id,
+                tool=tool,
+                filename=filename,
+                file_size=len(file_bytes),
+                generation_id=generation_id,
+                http_request=http_request,
+            )
 
         return StreamingResponse(
             io.BytesIO(file_bytes),

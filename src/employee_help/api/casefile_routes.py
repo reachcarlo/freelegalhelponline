@@ -14,6 +14,8 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
 from employee_help.api.casefile_schemas import (
+    ArtifactListResponse,
+    ArtifactResponse,
     CaseChatRequest,
     CaseChatSourceInfo,
     CaseContextResponse,
@@ -54,7 +56,9 @@ from employee_help.casefile.processing import (
     unregister_sse_client,
 )
 from employee_help.storage.models import (
+    ArtifactType,
     Case,
+    CaseArtifact,
     CaseChatSession,
     CaseChatTurn,
     CaseFact,
@@ -1385,3 +1389,84 @@ async def delete_chat_session(case_id: str, session_id: str, request: Request):
         raise HTTPException(404, f"Chat session not found: {session_id}")
 
     storage.delete_chat_session(session_id)
+
+
+# ---------------------------------------------------------------------------
+# Artifacts (V2.4.6)
+# ---------------------------------------------------------------------------
+
+
+def _artifact_to_response(a: CaseArtifact) -> ArtifactResponse:
+    return ArtifactResponse(
+        id=a.id,
+        case_id=a.case_id,
+        artifact_type=a.artifact_type.value if isinstance(a.artifact_type, ArtifactType) else a.artifact_type,
+        tool_source=a.tool_source,
+        summary=a.summary,
+        file_path=a.file_path,
+        metadata=a.metadata,
+        created_at=a.created_at.isoformat(),
+        created_by=a.created_by,
+    )
+
+
+@casefile_router.post("/{case_id}/artifacts", response_model=ArtifactResponse, status_code=201)
+async def create_artifact(case_id: str, request: Request):
+    """Save a generated document as a case artifact."""
+    user = _require_user(request)
+    storage = _get_case_storage()
+    _require_case(case_id, user_id=user.sub)
+
+    body = await request.json()
+    tool_source = body.get("tool_source", "")
+    artifact_type_str = body.get("artifact_type", "discovery")
+    summary = body.get("summary")
+    file_path = body.get("file_path")
+    metadata = body.get("metadata")
+
+    try:
+        artifact_type = ArtifactType(artifact_type_str)
+    except ValueError:
+        raise HTTPException(422, f"Invalid artifact_type: {artifact_type_str}")
+
+    if not tool_source:
+        raise HTTPException(422, "tool_source is required")
+
+    artifact = CaseArtifact(
+        case_id=case_id,
+        artifact_type=artifact_type,
+        tool_source=tool_source,
+        summary=summary,
+        file_path=file_path,
+        metadata=metadata,
+        created_by=user.sub,
+    )
+    artifact = storage.create_artifact(artifact)
+    return _artifact_to_response(artifact)
+
+
+@casefile_router.get("/{case_id}/artifacts", response_model=ArtifactListResponse)
+async def list_artifacts(case_id: str, request: Request):
+    """List all artifacts for a case."""
+    user = _require_user(request)
+    storage = _get_case_storage()
+    _require_case(case_id, user_id=user.sub)
+
+    artifacts = storage.list_artifacts(case_id)
+    return ArtifactListResponse(
+        artifacts=[_artifact_to_response(a) for a in artifacts]
+    )
+
+
+@casefile_router.delete("/{case_id}/artifacts/{artifact_id}", status_code=204)
+async def delete_artifact(case_id: str, artifact_id: str, request: Request):
+    """Delete a case artifact."""
+    user = _require_user(request)
+    storage = _get_case_storage()
+    _require_case(case_id, user_id=user.sub)
+
+    artifact = storage.get_artifact(artifact_id)
+    if artifact is None or artifact.case_id != case_id:
+        raise HTTPException(404, f"Artifact not found: {artifact_id}")
+
+    storage.delete_artifact(artifact_id)

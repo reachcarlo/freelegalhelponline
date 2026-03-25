@@ -101,7 +101,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Work Product",
     items: [
-      { key: "discovery", label: "Discovery", icon: SearchIcon, segment: "discovery", disabled: true },
+      { key: "discovery", label: "Discovery", icon: SearchIcon, segment: "discovery" },
       { key: "objections", label: "Objections", icon: ShieldIcon, segment: "objections", disabled: true },
       { key: "demand", label: "Demand", icon: DocumentIcon, segment: "demand", disabled: true },
     ],

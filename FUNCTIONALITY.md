@@ -411,6 +411,17 @@ Employment litigation attorneys can quickly assemble discovery sets by selecting
 5. **Preview**: Formatted document preview
 6. **Generate & Download**: PDF or DOCX output
 
+#### Workspace Integration (V2.4)
+
+When accessed from a case workspace (`/cases/[caseId]/discovery/*`), discovery wizards gain automatic context:
+
+- **Auto-fill** (V2.4.2): Case number, court, party names, attorney info populated from CaseContext
+- **Claims pre-selection** (V2.4.3): `CaseContext.claims` mapped to `ClaimType` values, auto-checked in Step 2
+- **Variable resolution** (V2.4.4): `{EMPLOYEE}/{EMPLOYER}` placeholders resolve to actual party names in the request builder
+- **Party role inference** (V2.4.5): If the authenticated user's email matches an attorney in CaseContext, party_role defaults accordingly
+- **Artifact tracking** (V2.4.6–V2.4.7): Generated documents are saved as `case_artifacts` and displayed on the discovery hub page with tool labels, dates, and delete capability
+- **Standalone compatibility** (V2.4.8): `/tools/discovery/*` routes continue to work without CaseContext for attorneys who don't use the workspace
+
 #### AI Suggestions
 
 `POST /api/discovery/suggest` — Given claim types + party role + tool type, returns suggested request categories and specific items from the bank.
@@ -474,7 +485,10 @@ Request banks are curated legal content (not from the RAG knowledge base). The A
 | E2E: `discovery-limits.spec.ts` | 4 tests | Declaration of Necessity warnings, CCP section citations |
 | E2E: `discovery-mobile.spec.ts` | 6 tests | 375x812 viewport, 44px touch targets, step counter |
 | E2E: `discovery-index.spec.ts` | 5 tests | 5 tool cards, format badges, breadcrumb, legal disclaimer |
-| **E2E Total** | **55 tests** | **Full coverage of all 5 discovery workflows + defendant flows + cross-tool + mobile** |
+| E2E: `workspace-discovery.spec.ts` | 2 tests | Sidebar→hub navigation, sub-route rendering, breadcrumb links |
+| E2E: `workspace-discovery-autofill.spec.ts` | 7 tests | CaseContext auto-fill, claims pre-selection, variable resolution, party role inference |
+| E2E: `workspace-discovery-artifacts.spec.ts` | 2 tests | Artifact display with labels/dates, artifact deletion |
+| **E2E Total** | **66 tests** | **Full coverage of all 5 discovery workflows + defendant flows + cross-tool + mobile + workspace integration** |
 
 ---
 
@@ -617,6 +631,8 @@ Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML
 | `/api/cases/{id}/status-stream` | GET | SSE file processing status | — |
 | `/api/cases/{id}/notes` | POST/GET | Notes CRUD | — |
 | `/api/cases/{id}/notes/{nid}` | PATCH/DELETE | Note update/delete | — |
+| `/api/cases/{id}/artifacts` | POST/GET | Case artifacts CRUD | — |
+| `/api/cases/{id}/artifacts/{aid}` | DELETE | Delete artifact | — |
 | `/api/auth/login/google` | GET | Google OAuth redirect | — |
 | `/api/auth/callback/google` | GET | Google OAuth callback | — |
 | `/api/auth/login/microsoft` | GET | Microsoft OAuth redirect | — |
@@ -685,13 +701,14 @@ Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML
 | `test_sentry.py` | — | Error tracking integration |
 | `test_casefile_api.py` | 94 | LITIGAGENT API: case CRUD, file upload, SSE, notes |
 | `test_case_storage.py` | 45 | CaseStorage CRUD, cascade deletes, FK constraints |
+| `test_case_artifacts.py` | 9 | Artifact CRUD, cascade delete, metadata handling |
 | `test_case_models.py` | 27 | Domain models, enums, SQLite schema |
 | `test_casefile_pdf_extractor.py` | 23 | PDF text + OCR extraction |
 | `test_casefile_docx_extractor.py` | 19 | Word document extraction |
 | `test_casefile_text_extractor.py` | 22 | Plain text + encoding detection |
 | `test_casefile_email_extractor.py` | 45 | EML, MSG, MBOX extraction |
 | `test_casefile_fixtures.py` | 11 | Extractor + registry + hashing with realistic case fixtures |
-| E2E (Playwright): 32 spec files | ~219 | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT, auth, sessions, workspace |
+| E2E (Playwright): 35 spec files | ~230 | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT, auth, sessions, workspace |
 
 ---
 
@@ -1031,7 +1048,7 @@ Developer/operator.
 | Slow (ML models) | ~50 | Real BGE embedding, LanceDB operations |
 | Live (external services) | ~100 | Government websites, CourtListener, Claude API |
 | Evaluation | ~50+ | Retrieval metrics, citation accuracy |
-| E2E (Playwright) | ~219 tests / 32 specs | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT, auth, sessions, workspace |
+| E2E (Playwright) | ~230 tests / 35 specs | Discovery flows, PDF/DOCX validation, mobile, cross-tool, LITIGAGENT, auth, sessions, workspace |
 
 ### Running Tests
 
@@ -1068,13 +1085,13 @@ uv run pytest -m ""
 | Documents ingested | ~20,871 |
 | Chunks (all active) | ~24,106 |
 | Content categories | 12 |
-| API endpoints | 40 |
+| API endpoints | 42 |
 | CLI commands | 16 |
 | Assessment tools | 5 |
 | Discovery document types | 6 |
 | Request bank items | 177 role-aware (SROGs + RFPDs + RFAs) |
 | Topic pages (SSG) | 11 |
 | Employment claim types | 19 |
-| Test files | ~120 (102 Python + 18 E2E) |
-| Passing tests | ~3,262 |
+| Test files | ~167 (132 Python + 35 E2E) |
+| Passing tests | ~3,280 |
 | Evaluation questions | 60+ |

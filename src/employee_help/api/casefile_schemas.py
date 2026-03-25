@@ -384,3 +384,26 @@ class ExtractResponse(BaseModel):
     files_processed: int
     factual_summary: str | None = None
     facts: list[CaseFactResponse] = Field(default_factory=list)
+
+
+# ── Artifact schemas (V2.4.6) ────────────────────────────────────
+
+
+class ArtifactResponse(BaseModel):
+    """A single case artifact."""
+
+    id: str
+    case_id: str
+    artifact_type: str
+    tool_source: str
+    summary: str | None = None
+    file_path: str | None = None
+    metadata: dict | None = None
+    created_at: str
+    created_by: str | None = None
+
+
+class ArtifactListResponse(BaseModel):
+    """Response body for GET /api/cases/{case_id}/artifacts."""
+
+    artifacts: list[ArtifactResponse]

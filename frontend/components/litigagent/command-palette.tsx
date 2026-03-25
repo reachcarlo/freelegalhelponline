@@ -22,7 +22,7 @@ const ITEMS: PaletteItem[] = [
   { key: "files", label: "Files", segment: "files" },
   { key: "chat", label: "Chat", segment: "chat" },
   { key: "info", label: "Case Info", segment: "info" },
-  { key: "discovery", label: "Discovery", segment: "discovery", disabled: true },
+  { key: "discovery", label: "Discovery", segment: "discovery" },
   { key: "objections", label: "Objections", segment: "objections", disabled: true },
   { key: "demand", label: "Demand Letter", segment: "demand", disabled: true },
   { key: "timeline", label: "Timeline", segment: "timeline", disabled: true },
@@ -52,11 +52,6 @@ export default function CommandPalette({ caseId }: CommandPaletteProps) {
       return item.label.toLowerCase().includes(q) || item.key.includes(q);
     });
   }, [query, currentSegment]);
-
-  // Clamp active index when filtered list changes
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [filtered.length]);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -157,7 +152,7 @@ export default function CommandPalette({ caseId }: CommandPaletteProps) {
             className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-tertiary outline-none"
             placeholder="Switch to..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setActiveIndex(0); }}
             onKeyDown={onInputKeyDown}
             data-testid="command-palette-input"
           />
