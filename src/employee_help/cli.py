@@ -1223,12 +1223,23 @@ def _refresh_all_sources(
 
     # Auto-embed (--auto-embed)
     if auto_embed and sources_with_changes and not dry_run:
-        print(f"\n--- Auto-embedding {len(sources_with_changes)} changed sources ---")
-        try:
-            _auto_embed_sources(sources_with_changes, configs[0].database_path)
-        except Exception as e:
-            logger.error("auto_embed_failed", error=str(e))
-            print(f"Warning: Auto-embed failed: {e}", file=sys.stderr)
+        if not _rag_deps_available():
+            logger.warning(
+                "auto_embed_skipped",
+                reason="[rag] dependencies not installed (lancedb, sentence-transformers)",
+            )
+            print(
+                "Warning: Skipping auto-embed — [rag] dependencies not installed. "
+                "Install with: uv pip install -e '.[rag]'",
+                file=sys.stderr,
+            )
+        else:
+            print(f"\n--- Auto-embedding {len(sources_with_changes)} changed sources ---")
+            try:
+                _auto_embed_sources(sources_with_changes, configs[0].database_path)
+            except Exception as e:
+                logger.warning("auto_embed_failed", error=str(e))
+                print(f"Warning: Auto-embed failed: {e}", file=sys.stderr)
     elif auto_embed and not sources_with_changes:
         print("\n--- No changes detected; skipping auto-embed ---")
 
@@ -1237,6 +1248,17 @@ def _refresh_all_sources(
         _write_refresh_report_json(all_stats, tier, sources_with_changes, failed_sources)
 
     return 0 if total_errors == 0 else 1
+
+
+def _rag_deps_available() -> bool:
+    """Check whether [rag] optional dependencies are importable."""
+    try:
+        import lancedb  # noqa: F401
+        import sentence_transformers  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
 
 
 def _auto_download_pubinfo() -> None:
