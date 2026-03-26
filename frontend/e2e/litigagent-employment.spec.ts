@@ -216,7 +216,7 @@ async function setupMocks(page: Page) {
 }
 
 async function openCaseInfo(page: Page) {
-  await page.goto("/tools/litigagent/emp-test-case-id");
+  await page.goto("/cases/emp-test-case-id/files");
   await expect(page.getByText("Rivera v. MegaCorp")).toBeVisible();
   await page.getByRole("button", { name: /case info/i }).click();
   const infoPanel = page.getByTestId("case-info-panel");
@@ -323,8 +323,7 @@ test.describe("LITIGAGENT Employment History (V2.2b.3)", () => {
     const infoPanel = await openCaseInfo(page);
 
     // Click "+ Add" on the Employment section
-    const empHeader = infoPanel.locator("div").filter({ hasText: /^Employment/ });
-    await empHeader.getByRole("button", { name: /\+ Add/i }).click();
+    await infoPanel.getByTitle("Add employment fact").click();
 
     const addForm = infoPanel.getByTestId("fact-add-form");
     await expect(addForm).toBeVisible();

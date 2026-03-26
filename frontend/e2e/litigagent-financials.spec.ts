@@ -165,7 +165,7 @@ async function setupMocks(page: Page) {
 }
 
 async function openCaseInfo(page: Page) {
-  await page.goto("/tools/litigagent/fin-test-case-id");
+  await page.goto("/cases/fin-test-case-id/files");
   await expect(page.getByText("Park v. FinanceCo")).toBeVisible();
   await page.getByRole("button", { name: /case info/i }).click();
   const infoPanel = page.getByTestId("case-info-panel");
@@ -252,8 +252,7 @@ test.describe("LITIGAGENT Financials (V2.2b.5)", () => {
     const infoPanel = await openCaseInfo(page);
 
     // Click "+ Add" on the Financials section
-    const finHeader = infoPanel.locator("div").filter({ hasText: /^Financials/ });
-    await finHeader.getByRole("button", { name: /\+ Add/i }).click();
+    await infoPanel.getByTitle("Add financials fact").click();
 
     const addForm = infoPanel.getByTestId("fact-add-form");
     await expect(addForm).toBeVisible();

@@ -12,12 +12,12 @@ function createTempFile(name: string, content: string): string {
 }
 
 async function createCaseAndNavigate(page: Page, name: string): Promise<string> {
-  await page.goto("/tools/litigagent");
+  await page.goto("/cases");
   await page.getByRole("button", { name: /new case/i }).first().click();
   await page.getByLabel(/case name/i).fill(name);
   await page.getByRole("button", { name: /create case/i }).click();
-  await page.waitForURL(/\/tools\/litigagent\/[a-f0-9-]+/);
-  return page.url().split("/").pop()!;
+  await page.waitForURL(/\/cases\/[a-f0-9-]+\/files/);
+  return page.url().match(/\/cases\/([a-f0-9-]+)\//)?.[1] ?? "";
 }
 
 async function uploadFile(page: Page, filePath: string): Promise<void> {

@@ -19,17 +19,15 @@ function createTempFile(name: string, content: string): string {
  * Returns the case ID from the URL.
  */
 async function createCaseAndNavigate(page: Page, name: string): Promise<string> {
-  await page.goto("/tools/litigagent");
+  await page.goto("/cases");
   // Use .first() — header button and empty-state button both match
   await page.getByRole("button", { name: /new case/i }).first().click();
   await page.getByLabel(/case name/i).fill(name);
   await page.getByRole("button", { name: /create case/i }).click();
 
   // Wait for navigation to case detail page
-  await page.waitForURL(/\/tools\/litigagent\/[a-f0-9-]+/);
-  const url = page.url();
-  const caseId = url.split("/").pop()!;
-  return caseId;
+  await page.waitForURL(/\/cases\/[a-f0-9-]+\/files/);
+  return page.url().match(/\/cases\/([a-f0-9-]+)\//)?.[1] ?? "";
 }
 
 test.describe("LITIGAGENT File Upload (L1.10)", () => {

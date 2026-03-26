@@ -226,7 +226,7 @@ test.describe("LITIGAGENT Case Info Panel", () => {
   });
 
   test("Case Info button toggles the info panel open and closed", async ({ page }) => {
-    await page.goto("/tools/litigagent/info-test-case-id");
+    await page.goto("/cases/info-test-case-id/files");
     await expect(page.getByText("Martinez v. Acme Corp")).toBeVisible();
 
     // Case Info panel should not be visible initially
@@ -245,9 +245,9 @@ test.describe("LITIGAGENT Case Info Panel", () => {
     // Three-panel layout should be hidden (file panel gone)
     await expect(page.locator('[aria-label="Case files"]')).not.toBeVisible();
 
-    // Fact count should display
-    await expect(page.getByText(/8 facts/)).toBeVisible();
-    await expect(page.getByText(/3 confirmed/)).toBeVisible();
+    // Fact count should display (from facts API: 4 facts, 1 confirmed)
+    await expect(page.getByText(/4 facts/)).toBeVisible();
+    await expect(page.getByText(/1 of 4 confirmed/)).toBeVisible();
 
     // Click close button to dismiss
     await page.getByTitle("Close case info").click();
@@ -258,7 +258,7 @@ test.describe("LITIGAGENT Case Info Panel", () => {
   });
 
   test("facts display grouped by section with source attribution and confidence", async ({ page }) => {
-    await page.goto("/tools/litigagent/info-test-case-id");
+    await page.goto("/cases/info-test-case-id/files");
     await page.getByRole("button", { name: /case info/i }).click();
 
     const infoPanel = page.getByTestId("case-info-panel");
@@ -271,7 +271,7 @@ test.describe("LITIGAGENT Case Info Panel", () => {
 
     // Fact values should display
     await expect(infoPanel.getByText(/Maria Martinez/)).toBeVisible();
-    await expect(infoPanel.getByText(/Acme Corp/)).toBeVisible();
+    await expect(infoPanel.getByText(/Acme Corp/).first()).toBeVisible();
     await expect(infoPanel.getByText(/Senior Engineer/)).toBeVisible();
 
     // Confidence badges: 95% (high), 88% (medium), 60% (low)
@@ -317,7 +317,7 @@ test.describe("LITIGAGENT Case Info Panel", () => {
       return route.continue();
     });
 
-    await page.goto("/tools/litigagent/info-test-case-id");
+    await page.goto("/cases/info-test-case-id/files");
     await page.getByRole("button", { name: /case info/i }).click();
 
     const infoPanel = page.getByTestId("case-info-panel");

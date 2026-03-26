@@ -193,7 +193,17 @@ export default function WorkspaceShell({
         className="flex items-center justify-between border-b border-border bg-surface px-4 py-2.5"
         data-testid="workspace-header"
       >
-        <Breadcrumb caseId={caseId} caseName={caseInfo?.name ?? ""} />
+        <div className="flex items-center gap-2 min-w-0">
+          <Breadcrumb caseId={caseId} caseName={caseInfo?.name ?? ""} />
+          {caseInfo?.description && (
+            <span
+              className="shrink-0 text-xs text-text-tertiary hidden sm:inline"
+              data-testid="case-description"
+            >
+              {caseInfo.description}
+            </span>
+          )}
+        </div>
 
         {/* Fact count indicator */}
         {context && context.fact_count > 0 && (

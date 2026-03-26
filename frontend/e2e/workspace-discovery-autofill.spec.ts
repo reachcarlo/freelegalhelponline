@@ -252,6 +252,12 @@ test.describe("Discovery Auto-fill from CaseContext (V2.4.2)", () => {
     await expect(page.getByTestId("workspace-shell")).toBeVisible();
     await expect(page.getByText("Special Interrogatories")).toBeVisible();
 
+    // Fill required fields not provided by CaseContext
+    await page.fill("#case_number", "2026-TEST-001");
+    await page.fill("#atty_address", "100 Test St");
+    await page.fill("#atty_csz", "Los Angeles, CA 90001");
+    await page.fill("#atty_phone", "(555) 123-4567");
+
     // Navigate to Step 2 (Claims)
     await page.getByRole("button", { name: "Next" }).click();
 
@@ -278,6 +284,12 @@ test.describe("Discovery Auto-fill from CaseContext (V2.4.2)", () => {
     await page.goto(`/cases/${CASE_ID}/discovery/srogs`);
     await expect(page.getByTestId("workspace-shell")).toBeVisible();
 
+    // Fill required fields not provided by CaseContext
+    await page.fill("#case_number", "2026-TEST-001");
+    await page.fill("#atty_address", "100 Test St");
+    await page.fill("#atty_csz", "Los Angeles, CA 90001");
+    await page.fill("#atty_phone", "(555) 123-4567");
+
     // Navigate to Step 2 (Claims)
     await page.getByRole("button", { name: "Next" }).click();
 
@@ -290,6 +302,12 @@ test.describe("Discovery Auto-fill from CaseContext (V2.4.2)", () => {
   }) => {
     await page.goto(`/cases/${CASE_ID}/discovery/srogs`);
     await expect(page.getByTestId("workspace-shell")).toBeVisible();
+
+    // Fill required fields not provided by CaseContext
+    await page.fill("#case_number", "2026-TEST-001");
+    await page.fill("#atty_address", "100 Test St");
+    await page.fill("#atty_csz", "Los Angeles, CA 90001");
+    await page.fill("#atty_phone", "(555) 123-4567");
 
     // Navigate to Step 2 (Claims) then Step 3 (Requests)
     await page.getByRole("button", { name: "Next" }).click();

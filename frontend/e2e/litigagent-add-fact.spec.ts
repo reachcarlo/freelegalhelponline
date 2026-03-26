@@ -137,7 +137,7 @@ async function setupMocks(page: Page) {
 }
 
 async function openCaseInfo(page: Page) {
-  await page.goto("/tools/litigagent/add-test-case-id");
+  await page.goto("/cases/add-test-case-id/files");
   await expect(page.getByText("Lee v. TechCo")).toBeVisible();
   await page.getByRole("button", { name: /case info/i }).click();
   const infoPanel = page.getByTestId("case-info-panel");
@@ -160,9 +160,7 @@ test.describe("LITIGAGENT Add New Facts (V2.2b.2)", () => {
     await expect(addButtons.first()).toBeVisible();
 
     // Click "+ Add" on the Key Dates section
-    const datesHeader = infoPanel.locator("div").filter({ hasText: /Key Dates/i });
-    const addDateButton = datesHeader.getByRole("button", { name: /\+ Add/i });
-    await addDateButton.click();
+    await infoPanel.getByTitle("Add key dates fact").click();
 
     // Add form should appear
     const addForm = infoPanel.getByTestId("fact-add-form");
@@ -218,8 +216,7 @@ test.describe("LITIGAGENT Add New Facts (V2.2b.2)", () => {
     const infoPanel = await openCaseInfo(page);
 
     // Click "+ Add" on the Key Dates section
-    const datesHeader = infoPanel.locator("div").filter({ hasText: /Key Dates/i });
-    await datesHeader.getByRole("button", { name: /\+ Add/i }).click();
+    await infoPanel.getByTitle("Add key dates fact").click();
 
     const addForm = infoPanel.getByTestId("fact-add-form");
     await expect(addForm).toBeVisible();
@@ -284,8 +281,7 @@ test.describe("LITIGAGENT Add New Facts (V2.2b.2)", () => {
     const infoPanel = await openCaseInfo(page);
 
     // Click "+ Add" on the Parties section
-    const partiesHeader = infoPanel.locator("div").filter({ hasText: /^Parties/ });
-    await partiesHeader.getByRole("button", { name: /\+ Add/i }).click();
+    await infoPanel.getByTitle("Add parties fact").click();
 
     const addForm = infoPanel.getByTestId("fact-add-form");
     await expect(addForm).toBeVisible();
