@@ -221,6 +221,7 @@ export interface GenerateOptions {
   include_waiver_language?: boolean;
   ground_ids?: string[];
   model?: string;
+  case_id?: string;
 }
 
 export async function generateObjections(

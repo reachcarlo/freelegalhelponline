@@ -36,6 +36,37 @@ def _audit_log(action: str, request, **kwargs) -> None:
     except Exception:
         logger.warning("audit_log_failed", action=action, exc_info=True)
 
+def _save_objection_artifact(
+    *,
+    case_id: str,
+    request_count: int,
+    total_objections: int,
+    http_request: Request,
+) -> None:
+    """Best-effort save of an objection generation as a case artifact."""
+    try:
+        from employee_help.api.deps import get_case_storage
+        from employee_help.storage.models import ArtifactType, CaseArtifact
+
+        storage = get_case_storage()
+        user = getattr(http_request.state, "user", None)
+        artifact = CaseArtifact(
+            case_id=case_id,
+            artifact_type=ArtifactType.DISCOVERY,
+            tool_source="objection_drafter",
+            summary=f"Objections generated ({request_count} requests, {total_objections} objections)",
+            metadata={
+                "request_count": request_count,
+                "total_objections": total_objections,
+            },
+            created_by=user.sub if user else None,
+        )
+        storage.create_artifact(artifact)
+        logger.info("objection_artifact_saved", case_id=case_id, artifact_id=artifact.id)
+    except Exception:
+        logger.warning("objection_artifact_save_failed", case_id=case_id, exc_info=True)
+
+
 # ---------------------------------------------------------------------------
 # Pydantic schemas
 # ---------------------------------------------------------------------------
@@ -144,6 +175,7 @@ class GenerateRequest(BaseModel):
     include_waiver_language: bool = False
     ground_ids: list[str] | None = None
     model: str | None = None
+    case_id: str | None = Field(default=None, description="Case ID to save result as artifact")
 
 
 class GeneratedObjectionInfo(BaseModel):
@@ -386,6 +418,15 @@ async def generate_objections(body: GenerateRequest, http_request: Request):
         resource_type="objection",
         metadata={"request_count": len(requests)},
     )
+
+    # Save artifact to case when case_id is provided (V2.5.4)
+    if body.case_id:
+        _save_objection_artifact(
+            case_id=body.case_id,
+            request_count=len(requests),
+            total_objections=sum(len(r.objections) for r in result_items),
+            http_request=http_request,
+        )
 
     return GenerateResponse(
         results=result_items,

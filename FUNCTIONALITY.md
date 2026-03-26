@@ -1,6 +1,6 @@
 # Employee Help — Functionality Inventory
 
-> **Last updated**: 2026-03-08
+> **Last updated**: 2026-03-25
 > **Platform**: AI-powered California employment rights legal guidance
 > **Tech stack**: Python 3.12 / FastAPI / Next.js 16 / SQLite / LanceDB / Claude API
 
@@ -577,6 +577,19 @@ Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML
 - **Command palette**: `Cmd+K`/`Ctrl+K` opens quick-switch modal with search filter and keyboard navigation
 - **Legacy redirects**: `/tools/litigagent` → `/cases`, `/tools/litigagent/[id]` → `/cases/[id]/files`
 
+**Chat (Full Workspace, V2.6)**:
+- **Full-canvas chat** (`/cases/[caseId]/chat`): `ChatPanel` renders inline within workspace shell at full canvas width (replaces 450px drawer overlay). SSE streaming with typing indicators, session history, stop/new-conversation buttons
+- **CaseContext in system prompt**: `casefile_system.j2` injects parties, claims, key dates, employment history, court info, attorneys, and financials from extracted facts
+- **CaseArtifact awareness**: System prompt lists prior work products ("Prior Work Products" section) with summaries and dates, instructing the LLM to reference existing work and avoid regeneration
+- **Context-aware suggestions**: `computeSuggestions(files, caseContext?)` generates claim-specific questions (active claims → evidence questions, multiple claims → prioritization), timeline questions (employment history), and deadline questions (key dates)
+- **Chat-to-file navigation**: Case file source badges are clickable buttons that set workspace `files` tool state and navigate to `/cases/[caseId]/files` with the file pre-selected
+
+**Objection Integration (V2.5)**:
+- **Workspace objections route** (`/cases/[caseId]/objections`): Renders `ObjectionDrafter` inside workspace shell with `ObjectionDrafterProvider`
+- **CaseContext party role inference**: `inferPartyRole()` maps CaseContext parties to objection drafter `partyRole` state
+- **Discovery request detection**: Scans case facts for `fact_type="discovery_request"`, shows "Draft objections to [filename]?" banner with file text pre-population
+- **Artifact tracking**: Objection results saved as `CaseArtifact` with request/objection counts
+
 **Three-Panel Layout** (`/cases/[caseId]` default view, also `/tools/litigagent/[caseId]`):
 - **Panel 1 (Files, 280px)**: Drag-and-drop file upload with full-panel drop zone overlay, click-to-browse fallback, file list with type badges and status indicators (processing/ready/error/OCR warning), inline delete on hover
 - **Panel 2 (Text, fluid)**: Extracted text display with sticky file section headers (type badge, filename, page count, OCR confidence, status badge), lazy-loaded text via `getFile()` API, auto-fetches on SSE "ready" transition, scroll-to-file on Panel 1 selection, retry on fetch error (read-only in L1, editable in L2)
@@ -702,6 +715,7 @@ Attorney-facing case file management tool. Upload case documents (PDF, DOCX, EML
 | `test_casefile_api.py` | 94 | LITIGAGENT API: case CRUD, file upload, SSE, notes |
 | `test_case_storage.py` | 45 | CaseStorage CRUD, cascade deletes, FK constraints |
 | `test_case_artifacts.py` | 9 | Artifact CRUD, cascade delete, metadata handling |
+| `test_case_chat_context_integration.py` | 8 | CaseContext + CaseArtifact injection into chat system prompt |
 | `test_case_models.py` | 27 | Domain models, enums, SQLite schema |
 | `test_casefile_pdf_extractor.py` | 23 | PDF text + OCR extraction |
 | `test_casefile_docx_extractor.py` | 19 | Word document extraction |

@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  CaseContextInfo,
   CaseFileInfo,
   ChatDoneMetadata,
   ChatSessionInfo,
@@ -10,6 +12,7 @@ import {
   ChatTurnItem,
   chatWithCase,
   deleteChatSession,
+  getCaseContext,
   getChatHistory,
   listChatSessions,
   listFiles,
@@ -39,11 +42,14 @@ interface ChatPanelProps {
  * flex-column panel instead of a fixed-position overlay.
  */
 export default function ChatPanel({ caseId }: ChatPanelProps) {
+  const router = useRouter();
   const [getChatState, setChatState] = useToolStateOptional<ChatToolState>("chat");
+  const [, setFilesState] = useToolStateOptional<{ selectedFileId?: string | null }>("files");
 
   // Restore persisted state from workspace context on mount
   const restored = getChatState();
   const [files, setFiles] = useState<CaseFileInfo[]>([]);
+  const [caseContext, setCaseContext] = useState<CaseContextInfo | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(restored.messages ?? []);
   const [sessionId, setSessionId] = useState<string | null>(restored.sessionId ?? null);
   const [input, setInput] = useState(restored.input ?? "");
@@ -60,7 +66,10 @@ export default function ChatPanel({ caseId }: ChatPanelProps) {
     Record<string, string>
   >({});
 
-  const suggestions = useMemo(() => computeSuggestions(files), [files]);
+  const suggestions = useMemo(
+    () => computeSuggestions(files, caseContext),
+    [files, caseContext],
+  );
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -71,10 +80,13 @@ export default function ChatPanel({ caseId }: ChatPanelProps) {
     setChatState({ messages, sessionId, input });
   }, [messages, sessionId, input, setChatState]);
 
-  // Load files for suggestions context
+  // Load files and case context for suggestions (V2.6.4)
   useEffect(() => {
     listFiles(caseId)
       .then(setFiles)
+      .catch(() => {});
+    getCaseContext(caseId)
+      .then(setCaseContext)
       .catch(() => {});
   }, [caseId]);
 
@@ -323,6 +335,15 @@ export default function ChatPanel({ caseId }: ChatPanelProps) {
     }
   };
 
+  // Navigate to Files view with the clicked file pre-selected (V2.6.3)
+  const handleNavigateToFile = useCallback(
+    (fileId: string) => {
+      setFilesState({ selectedFileId: fileId });
+      router.push(`/cases/${caseId}/files`);
+    },
+    [caseId, router, setFilesState]
+  );
+
   return (
     <div
       className="flex h-full flex-col bg-surface"
@@ -539,10 +560,16 @@ export default function ChatPanel({ caseId }: ChatPanelProps) {
                     {(msg.caseSources?.length || msg.kbSources?.length) && (
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {msg.caseSources?.map((s, j) => (
-                          <span
+                          <button
                             key={`cs-${j}`}
-                            className="inline-flex items-center gap-1 rounded-full bg-accent/8 px-2 py-0.5 text-[11px] text-accent"
-                            title={s.title}
+                            className="inline-flex items-center gap-1 rounded-full bg-accent/8 px-2 py-0.5 text-[11px] text-accent transition-colors hover:bg-accent/20 cursor-pointer"
+                            title={`Go to ${s.title}`}
+                            data-testid={`citation-link-${s.file_id || j}`}
+                            onClick={() => {
+                              if (s.file_id) {
+                                handleNavigateToFile(s.file_id);
+                              }
+                            }}
                           >
                             <svg
                               className="h-3 w-3"
@@ -558,7 +585,7 @@ export default function ChatPanel({ caseId }: ChatPanelProps) {
                               />
                             </svg>
                             {s.title}
-                          </span>
+                          </button>
                         ))}
                         {msg.kbSources?.map((s, j) => (
                           <span

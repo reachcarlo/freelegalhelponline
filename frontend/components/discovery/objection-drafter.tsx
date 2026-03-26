@@ -29,7 +29,7 @@ const STEPS = [
 ];
 
 export default function ObjectionDrafter() {
-  const { state, dispatch, nextStep, prevStep, setStep, selectedCount } =
+  const { state, dispatch, nextStep, prevStep, setStep, selectedCount, caseId } =
     useObjectionDrafter();
 
   // ── Parse handler ────────────────────────────────────────────────
@@ -90,6 +90,7 @@ export default function ObjectionDrafter() {
         include_request_text:
           state.contentScope === "request_and_objections",
         include_waiver_language: state.includeWaiverLanguage,
+        case_id: caseId,
       });
       dispatch({ type: "GENERATE_SUCCESS", response });
     } catch (err) {
@@ -108,6 +109,7 @@ export default function ObjectionDrafter() {
     state.contentScope,
     state.includeWaiverLanguage,
     dispatch,
+    caseId,
   ]);
 
   // ── Navigation guards ────────────────────────────────────────────

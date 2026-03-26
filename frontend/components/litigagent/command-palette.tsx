@@ -23,7 +23,7 @@ const ITEMS: PaletteItem[] = [
   { key: "chat", label: "Chat", segment: "chat" },
   { key: "info", label: "Case Info", segment: "info" },
   { key: "discovery", label: "Discovery", segment: "discovery" },
-  { key: "objections", label: "Objections", segment: "objections", disabled: true },
+  { key: "objections", label: "Objections", segment: "objections" },
   { key: "demand", label: "Demand Letter", segment: "demand", disabled: true },
   { key: "timeline", label: "Timeline", segment: "timeline", disabled: true },
   { key: "analysis", label: "Analysis", segment: "analysis", disabled: true },

@@ -208,17 +208,37 @@ class CaseChatService:
 
         return blocks, context_order
 
+    def get_case_artifacts(self, case_id: str) -> list[dict[str, Any]]:
+        """Fetch artifacts for a case, formatted for the system prompt."""
+        try:
+            artifacts = self.case_storage.list_artifacts(case_id)
+        except Exception:
+            self.logger.warning("artifact_fetch_failed", case_id=case_id, exc_info=True)
+            return []
+        result = []
+        for a in artifacts:
+            result.append({
+                "artifact_type": a.artifact_type.value if hasattr(a.artifact_type, "value") else str(a.artifact_type),
+                "tool_source": a.tool_source,
+                "summary": a.summary or "",
+                "created_at": a.created_at.strftime("%Y-%m-%d") if a.created_at else "",
+            })
+        return result
+
     def build_case_system_prompt(
         self,
         case_notes: list[dict[str, Any]],
         case_context: CaseContext | None = None,
+        case_artifacts: list[dict[str, Any]] | None = None,
     ) -> str:
         """Build the system prompt for case chat.
 
         Uses the casefile_system.j2 template if available,
         otherwise falls back to an inline prompt.  When *case_context*
         is provided, party names, claims, dates and other extracted
-        metadata are injected into the template.
+        metadata are injected into the template.  When *case_artifacts*
+        is provided, prior work products are listed so the LLM is aware
+        of what has already been generated.
         """
         try:
             template_text = self.prompt_builder._load_template(
@@ -228,6 +248,7 @@ class CaseChatService:
                 template_text,
                 case_notes=case_notes,
                 case_context=case_context,
+                case_artifacts=case_artifacts or [],
             )
         except FileNotFoundError:
             return self._fallback_system_prompt(case_notes)
@@ -317,9 +338,10 @@ class CaseChatService:
             empty_kb: list[RR] = []
             return empty_stream(), [], empty_kb, []
 
-        # 2. Get case notes and case context
+        # 2. Get case notes, case context, and artifacts
         case_notes = self.get_case_notes(case_id)
         case_context = self._build_case_context(case_id)
+        case_artifacts = self.get_case_artifacts(case_id)
 
         # 3. Obfuscation (if engine available)
         obf_ctx = None
@@ -335,9 +357,9 @@ class CaseChatService:
             obf_case_results = case_results
             obf_case_notes = case_notes
 
-        # 4. Build system prompt (with obfuscated notes + case context)
+        # 4. Build system prompt (with obfuscated notes + case context + artifacts)
         system_prompt = self.build_case_system_prompt(
-            obf_case_notes, case_context=case_context
+            obf_case_notes, case_context=case_context, case_artifacts=case_artifacts
         )
 
         # 5. Build document blocks (KB blocks pass through unmodified)
@@ -423,9 +445,10 @@ class CaseChatService:
             empty_kb: list[RR] = []
             return empty_stream(), [], empty_kb, []
 
-        # 2. Get case notes and case context
+        # 2. Get case notes, case context, and artifacts
         case_notes = self.get_case_notes(case_id)
         case_context = self._build_case_context(case_id)
+        case_artifacts = self.get_case_artifacts(case_id)
 
         # 3. Obfuscation (if engine available)
         obf_ctx = None
@@ -460,7 +483,7 @@ class CaseChatService:
 
         # 4. Build context
         system_prompt = self.build_case_system_prompt(
-            obf_case_notes, case_context=case_context
+            obf_case_notes, case_context=case_context, case_artifacts=case_artifacts
         )
         document_blocks, _context_order = self.build_case_document_blocks(
             obf_case_results, kb_results,

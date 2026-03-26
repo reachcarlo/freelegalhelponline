@@ -4,8 +4,10 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
+  useRef,
   type ReactNode,
 } from "react";
 import type {
@@ -19,6 +21,8 @@ import type {
   SkippedSectionInfo,
   Verbosity,
 } from "./objection-api";
+import type { CaseContextInfo } from "./litigagent-api";
+import { inferPartyRole } from "./discovery-context";
 
 // ── State ────────────────────────────────────────────────────────────
 
@@ -328,14 +332,37 @@ interface ObjectionDrafterContextValue {
   nextStep: () => void;
   prevStep: () => void;
   setStep: (step: number) => void;
+  /** Case ID when running inside workspace (V2.5.4) */
+  caseId?: string;
 }
 
 const ObjectionDrafterContext = createContext<ObjectionDrafterContextValue | null>(
   null
 );
 
-export function ObjectionDrafterProvider({ children }: { children: ReactNode }) {
+export function ObjectionDrafterProvider({
+  children,
+  caseContext,
+  userEmail,
+  caseId,
+}: {
+  children: ReactNode;
+  caseContext?: CaseContextInfo;
+  userEmail?: string;
+  caseId?: string;
+}) {
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  // When CaseContext arrives (async), infer party role and update state once.
+  const appliedRef = useRef(false);
+  useEffect(() => {
+    if (appliedRef.current || !caseContext) return;
+    const role = inferPartyRole(caseContext, userEmail);
+    if (role) {
+      appliedRef.current = true;
+      dispatch({ type: "SET_PARTY_ROLE", partyRole: role });
+    }
+  }, [caseContext, userEmail]);
 
   const selectedCount = useMemo(
     () => state.selectedRequestIds.size,
@@ -358,8 +385,8 @@ export function ObjectionDrafterProvider({ children }: { children: ReactNode }) 
   );
 
   const value = useMemo(
-    () => ({ state, dispatch, selectedCount, nextStep, prevStep, setStep }),
-    [state, dispatch, selectedCount, nextStep, prevStep, setStep]
+    () => ({ state, dispatch, selectedCount, nextStep, prevStep, setStep, caseId }),
+    [state, dispatch, selectedCount, nextStep, prevStep, setStep, caseId]
   );
 
   return (

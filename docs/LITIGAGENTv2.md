@@ -1213,6 +1213,8 @@ Week  LITIGAGENTv2                   PRIVACY.md
 
 **V2.5 total: ~1.5 days, 7 tests**
 
+> **V2.5 STATUS: COMPLETE** (2026-03-25) — 7 tests passing across 5 gates (V2.5.1–V2.5.5). **V2.5.1**: Workspace objections route — `/cases/[caseId]/objections` renders `ObjectionDrafter` inside workspace shell with `ObjectionDrafterProvider`. 1 E2E test. **V2.5.2**: CaseContext party role inference — `ObjectionDrafterProvider` accepts `caseContext` prop, `inferPartyRole()` maps CaseContext parties to objection drafter `partyRole` state. 2 unit tests. **V2.5.3**: Discovery request detection banner — `DiscoveryRequestDetector` scans `listFacts()` for `fact_type="discovery_request"`, shows "Draft objections to [filename]?" buttons, loads file text via `getFile()` and dispatches `SET_RAW_TEXT`. 2 E2E tests. **V2.5.4**: Artifact tracking — `_save_objection_artifact()` in `objection_routes.py` creates `CaseArtifact` with request/objection counts on generate. 2 API tests. **V2.5.5**: Standalone compatibility — verified existing objection drafter E2E tests pass unchanged. Key files: `frontend/app/cases/[caseId]/objections/page.tsx`, `frontend/lib/objection-context.tsx`, `src/employee_help/api/objection_routes.py`.
+
 ---
 
 ### Phase V2.6 — Chat Elevation
@@ -1230,6 +1232,8 @@ Week  LITIGAGENTv2                   PRIVACY.md
 **Gate check V2.6**: Chat renders full-width in workspace. System prompt references extracted context and artifacts. Suggested questions are context-aware. Source badges navigate to files. 8 E2E + integration tests passing.
 
 **V2.6 total: ~1.7 days, 8 tests**
+
+> **V2.6 STATUS: COMPLETE** (2026-03-25) — 8 tests passing across 5 gates (V2.6.1–V2.6.5). **V2.6.1**: Full-canvas chat — `/cases/[caseId]/chat` renders `ChatPanel` inline within workspace shell (not 450px fixed drawer). Verified not fixed-positioned, width >600px, sidebar active state. 2 E2E tests (`workspace-chat.spec.ts`). **V2.6.2**: CaseContext + CaseArtifact in system prompt — `get_case_artifacts()` method on `CaseChatService` fetches artifacts from `CaseStorage`. `build_case_system_prompt()` accepts `case_artifacts` param. `casefile_system.j2` gains conditional `{% if case_artifacts %}` "Prior Work Products" section listing summaries with dates and instruction to reference existing work. Both `generate_stream()` and `generate_stream_multiturn()` fetch and pass artifacts. 3 integration tests (`test_case_chat_context_integration.py`). **V2.6.3**: Chat-to-file navigation — case file source badges changed from `<span>` to `<button>` with `handleNavigateToFile()` callback. Sets `files` tool state `selectedFileId` via workspace context and navigates to `/cases/${caseId}/files` via `router.push()`. 1 E2E test. **V2.6.4**: Context-aware suggestions — `computeSuggestions(files, caseContext?)` extended with optional `CaseContextInfo`. Active claims → claim-specific questions; multiple claims → prioritization suggestion; employment history → timeline question; key dates → deadline/SOL question. `ChatPanel` fetches `getCaseContext()` on mount. 2 E2E tests. **V2.6.5**: Command palette "Chat" — already registered in `command-palette.tsx` (covered by V2.3b.7). Key files: `frontend/components/litigagent/chat-panel.tsx`, `frontend/components/litigagent/chat-drawer.tsx`, `src/employee_help/casefile/chat.py`, `config/prompts/casefile_system.j2`, `frontend/e2e/workspace-chat.spec.ts`.
 
 ---
 

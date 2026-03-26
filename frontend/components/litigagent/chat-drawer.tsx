@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  CaseContextInfo,
   CaseFileInfo,
   ChatDoneMetadata,
   ChatSessionInfo,
@@ -37,41 +38,90 @@ const EMPTY_SUGGESTIONS = [
 ];
 
 /**
- * Generate contextual suggested questions based on case file metadata.
- * Analyzes filenames and file types to propose relevant analysis questions.
+ * Generate contextual suggested questions based on case file metadata
+ * and CaseContext (claims, employment history, key dates).
+ *
+ * Priority: CaseContext-derived suggestions first (V2.6.4), then
+ * file-based suggestions, then general fallbacks. Max 4 suggestions.
  */
-export function computeSuggestions(files: CaseFileInfo[]): string[] {
-  if (files.length === 0) return EMPTY_SUGGESTIONS;
+export function computeSuggestions(
+  files: CaseFileInfo[],
+  caseContext?: CaseContextInfo | null,
+): string[] {
+  if (files.length === 0 && !caseContext) return EMPTY_SUGGESTIONS;
 
   const suggestions: string[] = [];
-  const lowerNames = files.map((f) => f.original_filename.toLowerCase());
-  const types = new Set(files.map((f) => f.file_type));
 
-  // Detect document categories from filenames
-  if (lowerNames.some((n) => n.includes("complaint")))
-    suggestions.push("Analyze the complaint and identify all causes of action");
-  if (lowerNames.some((n) => n.includes("answer") && !n.includes("unanswered")))
-    suggestions.push("What affirmative defenses are raised in the answer?");
-  if (lowerNames.some((n) => n.includes("contract") || n.includes("agreement") || n.includes("offer letter")))
-    suggestions.push("What key terms and restrictions are in the employment agreement?");
-  if (lowerNames.some((n) => n.includes("pay") || n.includes("stub") || n.includes("wage") || n.includes("w-2") || n.includes("w2")))
-    suggestions.push("Analyze the pay records for wage and hour violations");
-  if (lowerNames.some((n) => n.includes("terminat") || n.includes("separation") || n.includes("discharge")))
-    suggestions.push("What grounds are stated for the termination and do they hold up legally?");
-  if (lowerNames.some((n) => n.includes("policy") || n.includes("handbook") || n.includes("manual")))
-    suggestions.push("Do any company policies conflict with California employment law?");
-  if (lowerNames.some((n) => n.includes("performance") || n.includes("evaluation") || n.includes("write-up") || n.includes("writeup")))
-    suggestions.push("Summarize the performance evaluations and identify any pretextual patterns");
-  if (lowerNames.some((n) => n.includes("interrogator") || n.includes("request for") || n.includes("deposition") || n.includes("discovery")))
-    suggestions.push("Review the discovery documents and identify key admissions");
+  // ── V2.6.4: CaseContext-aware suggestions ──────────────────────
+  if (caseContext) {
+    // Claim-specific suggestions
+    const activeClaims = (caseContext.claims || []).filter(
+      (c) => c.status === "active",
+    );
+    if (activeClaims.length > 0) {
+      const claimLabel = activeClaims[0].claim_type
+        .replace(/_/g, " ");
+      suggestions.push(
+        `What evidence supports the ${claimLabel} claim?`,
+      );
+      if (activeClaims.length > 1) {
+        suggestions.push(
+          `Compare the strength of the ${activeClaims.length} active claims and recommend which to prioritize`,
+        );
+      }
+    }
 
-  // Add file-type-based suggestions
-  if ((types.has("eml") || types.has("msg") || types.has("mbox")) && suggestions.length < 4)
-    suggestions.push("Summarize key email communications and identify important admissions");
-  if ((types.has("xlsx") || types.has("xls") || types.has("csv")) && suggestions.length < 4)
-    suggestions.push("Analyze the spreadsheet data for patterns or discrepancies");
+    // Employment history → timeline suggestions
+    if ((caseContext.employment_history || []).length > 0) {
+      suggestions.push(
+        "Build a timeline of key employment events from the case files",
+      );
+    }
 
-  // Fill remaining slots with general case analysis questions
+    // Key dates suggestions
+    if ((caseContext.key_dates || []).length > 0) {
+      suggestions.push(
+        "Are there any approaching deadlines or statute of limitations issues?",
+      );
+    }
+  }
+
+  // ── File-based suggestions ─────────────────────────────────────
+  if (suggestions.length < 4 && files.length > 0) {
+    const lowerNames = files.map((f) => f.original_filename.toLowerCase());
+    const types = new Set(files.map((f) => f.file_type));
+
+    const fileSuggestions: string[] = [];
+
+    if (lowerNames.some((n) => n.includes("complaint")))
+      fileSuggestions.push("Analyze the complaint and identify all causes of action");
+    if (lowerNames.some((n) => n.includes("answer") && !n.includes("unanswered")))
+      fileSuggestions.push("What affirmative defenses are raised in the answer?");
+    if (lowerNames.some((n) => n.includes("contract") || n.includes("agreement") || n.includes("offer letter")))
+      fileSuggestions.push("What key terms and restrictions are in the employment agreement?");
+    if (lowerNames.some((n) => n.includes("pay") || n.includes("stub") || n.includes("wage") || n.includes("w-2") || n.includes("w2")))
+      fileSuggestions.push("Analyze the pay records for wage and hour violations");
+    if (lowerNames.some((n) => n.includes("terminat") || n.includes("separation") || n.includes("discharge")))
+      fileSuggestions.push("What grounds are stated for the termination and do they hold up legally?");
+    if (lowerNames.some((n) => n.includes("policy") || n.includes("handbook") || n.includes("manual")))
+      fileSuggestions.push("Do any company policies conflict with California employment law?");
+    if (lowerNames.some((n) => n.includes("performance") || n.includes("evaluation") || n.includes("write-up") || n.includes("writeup")))
+      fileSuggestions.push("Summarize the performance evaluations and identify any pretextual patterns");
+    if (lowerNames.some((n) => n.includes("interrogator") || n.includes("request for") || n.includes("deposition") || n.includes("discovery")))
+      fileSuggestions.push("Review the discovery documents and identify key admissions");
+
+    if ((types.has("eml") || types.has("msg") || types.has("mbox")) && fileSuggestions.length < 4)
+      fileSuggestions.push("Summarize key email communications and identify important admissions");
+    if ((types.has("xlsx") || types.has("xls") || types.has("csv")) && fileSuggestions.length < 4)
+      fileSuggestions.push("Analyze the spreadsheet data for patterns or discrepancies");
+
+    for (const q of fileSuggestions) {
+      if (suggestions.length >= 4) break;
+      suggestions.push(q);
+    }
+  }
+
+  // ── General fallbacks ──────────────────────────────────────────
   const general = [
     "Create a timeline of key events from these documents",
     "What potential employment law claims do these documents support?",

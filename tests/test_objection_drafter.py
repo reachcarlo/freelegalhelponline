@@ -1184,6 +1184,87 @@ class TestPostureAPI:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Artifact Saving Tests (V2.5.4)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestObjectionArtifact:
+    """Test that objection results are saved as CaseArtifact when case_id is provided."""
+
+    @pytest.fixture
+    def client(self):
+        from fastapi.testclient import TestClient
+        from employee_help.api.objection_routes import objection_router
+        from fastapi import FastAPI
+
+        app = FastAPI()
+        app.include_router(objection_router)
+        return TestClient(app)
+
+    def test_generate_with_case_id_saves_artifact(self, client):
+        """POST /generate with case_id should save a CaseArtifact."""
+        with (
+            patch("employee_help.api.objection_routes._get_analyzer") as mock_get,
+            patch("employee_help.api.objection_routes._save_objection_artifact") as mock_save,
+        ):
+            from employee_help.discovery.objections.models import BatchAnalysisResult
+
+            mock_analyzer = MagicMock()
+            mock_analyzer.analyze_batch.return_value = BatchAnalysisResult(results=[])
+            mock_get.return_value = mock_analyzer
+
+            response = client.post(
+                "/api/objections/generate",
+                json={
+                    "requests": [
+                        {
+                            "request_number": 1,
+                            "request_text": "State all facts.",
+                            "discovery_type": "interrogatories",
+                        }
+                    ],
+                    "case_id": "test-case-123",
+                },
+            )
+            assert response.status_code == 200
+
+            # Verify artifact save was called with correct params
+            mock_save.assert_called_once()
+            call_kwargs = mock_save.call_args.kwargs
+            assert call_kwargs["case_id"] == "test-case-123"
+            assert call_kwargs["request_count"] == 1
+            assert call_kwargs["total_objections"] == 0
+
+    def test_generate_without_case_id_skips_artifact(self, client):
+        """POST /generate without case_id should NOT save a CaseArtifact."""
+        with (
+            patch("employee_help.api.objection_routes._get_analyzer") as mock_get,
+            patch("employee_help.api.objection_routes._save_objection_artifact") as mock_save,
+        ):
+            from employee_help.discovery.objections.models import BatchAnalysisResult
+
+            mock_analyzer = MagicMock()
+            mock_analyzer.analyze_batch.return_value = BatchAnalysisResult(results=[])
+            mock_get.return_value = mock_analyzer
+
+            response = client.post(
+                "/api/objections/generate",
+                json={
+                    "requests": [
+                        {
+                            "request_number": 1,
+                            "request_text": "State all facts.",
+                            "discovery_type": "interrogatories",
+                        }
+                    ],
+                    # no case_id
+                },
+            )
+            assert response.status_code == 200
+            mock_save.assert_not_called()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Document Reader Tests (Phase O.2B)
 # ═══════════════════════════════════════════════════════════════════════════
 
