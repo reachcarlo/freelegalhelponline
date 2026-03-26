@@ -171,7 +171,7 @@ test.describe("Middleware Redirect", () => {
     );
   });
 
-  test("allows authenticated user to access /tools/litigagent", async ({
+  test("allows authenticated user to access /cases", async ({
     page,
   }) => {
     await loginAs(page);
@@ -188,10 +188,10 @@ test.describe("Middleware Redirect", () => {
       return route.continue();
     });
 
-    await page.goto("/tools/litigagent");
+    await page.goto("/cases");
 
     // Should NOT be redirected to login
-    await expect(page).toHaveURL(/\/tools\/litigagent/);
+    await expect(page).toHaveURL(/\/cases/);
   });
 });
 
@@ -305,7 +305,7 @@ test.describe("Gate A1.5", () => {
     );
 
     // 1. Visit protected page → redirected to login with redirect param
-    await page.goto("/tools/litigagent");
+    await page.goto("/cases");
     await expect(page).toHaveURL(/\/login\?redirect=/);
 
     // 2. Login page shows OAuth buttons
@@ -348,8 +348,8 @@ test.describe("Gate A1.5", () => {
     });
 
     // Navigate to protected page (simulating post-OAuth redirect)
-    await page.goto("/tools/litigagent");
-    await expect(page).toHaveURL(/\/tools\/litigagent/);
+    await page.goto("/cases");
+    await expect(page).toHaveURL(/\/cases/);
 
     // 4. User menu shows name/avatar
     const menuButton = page.getByRole("button", { name: "User menu" });

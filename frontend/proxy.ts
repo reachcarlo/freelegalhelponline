@@ -21,6 +21,8 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/cases",
+    "/cases/:path*",
     "/tools/litigagent",
     "/tools/litigagent/:path*",
     "/tools/discovery",

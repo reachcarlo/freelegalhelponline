@@ -194,6 +194,8 @@ jobs:
         run: uv run uvicorn employee_help.api.main:app --port 8000 &
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ALLOW_E2E_AUTH: "true"
+          AUTH_JWT_SECRET: "e2e-ci-test-secret-key-min-32-bytes!"
 
       - name: Start frontend
         working-directory: frontend
